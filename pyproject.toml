@@ -175,7 +175,10 @@ exclude_lines = [
 dialect = "sqlite"
 templater = "raw"
 max_line_length = 100
-exclude_rules = ["L034"]  # select-ordering is noisy for migrations
+exclude_rules = [
+  "L034",  # select-ordering is noisy for migrations
+  "RF04",  # `date` is a legitimate column name on fx_rates (per T-011 plan)
+]
 
 [tool.sqlfluff.rules]
 capitalisation.keywords = "upper"

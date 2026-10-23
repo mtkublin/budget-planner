@@ -68,7 +68,7 @@ Legend:
 - **Decision**: hand-rolled numbered `.sql` files in `migrations/`; runner in `src/budget_planner/db/migrate.py`.
 - `just migrate` applies all pending migrations.
 
-### T-011 [S] Core schema migration → T-010
+### ✅ T-011 [S] Core schema migration → T-010
 
 Tables:
 - `users(id, name, created_at)` — single seed row for v1.
