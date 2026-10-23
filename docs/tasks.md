@@ -13,7 +13,7 @@ Legend:
 
 ## Phase 0 — Repository Bootstrap
 
-### T-001 [S] Repository scaffolding
+### ✅ T-001 [S] Repository scaffolding
 - Initialize `pyproject.toml` with `uv` (Python 3.12).
 - Dependencies: `fastapi`, `uvicorn[standard]`, `jinja2`, `pydantic`, `pydantic-settings`, `python-multipart`, `plotly`, `pandas` (for parquet export), `pyarrow`, `httpx` (FX fetch), `python-dateutil`.
 - Dev dependencies: `ruff`, `mypy`, `pytest`, `pytest-cov`, `pytest-asyncio`, `playwright` (optional), `sqlfluff`, `djlint`, `bandit`, `detect-secrets`, `pre-commit`.
