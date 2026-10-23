@@ -83,6 +83,18 @@ def test_mutate_writes_audit_and_rolls_back_on_failure(
     assert audit.list_entries(conn, "test", 7) == rows
 
 
+def test_nested_savepoint_rolls_back_inner_only(conn: sqlite3.Connection) -> None:
+    """Nested `transaction()` call should ROLLBACK TO savepoint, not the outer txn."""
+    with transaction(conn):
+        conn.execute("INSERT INTO users(id, name) VALUES (101, 'outer')")
+        with pytest.raises(RuntimeError), transaction(conn):
+            conn.execute("INSERT INTO users(id, name) VALUES (102, 'inner')")
+            raise RuntimeError("inner failed")
+        # Outer survived; inner rolled back.
+    assert conn.execute("SELECT COUNT(*) FROM users WHERE id = 101").fetchone()[0] == 1
+    assert conn.execute("SELECT COUNT(*) FROM users WHERE id = 102").fetchone()[0] == 0
+
+
 def test_write_audit_directly(conn: sqlite3.Connection) -> None:
     conn.execute("BEGIN")
     try:

@@ -152,7 +152,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
     - Mutate `overridden` with override fields.
 - Reference: ADR-0015.
 
-### T-023 [P] Planned log service → T-013, T-022
+### ✅ T-023 [P] Planned log service → T-013, T-022
 - `list_planned(conn, filters) -> list[PlannedView]`: UNION of `planned_transactions` + virtual occurrences from active rules in range.
 - `promote_to_actual(conn, planned_id, edits) -> Transaction`: insert into `transactions`, update `planned_transactions.promoted_to_txn_id`, write audit entries.
 - Reference: ADR-0014.

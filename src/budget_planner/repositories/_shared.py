@@ -57,16 +57,52 @@ def write_audit(
     )
 
 
+_TX_DEPTH: dict[int, int] = {}
+
+
+def _depth(conn: sqlite3.Connection) -> int:
+    return _TX_DEPTH.get(id(conn), 0)
+
+
+def _set_depth(conn: sqlite3.Connection, value: int) -> None:
+    key = id(conn)
+    if value == 0:
+        _TX_DEPTH.pop(key, None)
+    else:
+        _TX_DEPTH[key] = value
+
+
 @contextmanager
 def transaction(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
-    """Explicit transaction context manager (requires ``isolation_level=None``)."""
-    conn.execute("BEGIN")
+    """Explicit transaction context manager.
+
+    First entry runs ``BEGIN``/``COMMIT``; nested entries use SQLite
+    ``SAVEPOINT``/``RELEASE`` so services can compose multi-mutation flows
+    (e.g. planned promotion) and keep the whole operation atomic.
+    Requires ``isolation_level=None`` on the connection.
+    """
+    depth = _depth(conn)
+    if depth == 0:
+        conn.execute("BEGIN")
+    else:
+        conn.execute(f"SAVEPOINT sp_{depth}")
+    _set_depth(conn, depth + 1)
     try:
         yield conn
-        conn.execute("COMMIT")
     except Exception:
-        conn.execute("ROLLBACK")
+        if depth == 0:
+            conn.execute("ROLLBACK")
+        else:
+            conn.execute(f"ROLLBACK TO sp_{depth}")
+            conn.execute(f"RELEASE sp_{depth}")
+        _set_depth(conn, depth)
         raise
+    else:
+        if depth == 0:
+            conn.execute("COMMIT")
+        else:
+            conn.execute(f"RELEASE sp_{depth}")
+        _set_depth(conn, depth)
 
 
 def mutate[T](
