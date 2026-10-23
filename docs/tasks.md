@@ -97,7 +97,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
 - Seed system categories: `Transit` (direction=transit), `Reconciliation` (direction=adjustment).
 - These must be undeletable (enforced in service layer).
 
-### T-013 [P] Repository layer → T-011
+### ✅ T-013 [P] Repository layer → T-011
 - `src/budget_planner/repositories/` — one module per entity (`transactions.py`, `accounts.py`, `categories.py`, `planned.py`, `recurring.py`, `budgets.py`, `snapshots.py`, `fx.py`).
 - Each module exposes pure functions (no classes). Signature pattern:
   ```python

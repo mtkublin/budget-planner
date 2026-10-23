@@ -31,11 +31,12 @@ def get_connection(settings: Settings) -> sqlite3.Connection:
     """
     db_path = _resolve_db_path(settings.database_url)
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(
-        db_path,
-        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
-        isolation_level=None,
-    )
+    # NOTE: we intentionally do NOT pass `detect_types`. All our TIMESTAMP
+    # / DATE columns are stored as ISO-8601 strings and parsed manually in
+    # the repository hydrators; sqlite3's built-in `convert_timestamp` is
+    # deprecated in Python 3.12 (and emits warnings under `filterwarnings
+    # = ["error"]`).
+    conn = sqlite3.connect(db_path, isolation_level=None)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
     conn.execute("PRAGMA journal_mode = WAL;")

@@ -25,3 +25,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0019 | [Soft Delete + Polymorphic Audit Log](0019-soft-delete-and-audit-log.md) |
 | 0020 | [Import Deferred to v2, Export in v1](0020-import-deferred-export-v1.md) |
 | 0021 | [Functional Style, No Gratuitous OOP](0021-functional-style-no-oop.md) |
+| 0022 | [Repository Layer: Soft-Delete + Audit Discipline](0022-repository-layer-soft-delete-audit-discipline.md) |

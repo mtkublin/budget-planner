@@ -1,0 +1,158 @@
+from __future__ import annotations
+
+import sqlite3
+from datetime import date
+
+import pytest
+
+from budget_planner.domain.enums import Direction
+from budget_planner.domain.transactions import (
+    NewTransaction,
+    PatchTransaction,
+    TransactionFilter,
+)
+from budget_planner.repositories import audit, transactions
+
+
+def _mk(
+    conn: sqlite3.Connection,
+    account_id: int,
+    category_id: int,
+    *,
+    amount: int = 100,
+    on: date | None = None,
+    description: str = "",
+    dest: int | None = None,
+) -> int:
+    txn = transactions.create(
+        conn,
+        NewTransaction(
+            operation_date=on or date(2026, 1, 1),
+            category_id=category_id,
+            account_id=account_id,
+            amount=amount,
+            description=description,
+            dest_account_id=dest,
+        ),
+    )
+    return txn.id
+
+
+def test_create_round_trip(conn: sqlite3.Connection, account_id: int, category_id: int) -> None:
+    tid = _mk(conn, account_id, category_id, amount=250)
+    fetched = transactions.find_by_id(conn, tid)
+    assert fetched is not None
+    assert fetched.amount == 250
+    assert audit.list_entries(conn, "transaction", tid)[0].operation.value == "create"
+
+
+def test_update(conn: sqlite3.Connection, account_id: int, category_id: int) -> None:
+    tid = _mk(conn, account_id, category_id, amount=100)
+    updated = transactions.update(
+        conn,
+        tid,
+        PatchTransaction(amount=150, operation_date=date(2026, 2, 1), description="x"),
+    )
+    assert updated.amount == 150
+    assert updated.operation_date == date(2026, 2, 1)
+
+
+def test_update_missing_raises(conn: sqlite3.Connection) -> None:
+    with pytest.raises(LookupError):
+        transactions.update(conn, 999, PatchTransaction(amount=1))
+
+
+def test_soft_delete_and_undelete(
+    conn: sqlite3.Connection, account_id: int, category_id: int
+) -> None:
+    tid = _mk(conn, account_id, category_id)
+    transactions.soft_delete(conn, tid)
+    assert transactions.find_by_id(conn, tid) is None
+    transactions.undelete(conn, tid)
+    assert transactions.find_by_id(conn, tid) is not None
+
+
+def test_soft_delete_missing_is_noop(conn: sqlite3.Connection) -> None:
+    transactions.soft_delete(conn, 999)
+
+
+def test_undelete_missing_raises(conn: sqlite3.Connection) -> None:
+    with pytest.raises(LookupError):
+        transactions.undelete(conn, 999)
+
+
+def test_list_filtered_date_range(
+    conn: sqlite3.Connection,
+    account_id: int,
+    category_id: int,
+    income_category_id: int,
+) -> None:
+    _mk(conn, account_id, category_id, on=date(2026, 1, 15))
+    _mk(conn, account_id, category_id, on=date(2026, 2, 15))
+    _mk(conn, account_id, income_category_id, on=date(2026, 3, 15))
+
+    filtered = transactions.list_filtered(
+        conn,
+        TransactionFilter(
+            date_from=date(2026, 2, 1),
+            date_to=date(2026, 2, 28),
+        ),
+    )
+    assert len(filtered) == 1
+    assert filtered[0].operation_date == date(2026, 2, 15)
+
+
+def test_list_filtered_full_matrix(
+    conn: sqlite3.Connection,
+    account_id: int,
+    dest_account_id: int,
+    category_id: int,
+    income_category_id: int,
+) -> None:
+    _mk(conn, account_id, category_id, amount=100, description="apple")
+    _mk(conn, account_id, income_category_id, amount=500, description="salary")
+    _mk(conn, dest_account_id, category_id, amount=250, description="apples")
+    # Transit-style txn pointing at dest.
+    _mk(
+        conn,
+        account_id,
+        income_category_id,
+        amount=99,
+        description="xfer",
+        dest=dest_account_id,
+    )
+
+    r = transactions.list_filtered(conn, TransactionFilter(account_ids=(account_id,)))
+    assert all(t.account_id == account_id for t in r)
+
+    r = transactions.list_filtered(conn, TransactionFilter(category_ids=(income_category_id,)))
+    assert all(t.category_id == income_category_id for t in r)
+
+    r = transactions.list_filtered(conn, TransactionFilter(directions=(Direction.EXPENSE,)))
+    assert len(r) == 2
+
+    r = transactions.list_filtered(conn, TransactionFilter(amount_min=200, amount_max=400))
+    assert all(200 <= t.amount <= 400 for t in r)
+
+    r = transactions.list_filtered(conn, TransactionFilter(description_contains="apple"))
+    assert {t.description for t in r} == {"apple", "apples"}
+
+    r = transactions.list_filtered(conn, TransactionFilter(account_or_dest=dest_account_id))
+    assert len(r) == 2
+
+    r = transactions.list_filtered(conn, TransactionFilter(limit=1, offset=0))
+    assert len(r) == 1
+
+    r = transactions.list_filtered(conn, TransactionFilter(up_to_date=date(2026, 1, 1)))
+    # All seeded transactions are on 2026-01-01 by default.
+    assert len(r) >= 1
+
+
+def test_list_filtered_hides_soft_deleted(
+    conn: sqlite3.Connection, account_id: int, category_id: int
+) -> None:
+    tid = _mk(conn, account_id, category_id)
+    transactions.soft_delete(conn, tid)
+    assert transactions.list_filtered(conn, TransactionFilter()) == []
+    all_rows = transactions.list_filtered(conn, TransactionFilter(), include_deleted=True)
+    assert any(t.id == tid for t in all_rows)
