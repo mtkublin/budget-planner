@@ -176,7 +176,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
     - Return the created transaction.
 - Reference: ADR-0013.
 
-### T-027 [P] Export service → T-013
+### ✅ T-027 [P] Export service → T-013
 - `export_csv(records) -> bytes`, `export_parquet(records) -> bytes`.
 - Shared across txn-log, planned-log, analytics views.
 
