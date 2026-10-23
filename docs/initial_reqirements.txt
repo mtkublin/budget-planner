@@ -1,0 +1,39 @@
+I'd like to develop a budget planning and fortune tracking application. For now it can be web-based, to be ran from a local machine, with some persistent storage (for now also local). In the long term deployment to some environment might be needed. 
+
+Functional requirements (NOTE: The application does not need to be split into specifically the views mentioned, however all mentioned functional requirements should be covered!):
+1. Persistent transaction log:
+    1. Possibility to input transactions with operation date, category, amount description and used account provided (all of those fields mandatory)
+    2. All transactions stored persistently
+    3. Possibility to filter the log by any of the provided fields
+    4. Possibility to export selected view to CSV/parquet
+    5. Possibility to remove and edit any previously created transaction entries
+    6. Categories for transactions should come from a list of categories defined by the user in some general config. Categories should be distinguishable as either incoming or outgoing
+    7. Possibility to reflect transits between accounts as a special type of log entry (shouldn’t be included in any stats calculation, as it’s simply moving money between owned accounts)
+2. Account management:
+    1. Possibility to have multiple account-containers to which money/transfers/etc. would be assigned
+    2. Transaction log should allow to input transactions with only the accounts defined in the account management section
+    3. A view of current account state should be available, ideally with some statistics included
+3. Planned transaction log
+    1. A planned transaction log, which represents future, upcoming transactions, should follow roughly the data model from the persistent transaction log
+    2. Should have a possibility to include recurring transactions (monthly, quarterly, yearly) with the same details, however with possibility to turn those off for specific occurrences. Those should exist as a generic abstraction, based on which the planned log is derived
+    3. Also one-off planned transactions should be possible to be added 
+    4. In general this view should behave similarly to the persistent transaction log, so all functions such as filtering, export etc. should be possible
+    5. The recurring transactions should have also a separate view for its management.
+4. Monthly budget
+    1. Possibility to set budget amounts for each transaction category
+    2. In general there should be a generic budget, applied to each month by default (adjustable), however there should be an option to change budget for each month in 2 ways:
+        1. Recurring - meaning this new value will be applied each year for this month
+        2. One-off - meaning this new value will be applied once only
+    3. A view into current month’s spend, with remaining values per category and some analytical ones (e.g. avg monthly spend overall, this year etc.)
+5. Forecasting view - a long-term forecasting of the overall fortune across the accounts + in sum, ideally with some relevant graphs added (should be live)
+6. Analytics view - an analytics view of the persistent transaction log with graphs and groupings by different fields
+
+Non-functional requirements:
+1. Preferred technologies: Python, sqlite, duckdb, SQL, other open-source libraries; not a fixed list, but preference, if for any reason it makes sense to use something else - can be discussed
+2. Whole solution should be heavily tested, with unit-test coverage as close to 100% as possible
+3. Whole solution should be DRY as there will be quite a lot of components reused between different views/sections
+4. The whole solution should be covered with pre-commit (in case of Python, in case of other technologies - equivalent) hooks, ensuring proper formatting (black in case of Python), linting, type checks and anything else relevant
+5. All other best programming practices to be followed
+6. OOM shall not be used, classes used only for things they actually make sense for (e.g. data classes or other generic containers), solution should be implemented in a functional style, ensuring pure functions, no side-effects etc.
+7. Solution should have a nice, clean development interface for testing, deploying, starting, stopping etc., implemented i.e. via make or just (or something else if it makes sense)
+8. App’s repo will be stored in GitHub, so all CI operations should be defined as GitHub actions
