@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, fields
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 
@@ -53,10 +53,28 @@ class PatchAccount:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class AccountStats:
-    """Derived stats returned by the Phase 2 balance service."""
+    """Derived stats returned by the Phase 2 balance service.
+
+    - ``balance`` / ``base_balance`` are minor units; ``base_balance`` is set
+      by callers that convert through FX (service returns ``balance`` in it
+      until that conversion happens, so unit tests do not depend on FX).
+    - ``avg_inflow_minor`` / ``avg_outflow_minor`` cover only
+      ``income`` / ``expense`` legs (transit + adjustment skipped — see
+      T-021 plan).
+    - ``last_txn_date`` is ISO ``YYYY-MM-DD`` for easy template rendering.
+    """
 
     account_id: int
     balance: int
     base_balance: int
     txn_count: int
     last_txn_date: str | None
+    avg_inflow_minor: int = 0
+    avg_outflow_minor: int = 0
+
+    @property
+    def last_activity_date(self) -> date | None:
+        """Parse ``last_txn_date`` into a ``date`` for typed consumers."""
+        if self.last_txn_date is None:
+            return None
+        return date.fromisoformat(self.last_txn_date)

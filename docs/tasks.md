@@ -132,7 +132,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
 - Unit-tested with mocked HTTP client.
 - Reference: ADR-0008.
 
-### T-021 [P] Balance service → T-013
+### ✅ T-021 [P] Balance service → T-013
 - `derive_balance(conn, account_id, as_of_date | None) -> int`:
   `opening_balance + Σ (signed amount of all non-deleted txns on/before as_of_date affecting this account)`.
 - Signed amount rules:
