@@ -61,7 +61,8 @@ def conn(tmp_path: Path) -> Iterator[sqlite3.Connection]:
 
 
 def _insert_user(conn: sqlite3.Connection) -> None:
-    conn.execute("INSERT INTO users(id, name) VALUES (1, 'default')")
+    # Seed migration already inserts user id=1; ensure present without duplicating.
+    conn.execute("INSERT OR IGNORE INTO users(id, name) VALUES (1, 'default')")
 
 
 def _insert_account(conn: sqlite3.Connection, name: str = "ING", currency: str = "PLN") -> int:

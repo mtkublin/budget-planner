@@ -92,7 +92,7 @@ Indexes:
 
 Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
 
-### T-012 [S] Seed data migration → T-011
+### ✅ T-012 [S] Seed data migration → T-011
 - Seed single `users` row (`id=1, name='default'`).
 - Seed system categories: `Transit` (direction=transit), `Reconciliation` (direction=adjustment).
 - These must be undeletable (enforced in service layer).
