@@ -111,7 +111,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
 - All read functions filter `deleted_at IS NULL` by default; accept `include_deleted: bool = False` kwarg.
 - Reference: ADR-0022.
 
-### T-014 [P] Domain types → T-011
+### ✅ T-014 [P] Domain types → T-011
 - `src/budget_planner/domain/` — frozen dataclasses or Pydantic models for every entity + DTOs (`NewTransaction`, `PatchTransaction`, `TransactionFilter`, etc).
 - `Direction` enum: `income`, `expense`, `transit`, `adjustment`.
 - `Cadence` enum: `monthly`, `quarterly`, `yearly`.
