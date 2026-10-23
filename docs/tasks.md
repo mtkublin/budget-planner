@@ -142,7 +142,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
     - `adjustment` → `+amount` on `account_id` (amount already signed per ADR).
 - `account_stats(conn, account_id) -> AccountStats`.
 
-### T-022 [P] Recurring occurrence generator → T-013, T-014
+### ✅ T-022 [P] Recurring occurrence generator → T-013, T-014
 - `generate_occurrences(rule, start_date, end_date) -> list[Occurrence]` (pure function).
     - Expand cadence: `monthly` → month-step from `start_date`; `quarterly` → every 3 months; `yearly` → yearly.
     - Clip by `end_date` of rule and query range.
