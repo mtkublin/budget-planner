@@ -48,7 +48,7 @@ Legend:
 - Coverage artifact uploaded.
 - Reference: ADR-0019, ADR-0021.
 
-### T-003 [S] Pre-commit stack → T-001
+### ✅ T-003 [S] Pre-commit stack → T-001
 - `.pre-commit-config.yaml` with: `ruff`, `ruff-format`, `mypy`, `sqlfluff`, `djlint`, `bandit`, `detect-secrets`, standard stdlib hooks.
 - `pyproject.toml` configs for ruff, mypy (strict), coverage threshold (90%).
 - `just install-hooks` recipe.

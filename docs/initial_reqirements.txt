@@ -1,4 +1,4 @@
-I'd like to develop a budget planning and fortune tracking application. For now it can be web-based, to be ran from a local machine, with some persistent storage (for now also local). In the long term deployment to some environment might be needed. 
+I'd like to develop a budget planning and fortune tracking application. For now it can be web-based, to be ran from a local machine, with some persistent storage (for now also local). In the long term deployment to some environment might be needed.
 
 Functional requirements (NOTE: The application does not need to be split into specifically the views mentioned, however all mentioned functional requirements should be covered!):
 1. Persistent transaction log:
@@ -16,7 +16,7 @@ Functional requirements (NOTE: The application does not need to be split into sp
 3. Planned transaction log
     1. A planned transaction log, which represents future, upcoming transactions, should follow roughly the data model from the persistent transaction log
     2. Should have a possibility to include recurring transactions (monthly, quarterly, yearly) with the same details, however with possibility to turn those off for specific occurrences. Those should exist as a generic abstraction, based on which the planned log is derived
-    3. Also one-off planned transactions should be possible to be added 
+    3. Also one-off planned transactions should be possible to be added
     4. In general this view should behave similarly to the persistent transaction log, so all functions such as filtering, export etc. should be possible
     5. The recurring transactions should have also a separate view for its management.
 4. Monthly budget

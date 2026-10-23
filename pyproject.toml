@@ -48,3 +48,153 @@ packages = ["src/budget_planner"]
 
 [tool.uv]
 package = true
+
+# ---------------------------------------------------------------------------
+# ruff — lint + format + import sort
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+extend-exclude = ["migrations/*.sql"]
+
+[tool.ruff.lint]
+# Enabled rule groups (see https://docs.astral.sh/ruff/rules/).
+select = [
+  "E", "F", "W",         # pycodestyle + pyflakes
+  "I",                   # isort
+  "B",                   # bugbear
+  "UP",                  # pyupgrade
+  "SIM",                 # simplify
+  "RET",                 # return
+  "PTH",                 # use pathlib
+  "N",                   # pep8-naming
+  "ANN",                 # type annotations required
+  "ASYNC",
+  "S",                   # bandit-lite (complements standalone bandit)
+  "C4",                  # comprehensions
+  "DTZ",                 # datetime timezone
+  "TID",                 # tidy imports
+  "ARG",                 # unused arg
+  "ERA",                 # eradicate commented-out code
+  "PL",                  # pylint subset
+  "RUF",                 # ruff-specific
+]
+ignore = [
+  "ANN401",              # dynamic Any allowed in explicit kwargs forwarding
+  "PLR0913",             # function arg count — services take many deps
+  "S101",                # assert is fine in tests (per-file-ignores reinforces)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "PLR2004", "ANN"]
+"src/budget_planner/db/migrate.py" = ["S608"]  # dynamic SQL permitted here
+
+[tool.ruff.lint.isort]
+known-first-party = ["budget_planner"]
+combine-as-imports = true
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+skip-magic-trailing-comma = false
+
+# ---------------------------------------------------------------------------
+# mypy — strict
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+warn_no_return = true
+disallow_any_generics = true
+check_untyped_defs = true
+no_implicit_optional = true
+explicit_package_bases = true
+mypy_path = ["src"]
+packages = ["budget_planner", "tests"]
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["plotly.*", "sqlfluff.*", "djlint.*", "pandas.*", "pyarrow.*"]
+ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+# ---------------------------------------------------------------------------
+# pytest + coverage
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = [
+  "-ra",
+  "--strict-config",
+  "--strict-markers",
+  "--cov=src/budget_planner",
+  "--cov-report=term-missing",
+  "--cov-report=xml",
+  "--cov-report=html",
+  "--cov-fail-under=90",
+]
+markers = [
+  "unit: fast unit tests (default)",
+  "integration: database or HTTP-backed tests",
+  "e2e: full-stack smoke tests",
+]
+asyncio_mode = "auto"
+filterwarnings = [
+  "error",
+  "ignore::DeprecationWarning:plotly.*",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["src/budget_planner"]
+omit = ["src/budget_planner/__main__.py"]
+
+[tool.coverage.report]
+skip_covered = false
+show_missing = true
+exclude_lines = [
+  "pragma: no cover",
+  "raise NotImplementedError",
+  "if TYPE_CHECKING:",
+  "if __name__ == .__main__.:",
+]
+
+# ---------------------------------------------------------------------------
+# sqlfluff — SQL lint + format
+# ---------------------------------------------------------------------------
+[tool.sqlfluff.core]
+dialect = "sqlite"
+templater = "raw"
+max_line_length = 100
+exclude_rules = ["L034"]  # select-ordering is noisy for migrations
+
+[tool.sqlfluff.rules]
+capitalisation.keywords = "upper"
+capitalisation.identifiers = "lower"
+capitalisation.functions = "upper"
+capitalisation.literals = "upper"
+
+# ---------------------------------------------------------------------------
+# djlint — Jinja template lint
+# ---------------------------------------------------------------------------
+[tool.djlint]
+profile = "jinja"
+max_line_length = 120
+indent = 2
+format_css = true
+format_js = false
+
+# ---------------------------------------------------------------------------
+# bandit — security scan
+# ---------------------------------------------------------------------------
+[tool.bandit]
+exclude_dirs = ["tests", ".venv", "migrations"]
+skips = ["B101"]  # assert in tests (also skipped by per-file-ignore in ruff)

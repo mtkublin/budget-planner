@@ -25,17 +25,20 @@ dev:
 # --- quality gates ---------------------------------------------------------
 
 # Run all linters: ruff, sqlfluff, djlint.
+# djlint exits 2 when the target directory is empty (Phase 0 reality); tolerate
+# that specific "no files" message so pre-Phase-3 CI stays green. Any real
+# lint error still fails because the string check only matches the empty case.
 lint:
     uv run ruff check src tests
     uv run sqlfluff lint migrations
-    uv run djlint src/budget_planner/web/templates --check
+    out=$(uv run djlint src/budget_planner/web/templates --check 2>&1); status=$?; if [ $status -ne 0 ] && ! echo "$out" | grep -q "No files to check"; then echo "$out" >&2; exit $status; fi; echo "$out"
 
 # Auto-fix formatting + simple lint issues.
 format:
     uv run ruff format src tests
     uv run ruff check src tests --fix
     uv run sqlfluff fix migrations
-    uv run djlint src/budget_planner/web/templates --reformat
+    out=$(uv run djlint src/budget_planner/web/templates --reformat 2>&1); status=$?; if [ $status -ne 0 ] && ! echo "$out" | grep -q "No files to check"; then echo "$out" >&2; exit $status; fi; echo "$out"
 
 # mypy --strict over the package + tests.
 typecheck:
