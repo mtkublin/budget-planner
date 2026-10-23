@@ -157,7 +157,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
 - `promote_to_actual(conn, planned_id, edits) -> Transaction`: insert into `transactions`, update `planned_transactions.promoted_to_txn_id`, write audit entries.
 - Reference: ADR-0014.
 
-### T-024 [P] Budget service → T-013
+### ✅ T-024 [P] Budget service → T-013
 - `resolve_budget(conn, category_id, year, month) -> int | None`: null-coalesce one-off → recurring → default.
 - `month_summary(conn, year, month) -> MonthSummary`: per-category budgeted/spent/remaining + analytics (avg monthly spend overall, avg this year, delta vs previous month).
 - Reference: ADR-0017.
