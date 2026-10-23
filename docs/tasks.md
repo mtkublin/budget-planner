@@ -63,7 +63,7 @@ Legend:
 
 ## Phase 1 — Data Layer
 
-### T-010 [S] Migration framework → T-004
+### ✅ T-010 [S] Migration framework → T-004
 - Pick lightweight migration tool: `yoyo-migrations` (SQL-first, simple) or hand-rolled numbered `.sql` files + runner.
 - **Decision**: hand-rolled numbered `.sql` files in `migrations/`; runner in `src/budget_planner/db/migrate.py`.
 - `just migrate` applies all pending migrations.
