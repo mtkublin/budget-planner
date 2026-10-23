@@ -31,11 +31,18 @@ env/
 .env
 .env.local
 
-# Database
+# Database — SQLite file + WAL/SHM sidecars + journal
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
 *.sqlite
 *.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+data/
+!data/.gitkeep
 
 # Build artifacts
 dist/

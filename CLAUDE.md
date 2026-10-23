@@ -2,6 +2,20 @@
 
 Local-first personal budget planning and fortune tracking web app. Single user, multi-account, multi-currency.
 
+## Change policy — docs come first (MANDATORY)
+
+**Any change to this project must go through the documentation first.** No exceptions.
+
+Before touching code (or docs that drive code):
+
+1. **Requirement change** → update `docs/requirements.md` first. If scope-affecting, also update `docs/tasks.md` and `docs/implementation_plan.md`.
+2. **Architectural / design decision** → write a new ADR under `docs/adr/` (next sequential number), update `docs/adr/README.md`, and reference it from the affected requirement or task. Supersede, don't delete, prior ADRs.
+3. **New task or re-scoped task** → edit `docs/tasks.md` first; link to the ADR(s) it depends on.
+4. **Stack / tooling change** → ADR first, then `docs/requirements.md` section 3, then code.
+5. **Scope creep into Phase 6 / v2 items** → requires an ADR explicitly flipping it into v1.
+
+Only after the relevant docs are updated and committed (or staged in the same PR) may the code change land. A code change without a matching doc update is treated as incomplete.
+
 ## Where to look
 
 | Need | Path |
@@ -55,8 +69,9 @@ just seed         # seed default categories + demo accounts
 
 Before marking a task done:
 
-1. Code + tests committed; `just ci` green.
-2. `docs/tasks.md` task line prefixed with `✅`.
-3. Relevant ADR(s) referenced in the commit; add a new ADR if the task introduced an architectural decision not already recorded.
-4. Append a dated line to `docs/CHANGELOG.md` (create on first use).
-5. Conventional-commits message referencing the task id: e.g. `feat(T-021): derive account balance`.
+1. **Docs updated first** (see "Change policy" above). `docs/requirements.md`, `docs/tasks.md`, and/or a new ADR reflect the change *before* code lands.
+2. Code + tests committed; `just ci` green.
+3. `docs/tasks.md` task line prefixed with `✅`.
+4. Relevant ADR(s) referenced in the commit; a new ADR added if the task introduced an architectural decision not already recorded.
+5. Append a dated line to `docs/CHANGELOG.md` (create on first use).
+6. Conventional-commits message referencing the task id: e.g. `feat(T-021): derive account balance`.
