@@ -1,0 +1,65 @@
+# Budget Planner — developer commands.
+# Discoverable via `just --list`.
+
+set shell := ["bash", "-cu"]
+set dotenv-load := true
+
+# --- environment -----------------------------------------------------------
+
+# Install runtime + dev deps, sync lockfile, install pre-commit hooks.
+install:
+    uv sync --group dev
+    uv run pre-commit install --install-hooks
+
+# Install only the pre-commit hooks (no dependency sync).
+install-hooks:
+    uv run pre-commit install --install-hooks
+
+# --- dev loop --------------------------------------------------------------
+
+# Run FastAPI with hot reload. Binds 127.0.0.1 per ADR-0005.
+dev:
+    uv run uvicorn budget_planner.web.app:app \
+      --reload --host 127.0.0.1 --port 8000
+
+# --- quality gates ---------------------------------------------------------
+
+# Run all linters: ruff, sqlfluff, djlint.
+lint:
+    uv run ruff check src tests
+    uv run sqlfluff lint migrations
+    uv run djlint src/budget_planner/web/templates --check
+
+# Auto-fix formatting + simple lint issues.
+format:
+    uv run ruff format src tests
+    uv run ruff check src tests --fix
+    uv run sqlfluff fix migrations
+    uv run djlint src/budget_planner/web/templates --reformat
+
+# mypy --strict over the package + tests.
+typecheck:
+    uv run mypy src tests
+
+# Full pytest suite with coverage. 90% gate wired here and in CI.
+test:
+    uv run pytest
+
+# Everything CI runs. Keep deterministic — no network except frankfurter mocks.
+ci: lint typecheck test
+
+# --- database --------------------------------------------------------------
+
+# Apply all pending SQL migrations. Implemented in Phase 1 (T-010).
+migrate:
+    uv run python -m budget_planner.db.migrate
+
+# Seed system data (default categories, demo accounts). Implemented in Phase 1 (T-012).
+seed:
+    uv run python -m budget_planner.db.seed
+
+# Nuke and recreate the dev DB from scratch. Destructive.
+db-reset:
+    rm -f data/budget.sqlite data/budget.sqlite-wal data/budget.sqlite-shm
+    just migrate
+    just seed

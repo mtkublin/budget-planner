@@ -42,7 +42,7 @@ Legend:
   ```
 - Reference: ADR-0002, ADR-0004.
 
-### T-002 [S] Justfile + CI → T-001
+### ✅ T-002 [S] Justfile + CI → T-001
 - `justfile` with: `dev`, `test`, `lint`, `format`, `typecheck`, `ci`, `db-reset`, `seed`, `migrate`.
 - `.github/workflows/ci.yml` running `just ci` on push/PR on `ubuntu-latest` + Python 3.12.
 - Coverage artifact uploaded.
