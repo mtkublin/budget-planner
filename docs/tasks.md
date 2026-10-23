@@ -54,7 +54,7 @@ Legend:
 - `just install-hooks` recipe.
 - Reference: ADR-0020.
 
-### T-004 [S] Config module → T-001
+### ✅ T-004 [S] Config module → T-001
 - `src/budget_planner/config.py` using `pydantic-settings`.
 - Fields: `database_url`, `base_currency` (default `PLN`), `display_timezone` (default `Europe/Warsaw`), `host` (`127.0.0.1`), `port` (`8000`), `fx_api_url`.
 - `.env.example` committed; `.env` gitignored.
