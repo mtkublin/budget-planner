@@ -180,7 +180,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
 - `export_csv(records) -> bytes`, `export_parquet(records) -> bytes`.
 - Shared across txn-log, planned-log, analytics views.
 
-### T-028 [P] Audit helper → T-013
+### ✅ T-028 [P] Audit helper → T-013
 - `write_audit(conn, entity_type, entity_id, operation, prev_json, new_json)`.
 - Called from every mutating repository function.
 - Reference: ADR-0022.
