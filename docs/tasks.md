@@ -169,7 +169,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
 - Deterministic, pure.
 - Reference: ADR-0018.
 
-### T-026 [P] Reconciliation service → T-013, T-021
+### ✅ T-026 [P] Reconciliation service → T-013, T-021
 - `reconcile(conn, account_id, actual_balance_minor) -> Transaction`:
     - Compute delta = actual − derived.
     - Insert transaction: category=Reconciliation, direction=adjustment, amount=delta (signed), description=`"auto-reconciliation {date}"`.
