@@ -36,12 +36,20 @@ def find_rate(
     return _row_to_rate(row) if row is not None else None
 
 
-def latest_rate(conn: sqlite3.Connection, from_ccy: str, to_ccy: str) -> FxRate | None:
-    row = conn.execute(
-        f"SELECT {_COLUMNS} FROM fx_rates WHERE from_ccy = ? AND to_ccy = ? "
-        "ORDER BY date DESC, id DESC LIMIT 1",
-        (from_ccy, to_ccy),
-    ).fetchone()
+def latest_rate(
+    conn: sqlite3.Connection,
+    from_ccy: str,
+    to_ccy: str,
+    *,
+    on_or_before: date | None = None,
+) -> FxRate | None:
+    sql = f"SELECT {_COLUMNS} FROM fx_rates WHERE from_ccy = ? AND to_ccy = ?"
+    params: list[object] = [from_ccy, to_ccy]
+    if on_or_before is not None:
+        sql += " AND date <= ?"
+        params.append(on_or_before.isoformat())
+    sql += " ORDER BY date DESC, id DESC LIMIT 1"
+    row = conn.execute(sql, params).fetchone()
     return _row_to_rate(row) if row is not None else None
 
 

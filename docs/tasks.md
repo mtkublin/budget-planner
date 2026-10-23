@@ -121,7 +121,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
 
 ## Phase 2 — Services (Pure Business Logic)
 
-### T-020 [P] FX service → T-013, T-014
+### ✅ T-020 [P] FX service → T-013, T-014
 - `src/budget_planner/services/fx.py`.
 - `get_rate(conn, date, from_ccy, to_ccy) -> Decimal`:
     - Return `1.0` if `from == to`.
