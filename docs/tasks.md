@@ -268,7 +268,7 @@ Per service and repository. Target ≥90% coverage. Pure-function heavy, mocks o
 - Promotion flow: planned → actual.
 - Reconciliation flow: before/after derived balance.
 
-### T-042 [P] E2E smoke tests
+### ✅ T-042 [P] E2E smoke tests
 - Create account, add transaction, see balance update.
 - Set budget, record spend, see remaining.
 - Add recurring rule, see virtual occurrences in planned view, promote one.
