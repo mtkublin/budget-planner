@@ -189,7 +189,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
 
 ## Phase 3 — Web Layer
 
-### T-030 [S] FastAPI app skeleton → Phase 2 complete (minus any lagging [P] tasks)
+### ✅ T-030 [S] FastAPI app skeleton → Phase 2 complete (minus any lagging [P] tasks)
 - `src/budget_planner/web/app.py` creates FastAPI app, mounts static, templates, routers.
 - Jinja env with helpers: `format_money(amount, currency)`, `format_date(date)`, `direction_badge(d)`.
 - HTMX included via CDN in base template.

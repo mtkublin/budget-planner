@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Budget Planner{% endblock %}</title>
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/tailwindcss@3/dist/tailwind.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
+    <script src="https://unpkg.com/htmx.org@2"></script>
+    <script src="https://cdn.plot.ly/plotly-2.35.0.min.js"></script>
+    {% block head_extra %}{% endblock %}
+  </head>
+  <body class="min-h-screen bg-[color:var(--surface)] text-[color:var(--ink)]">
+    <a class="sr-only focus:not-sr-only" href="#main">Skip to content</a>
+    <div id="flash" aria-live="polite"></div>
+    {% block nav %}{% endblock %}
+    <main id="main" class="mx-auto max-w-screen-xl px-6 py-10">
+      {% block main %}{% endblock %}
+    </main>
+    {% block scripts %}{% endblock %}
+  </body>
+</html>

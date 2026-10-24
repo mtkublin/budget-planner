@@ -1,14 +1,23 @@
 """FastAPI application entrypoint.
 
-Phase 0 scope: boot the app, expose `/` and `/healthz`. Routers mount in Phase 3.
+Thin skeleton (T-030): config, Jinja env, static mount. Routers register
+themselves here as later Phase 3 tasks (T-031..T-039) land. Business logic
+belongs in Phase 2 services, not here.
 """
 
 from __future__ import annotations
 
-from fastapi import FastAPI
-from fastapi.responses import PlainTextResponse
+from pathlib import Path
+
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from budget_planner.config import Settings, get_settings
+from budget_planner.web.rendering import render
+from budget_planner.web.templating import build_jinja_env
+
+_STATIC_DIR = Path(__file__).parent / "static"
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -19,16 +28,52 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         docs_url="/docs",
         redoc_url=None,
     )
+    app.state.settings = cfg
+    app.state.jinja_env = build_jinja_env(cfg)
 
-    @app.get("/", response_class=PlainTextResponse)
-    def index() -> str:
-        return f"Budget Planner — base_currency={cfg.base_currency} tz={cfg.display_timezone}"
+    app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
+
+    _register_routers(app)
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
-        return {"status": "ok"}
+        return {"status": "ok", "version": app.version}
+
+    # Fallback `/` dev index. T-039 replaces this with the home dashboard
+    # by registering a `home` router that wins over this route via priority.
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    def dev_index(request: Request) -> HTMLResponse:
+        return render(request, "_dev_index.html")
 
     return app
+
+
+_ROUTER_NAMES: tuple[str, ...] = (
+    "home",
+    "transactions",
+    "accounts",
+    "categories",
+    "planned",
+    "recurring",
+    "budget",
+    "forecast",
+    "analytics",
+)
+
+
+def _register_routers(app: FastAPI) -> None:
+    """Register Phase 3 routers; missing modules (during iterative landing)
+    are tolerated so each task can commit atomically."""
+    import importlib  # noqa: PLC0415
+
+    for name in _ROUTER_NAMES:
+        try:
+            mod = importlib.import_module(f"budget_planner.web.routers.{name}")
+        except ImportError:  # pragma: no cover
+            continue
+        router = getattr(mod, "router", None)
+        if router is not None:
+            app.include_router(router)
 
 
 app = create_app()

@@ -1,0 +1,5 @@
+<div id="flash" aria-live="polite" hx-swap-oob="true">
+  {% if message %}
+    <div class="flash flash-{{ level|default('info') }}" role="status">{{ message }}</div>
+  {% endif %}
+</div>

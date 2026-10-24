@@ -1,0 +1,104 @@
+:root {
+  --surface: oklch(98% 0.01 90);
+  --ink: oklch(18% 0.02 240);
+  --muted: oklch(45% 0.02 240);
+  --rule: oklch(88% 0.01 240);
+  --accent: oklch(55% 0.19 250);
+  --accent-ink: oklch(99% 0.01 90);
+  --income: oklch(62% 0.16 150);
+  --expense: oklch(55% 0.21 25);
+  --transit: oklch(55% 0.12 220);
+  --adjust: oklch(55% 0.05 300);
+  --radius-card: 10px;
+  --space-section: clamp(2rem, 1rem + 4vw, 5rem);
+  --font-serif: ui-serif, Georgia, "Times New Roman", serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01" on, "cv11" on;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-serif);
+  letter-spacing: -0.01em;
+}
+
+.text-muted { color: var(--muted); }
+.link-muted {
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.link-muted:hover { color: var(--ink); }
+
+.btn-accent {
+  background: var(--accent);
+  color: var(--accent-ink);
+  padding: 0.5rem 0.9rem;
+  border-radius: var(--radius-card);
+  font-weight: 500;
+  transition: filter 150ms ease;
+}
+.btn-accent:hover { filter: brightness(1.05); }
+.btn-ghost {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.pill {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+.pill-income { background: color-mix(in oklab, var(--income) 18%, transparent); color: var(--income); }
+.pill-expense { background: color-mix(in oklab, var(--expense) 18%, transparent); color: var(--expense); }
+.pill-transit { background: color-mix(in oklab, var(--transit) 18%, transparent); color: var(--transit); }
+.pill-adjust { background: color-mix(in oklab, var(--adjust) 18%, transparent); color: var(--adjust); }
+
+.row {
+  border-bottom: 1px solid var(--rule);
+  transition: color 50ms ease;
+}
+.row:hover { color: var(--ink); box-shadow: inset 2px 0 0 var(--accent); }
+
+.flash { padding: 0.5rem 0.75rem; border-radius: var(--radius-card); border: 1px solid var(--rule); }
+.flash-info { background: color-mix(in oklab, var(--accent) 8%, transparent); }
+.flash-error { background: color-mix(in oklab, var(--expense) 10%, transparent); color: var(--expense); }
+
+input, select, textarea {
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 0.4rem 0.55rem;
+  font: inherit;
+}
+
+table.ledger {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+table.ledger th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--muted);
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--rule);
+}
+table.ledger td { padding: 0.6rem 0.75rem; }
+
+.form-errors { margin-top: 0.5rem; }
