@@ -236,7 +236,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
 - `POST /recurring/{rule_id}/overrides` — add skip/override for a specific occurrence_date.
 - `POST /recurring/{rule_id}/overrides/{occurrence_date}/delete` — remove override.
 
-### T-036 [P] Budget router → T-030, T-024
+### ✅ T-036 [P] Budget router → T-030, T-024
 - `GET /budget` — current month view with per-category spent/budgeted/remaining + analytics.
 - `GET /budget/manage` — manage defaults + overrides.
 - `POST /budget/defaults/{category_id}` — set default.

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Budget {{ year }}-{{ "%02d"|format(month) }} · Budget Planner{% endblock %}
+{% block main %}
+  <header class="flex items-baseline justify-between mb-10">
+    <div>
+      <h1 class="font-serif text-5xl leading-none">Budget</h1>
+      <p class="text-muted mt-2">{{ year }}-{{ "%02d"|format(month) }}</p>
+    </div>
+    <a href="/budget/manage" class="link-muted">Manage defaults →</a>
+  </header>
+  <table class="ledger" id="budget-summary">
+    <caption class="sr-only">Monthly budget summary</caption>
+    <thead>
+      <tr>
+        <th>Category</th>
+        <th class="text-right">Budgeted</th>
+        <th class="text-right">Spent</th>
+        <th class="text-right">Remaining</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in summary.lines %}
+        <tr class="row">
+          <td>{{ line.category_name }}</td>
+          <td class="text-right tabular-nums">{{ line.budgeted_minor|money(base_ccy) }}</td>
+          <td class="text-right tabular-nums">{{ line.spent_minor|money(base_ccy) }}</td>
+          <td class="text-right tabular-nums">{{ line.remaining_minor|money(base_ccy) }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
