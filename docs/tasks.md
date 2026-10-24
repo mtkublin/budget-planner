@@ -262,7 +262,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
 ### ✅ T-040 [P] Unit tests
 Per service and repository. Target ≥90% coverage. Pure-function heavy, mocks only for HTTP.
 
-### T-041 [P] Integration tests
+### ✅ T-041 [P] Integration tests
 - Full repository stack against a temp SQLite file.
 - FX service against mocked HTTP.
 - Promotion flow: planned → actual.
