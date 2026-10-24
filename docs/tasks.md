@@ -259,7 +259,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
 
 ## Phase 4 — Testing
 
-### T-040 [P] Unit tests
+### ✅ T-040 [P] Unit tests
 Per service and repository. Target ≥90% coverage. Pure-function heavy, mocks only for HTTP.
 
 ### T-041 [P] Integration tests
