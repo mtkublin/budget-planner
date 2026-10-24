@@ -274,7 +274,7 @@ Per service and repository. Target ≥90% coverage. Pure-function heavy, mocks o
 - Add recurring rule, see virtual occurrences in planned view, promote one.
 - Reconcile an account, confirm adjustment txn created.
 
-### T-043 [S] Coverage gate
+### ✅ T-043 [S] Coverage gate
 - `pytest --cov=src/budget_planner --cov-fail-under=90`.
 - Added to `just test` and `just ci`.
 

@@ -158,9 +158,15 @@ filterwarnings = [
 [tool.coverage.run]
 branch = true
 source = ["src/budget_planner"]
-omit = ["src/budget_planner/__main__.py"]
+omit = [
+  "src/budget_planner/__main__.py",
+  "src/budget_planner/web/templates/*",
+]
 
 [tool.coverage.report]
+# T-043: 90% gate also enforced on bare `coverage report` invocations.
+fail_under = 90
+precision = 2
 skip_covered = false
 show_missing = true
 exclude_lines = [
@@ -168,6 +174,7 @@ exclude_lines = [
   "raise NotImplementedError",
   "if TYPE_CHECKING:",
   "if __name__ == .__main__.:",
+  "\\.\\.\\.",
 ]
 
 # ---------------------------------------------------------------------------
