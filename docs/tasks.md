@@ -243,7 +243,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
 - `POST /budget/recurring/{category_id}/{month}` — set recurring override.
 - `POST /budget/one-off/{category_id}/{year}/{month}` — set one-off override.
 
-### T-037 [P] Forecast router → T-030, T-025
+### ✅ T-037 [P] Forecast router → T-030, T-025
 - `GET /forecast?horizon_days=N` — chart + table.
 - Plotly JSON embedded; HTMX re-triggers on inputs changing in any router (via `HX-Trigger` response header `forecast-stale`).
 

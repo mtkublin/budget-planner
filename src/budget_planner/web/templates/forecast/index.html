@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Forecast · Budget Planner{% endblock %}
+{% block main %}
+  <header class="mb-10 flex items-end justify-between gap-6">
+    <div>
+      <h1 class="font-serif text-5xl leading-none">Forecast</h1>
+      <p class="text-muted mt-2">Horizon {{ horizon }} days · {{ series.base_currency }}</p>
+    </div>
+    <form hx-get="/forecast/chart"
+          hx-target="#forecast-chart-wrap"
+          hx-swap="outerHTML"
+          hx-trigger="change"
+          class="text-sm flex items-center gap-2">
+      <label>
+        Horizon
+        <input type="number"
+               name="horizon_days"
+               min="1"
+               max="365"
+               value="{{ horizon }}">
+      </label>
+    </form>
+  </header>
+  {% include "partials/forecast/_chart.html" %}
+{% endblock %}
+{% block scripts %}
+  <script>
+    (function() {
+      function render() {
+        var el = document.getElementById('forecast-chart');
+        if (!el) return;
+        var raw = el.getAttribute('data-plotly');
+        if (!raw) return;
+        var spec = JSON.parse(raw);
+        Plotly.newPlot(el, spec.data, spec.layout, { displayModeBar: false });
+      }
+      document.addEventListener('DOMContentLoaded', render);
+      document.body.addEventListener('htmx:afterSwap', render);
+    })();
+  </script>
+{% endblock %}
