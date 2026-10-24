@@ -1,0 +1,20 @@
+<tr id="recurring-{{ rule.id }}" class="row">
+  <td>{{ rule.cadence.value|capitalize }}</td>
+  <td>{{ rule.start_date|date_fmt }}</td>
+  <td>{{ account.name if account else '—' }}</td>
+  <td>{{ category.name if category else '—' }}</td>
+  <td class="text-right tabular-nums">{{ rule.default_amount|money(account.currency if account else 'PLN') }}</td>
+  <td>{{ 'Yes' if rule.active else 'No' }}</td>
+  <td class="text-right space-x-2 text-sm">
+    <button hx-get="/recurring/{{ rule.id }}/edit"
+            hx-target="#recurring-form-slot"
+            hx-swap="innerHTML"
+            aria-label="Edit rule {{ rule.id }}">Edit</button>
+    {% if rule.active %}
+      <button hx-post="/recurring/{{ rule.id }}/deactivate"
+              hx-target="#recurring-{{ rule.id }}"
+              hx-swap="outerHTML"
+              aria-label="Deactivate rule {{ rule.id }}">Deactivate</button>
+    {% endif %}
+  </td>
+</tr>

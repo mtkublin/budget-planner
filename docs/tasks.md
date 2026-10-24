@@ -228,7 +228,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
 - `POST /planned/{id}/promote` — promote to actual (modal with editable amount/date).
 - `GET /planned/{id}/delete` — soft delete (one-off).
 
-### T-035 [P] Recurring rules router → T-030, T-013, T-022
+### ✅ T-035 [P] Recurring rules router → T-030, T-013, T-022
 - `GET /recurring` — list rules + upcoming occurrences preview.
 - `POST /recurring` — create rule.
 - `POST /recurring/{id}` — edit rule.

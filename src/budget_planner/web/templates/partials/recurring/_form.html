@@ -1,0 +1,58 @@
+<form hx-post="{{ action }}"
+      hx-target="{% if rule %}#recurring-{{ rule.id }}{% else %}table.ledger tbody{% endif %}"
+      hx-swap="{% if rule %}outerHTML{% else %}beforeend{% endif %}"
+      class="grid grid-cols-2 gap-3 p-4 border border-[color:var(--rule)] rounded">
+  <label>
+    Cadence
+    <select name="cadence" required>
+      {% for cad in ['monthly', 'quarterly', 'yearly'] %}
+        <option value="{{ cad }}"
+                {% if rule and rule.cadence.value == cad %}selected{% endif %}>{{ cad|capitalize }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>
+    Start<input type="date"
+       name="start_date"
+       value="{{ rule.start_date|date_fmt if rule else '' }}"
+       required>
+  </label>
+  <label>
+    Category
+    <select name="category_id" required>
+      {% for c in categories %}
+        <option value="{{ c.id }}"
+                {% if rule and rule.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>
+    Account
+    <select name="account_id" required>
+      {% for a in accounts %}
+        <option value="{{ a.id }}"
+                {% if rule and rule.account_id == a.id %}selected{% endif %}>{{ a.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>
+    Amount<input type="text"
+       name="default_amount"
+       value="{{ rule.default_amount if rule else '' }}"
+       required>
+  </label>
+  <label>
+    Day of month<input type="text"
+       name="day_of_month"
+       value="{{ rule.day_of_month if rule else '' }}">
+  </label>
+  <label class="col-span-2">
+    Description<input type="text"
+       name="default_description"
+       value="{{ rule.default_description if rule else '' }}">
+  </label>
+  {% include "partials/_form_errors.html" %}
+  <div class="col-span-2 flex justify-end">
+    <button type="submit" class="btn-accent">Save</button>
+  </div>
+</form>

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Recurring · Budget Planner{% endblock %}
+{% block main %}
+  <header class="flex items-baseline justify-between mb-10">
+    <h1 class="font-serif text-5xl leading-none">Recurring</h1>
+    <button hx-get="/recurring/new"
+            hx-target="#recurring-form-slot"
+            hx-swap="innerHTML"
+            class="btn-accent">+ New rule</button>
+  </header>
+  <div id="recurring-form-slot" class="mb-6"></div>
+  <table class="ledger">
+    <caption class="sr-only">Recurring rules</caption>
+    <thead>
+      <tr>
+        <th>Cadence</th>
+        <th>Start</th>
+        <th>Account</th>
+        <th>Category</th>
+        <th class="text-right">Amount</th>
+        <th>Active</th>
+        <th class="text-right">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for rule in rules %}
+        {% set account = (accounts|selectattr('id', 'equalto', rule.account_id)|list|first) %}
+        {% set category = (categories|selectattr('id', 'equalto', rule.category_id)|list|first) %}
+        {% include "partials/recurring/_row.html" %}
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
