@@ -221,7 +221,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
 - `POST /categories/{id}` — update (not direction once used).
 - `POST /categories/{id}/delete` — soft delete (block system cats).
 
-### T-034 [P] Planned transactions router → T-030, T-023
+### ✅ T-034 [P] Planned transactions router → T-030, T-023
 - `GET /planned` — list including virtual occurrences; filter + export.
 - `POST /planned` — create one-off.
 - `POST /planned/{id}` — edit one-off.
