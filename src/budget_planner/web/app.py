@@ -17,6 +17,8 @@ from budget_planner.config import Settings, get_settings
 from budget_planner.web.rendering import render
 from budget_planner.web.templating import build_jinja_env
 
+_HOME_ROUTER_NAME = "home"
+
 _STATIC_DIR = Path(__file__).parent / "static"
 
 
@@ -39,11 +41,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def healthz() -> dict[str, str]:
         return {"status": "ok", "version": app.version}
 
-    # Fallback `/` dev index. T-039 replaces this with the home dashboard
-    # by registering a `home` router that wins over this route via priority.
-    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
-    def dev_index(request: Request) -> HTMLResponse:
-        return render(request, "_dev_index.html")
+    # Fallback `/` dev index when the home router did not register (shouldn't
+    # happen in prod — the home module is in-tree). Kept for test rigs that
+    # intentionally skip the home router.
+    if not any(getattr(r, "path", None) == "/" for r in app.router.routes):
+
+        @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+        def dev_index(request: Request) -> HTMLResponse:
+            return render(request, "_dev_index.html")
 
     return app
 

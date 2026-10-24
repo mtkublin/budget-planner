@@ -251,7 +251,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
 - `GET /analytics` — multi-chart dashboard: spend by category, cash-flow by account, income vs expense trend, top categories per month.
 - Groupby selector (category / account / direction / month-quarter-year).
 
-### T-039 [S] Navigation + home → T-031..T-038
+### ✅ T-039 [S] Navigation + home → T-031..T-038
 - Base template with left nav: Transactions, Accounts, Categories, Planned, Recurring, Budget, Forecast, Analytics.
 - Home dashboard: snapshot of current month budget + fortune total + next 7 days of planned txns.
 

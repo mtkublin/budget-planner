@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Home · Budget Planner{% endblock %}
+{% block main %}
+  <header class="mb-10">
+    <h1 class="font-serif text-5xl leading-none">Dashboard</h1>
+    <p class="text-muted mt-2">{{ today|date_fmt("%A, %B %d %Y") }}</p>
+  </header>
+  <section id="fortune" aria-labelledby="fortune-heading" class="mb-10">
+    <h2 id="fortune-heading" class="font-serif text-2xl mb-3">Fortune</h2>
+    <p class="text-4xl tabular-nums">{{ fortune_base|money(base_ccy) }}</p>
+    {% if totals_by_ccy|length > 1 %}
+      <dl class="flex gap-6 text-sm mt-3">
+        {% for ccy, total in totals_by_ccy.items() %}
+          <div>
+            <dt class="text-muted">{{ ccy }}</dt>
+            <dd class="tabular-nums">
+              {{ total|money(ccy) }}
+            </dd>
+          </div>
+        {% endfor %}
+      </dl>
+    {% endif %}
+  </section>
+  <section id="budget-card" aria-labelledby="budget-heading" class="mb-10">
+    <h2 id="budget-heading" class="font-serif text-2xl mb-3">Budget · {{ year }}-{{ "%02d"|format(month) }}</h2>
+    <table class="ledger">
+      <caption class="sr-only">Monthly budget summary</caption>
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th class="text-right">Budgeted</th>
+          <th class="text-right">Spent</th>
+          <th class="text-right">Remaining</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for line in summary.lines %}
+          <tr class="row">
+            <td>{{ line.category_name }}</td>
+            <td class="text-right tabular-nums">{{ line.budgeted_minor|money(base_ccy) }}</td>
+            <td class="text-right tabular-nums">{{ line.spent_minor|money(base_ccy) }}</td>
+            <td class="text-right tabular-nums">{{ line.remaining_minor|money(base_ccy) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  <section id="upcoming" aria-labelledby="upcoming-heading" class="mb-10">
+    <h2 id="upcoming-heading" class="font-serif text-2xl mb-3">Next 7 days · planned</h2>
+    {% if upcoming %}
+      <ul class="divide-y divide-[color:var(--rule)]">
+        {% for v in upcoming %}
+          <li class="flex justify-between py-2 text-sm">
+            <span class="font-semibold">{{ v.operation_date|date_fmt }}</span>
+            <span class="text-muted">{{ v.description or '—' }}</span>
+            <span class="tabular-nums">{{ v.amount_minor|money(base_ccy) }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-muted text-sm">Nothing on the schedule.</p>
+    {% endif %}
+  </section>
+{% endblock %}

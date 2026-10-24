@@ -14,7 +14,9 @@
   <body class="min-h-screen bg-[color:var(--surface)] text-[color:var(--ink)]">
     <a class="sr-only focus:not-sr-only" href="#main">Skip to content</a>
     <div id="flash" aria-live="polite"></div>
-    {% block nav %}{% endblock %}
+    {% block nav %}
+      {% include "partials/_nav.html" %}
+    {% endblock %}
     <main id="main" class="mx-auto max-w-screen-xl px-6 py-10">
       {% block main %}{% endblock %}
     </main>

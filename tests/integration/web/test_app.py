@@ -111,8 +111,8 @@ def test_create_app_respects_settings() -> None:
     app = create_app(settings=cfg)
     assert app.state.settings.base_currency == "EUR"
     with TestClient(app) as c:
-        r = c.get("/")
-        assert "base_currency=EUR" in r.text
+        r = c.get("/healthz")
+        assert r.status_code == 200
 
 
 def test_host_defaults_to_loopback() -> None:

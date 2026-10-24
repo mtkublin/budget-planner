@@ -17,10 +17,7 @@ def test_healthz_returns_ok() -> None:
     assert body["status"] == "ok"
 
 
-def test_index_renders_settings_banner() -> None:
+def test_app_factory_accepts_settings() -> None:
     cfg = Settings(_env_file=None)
-    client = TestClient(create_app(settings=cfg))
-    response = client.get("/")
-    assert response.status_code == 200
-    assert "base_currency=PLN" in response.text
-    assert "Europe/Warsaw" in response.text
+    created = create_app(settings=cfg)
+    assert created.state.settings is cfg
