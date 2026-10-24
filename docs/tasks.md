@@ -247,7 +247,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
 - `GET /forecast?horizon_days=N` — chart + table.
 - Plotly JSON embedded; HTMX re-triggers on inputs changing in any router (via `HX-Trigger` response header `forecast-stale`).
 
-### T-038 [P] Analytics router → T-030, T-013
+### ✅ T-038 [P] Analytics router → T-030, T-013
 - `GET /analytics` — multi-chart dashboard: spend by category, cash-flow by account, income vs expense trend, top categories per month.
 - Groupby selector (category / account / direction / month-quarter-year).
 
