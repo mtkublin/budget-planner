@@ -291,7 +291,7 @@ Per service and repository. Target ≥90% coverage. Pure-function heavy, mocks o
 - Validation errors shown inline via HTMX partials.
 - Server errors returned with 4xx/5xx + user-facing message, logged with context.
 
-### T-052 [P] Accessibility pass
+### ✅ T-052 [P] Accessibility pass
 - Semantic HTML in templates.
 - Form labels associated.
 - Keyboard-navigable.

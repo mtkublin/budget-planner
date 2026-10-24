@@ -1,11 +1,12 @@
 <div role="dialog"
      aria-modal="true"
+     aria-labelledby="promote-title"
      class="fixed inset-0 bg-black/20 flex items-center justify-center">
   <form hx-post="/planned/{{ planned.id if planned else 0 }}/promote"
         hx-target="#planned-p-{{ planned.id if planned else 0 }}"
         hx-swap="outerHTML"
         class="bg-white border border-[color:var(--rule)] p-6 rounded w-96">
-    <h2 class="font-serif text-2xl mb-3">Promote to actual</h2>
+    <h2 id="promote-title" class="font-serif text-2xl mb-3">Promote to actual</h2>
     {% if planned %}
       <label class="block">
         Date

@@ -1,14 +1,25 @@
-<nav aria-label="Main navigation"
+{% set path = request.url.path %}
+{% macro navlink(href, label) -%}
+  {% set is_current = (href == '/' and path == '/') or (href != '/' and path.startswith(href)) %}
+  <li>
+    <a href="{{ href }}"
+       class="link-muted{% if is_current %} nav-current{% endif %}"
+       {% if is_current %}aria-current="page"{% endif %}>{{ label }}</a>
+  </li>
+{%- endmacro %}
+<nav aria-label="Primary navigation"
      class="border-b border-[color:var(--rule)]">
   <ul class="mx-auto max-w-screen-xl px-6 py-4 flex gap-6 text-sm">
-    <li><a href="/" class="font-serif text-base">Budget Planner</a></li>
-    <li><a href="/transactions" class="link-muted">Transactions</a></li>
-    <li><a href="/accounts" class="link-muted">Accounts</a></li>
-    <li><a href="/categories" class="link-muted">Categories</a></li>
-    <li><a href="/planned" class="link-muted">Planned</a></li>
-    <li><a href="/recurring" class="link-muted">Recurring</a></li>
-    <li><a href="/budget" class="link-muted">Budget</a></li>
-    <li><a href="/forecast" class="link-muted">Forecast</a></li>
-    <li><a href="/analytics" class="link-muted">Analytics</a></li>
+    <li>
+      <a href="/" class="font-serif text-base">Budget Planner</a>
+    </li>
+    {{ navlink('/transactions', 'Transactions') }}
+    {{ navlink('/accounts', 'Accounts') }}
+    {{ navlink('/categories', 'Categories') }}
+    {{ navlink('/planned', 'Planned') }}
+    {{ navlink('/recurring', 'Recurring') }}
+    {{ navlink('/budget', 'Budget') }}
+    {{ navlink('/forecast', 'Forecast') }}
+    {{ navlink('/analytics', 'Analytics') }}
   </ul>
 </nav>
