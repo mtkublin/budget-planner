@@ -215,7 +215,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
 - `GET /accounts/{id}/reconcile` — reconcile form.
 - `POST /accounts/{id}/reconcile` — perform reconciliation.
 
-### T-033 [P] Categories router → T-030, T-013
+### ✅ T-033 [P] Categories router → T-030, T-013
 - `GET /categories` — list.
 - `POST /categories` — create.
 - `POST /categories/{id}` — update (not direction once used).

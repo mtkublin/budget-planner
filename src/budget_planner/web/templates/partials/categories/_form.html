@@ -1,0 +1,25 @@
+<form hx-post="{{ action }}"
+      hx-target="{% if category %}#category-{{ category.id }}{% else %}table.ledger tbody{% endif %}"
+      hx-swap="{% if category %}outerHTML{% else %}beforeend{% endif %}"
+      class="grid grid-cols-2 gap-3 p-4 border border-[color:var(--rule)] rounded">
+  <label>
+    Name<input type="text"
+       name="name"
+       value="{{ category.name if category else '' }}"
+       required>
+  </label>
+  {% if not category %}
+    <label>
+      Direction
+      <select name="direction" required>
+        {% for d in [Direction.INCOME, Direction.EXPENSE, Direction.TRANSIT] %}
+          <option value="{{ d.value }}">{{ d.value|capitalize }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  {% endif %}
+  {% include "partials/_form_errors.html" %}
+  <div class="col-span-2 flex justify-end">
+    <button type="submit" class="btn-accent">Save</button>
+  </div>
+</form>
