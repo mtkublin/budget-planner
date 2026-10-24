@@ -2,27 +2,59 @@
 {% block title %}Home · Budget Planner{% endblock %}
 {% block main %}
   <header class="mb-10">
-    <h1 class="font-serif text-5xl leading-none">Dashboard</h1>
+    <p class="eyebrow mb-2">Dashboard</p>
+    <h1 class="leading-none">Today</h1>
     <p class="text-muted mt-2">{{ today|date_fmt("%A, %B %d %Y") }}</p>
   </header>
-  <section id="fortune" aria-labelledby="fortune-heading" class="mb-10">
-    <h2 id="fortune-heading" class="font-serif text-2xl mb-3">Fortune</h2>
-    <p class="text-4xl tabular-nums">{{ fortune_base|money(base_ccy) }}</p>
-    {% if totals_by_ccy|length > 1 %}
-      <dl class="flex gap-6 text-sm mt-3">
-        {% for ccy, total in totals_by_ccy.items() %}
-          <div>
-            <dt class="text-muted">{{ ccy }}</dt>
-            <dd class="tabular-nums">
-              {{ total|money(ccy) }}
-            </dd>
-          </div>
-        {% endfor %}
-      </dl>
-    {% endif %}
-  </section>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+    <section id="fortune"
+             aria-labelledby="fortune-heading"
+             class="surface-raised md:col-span-2">
+      <p id="fortune-heading" class="eyebrow mb-2">Fortune · total</p>
+      <p class="tabular-nums"
+         style="font-family: var(--font-mono);
+                font-size: var(--text-display);
+                line-height: 1">{{ fortune_base|money(base_ccy) }}</p>
+      {% if totals_by_ccy|length > 1 %}
+        <dl class="hairline-top mt-5 pt-4 flex flex-wrap gap-6 text-sm">
+          {% for ccy, total in totals_by_ccy.items() %}
+            <div>
+              <dt class="eyebrow">{{ ccy }}</dt>
+              <dd class="tabular-nums">
+                {{ total|money(ccy) }}
+              </dd>
+            </div>
+          {% endfor %}
+        </dl>
+      {% endif %}
+    </section>
+    <section id="upcoming"
+             aria-labelledby="upcoming-heading"
+             class="surface-raised">
+      <p id="upcoming-heading" class="eyebrow mb-3">Next 7 days</p>
+      {% if upcoming %}
+        <ul class="divide-y divide-[color:var(--rule)]">
+          {% for v in upcoming %}
+            <li class="flex items-baseline justify-between py-2 text-sm">
+              <span class="numeric text-xs">{{ v.operation_date|date_fmt }}</span>
+              <span class="text-muted truncate mx-3">{{ v.description or '—' }}</span>
+              <span class="tabular-nums">{{ v.amount_minor|money(base_ccy) }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-faint text-sm">Nothing on the schedule.</p>
+      {% endif %}
+    </section>
+  </div>
   <section id="budget-card" aria-labelledby="budget-heading" class="mb-10">
-    <h2 id="budget-heading" class="font-serif text-2xl mb-3">Budget · {{ year }}-{{ "%02d"|format(month) }}</h2>
+    <header class="flex items-baseline justify-between mb-4">
+      <div>
+        <p class="eyebrow">Budget</p>
+        <h2 id="budget-heading" class="leading-none">{{ year }} · {{ "%02d"|format(month) }}</h2>
+      </div>
+      <a class="link-muted text-sm" href="/budget">View month →</a>
+    </header>
     <table class="ledger">
       <caption class="sr-only">Monthly budget summary</caption>
       <thead>
@@ -44,21 +76,5 @@
         {% endfor %}
       </tbody>
     </table>
-  </section>
-  <section id="upcoming" aria-labelledby="upcoming-heading" class="mb-10">
-    <h2 id="upcoming-heading" class="font-serif text-2xl mb-3">Next 7 days · planned</h2>
-    {% if upcoming %}
-      <ul class="divide-y divide-[color:var(--rule)]">
-        {% for v in upcoming %}
-          <li class="flex justify-between py-2 text-sm">
-            <span class="font-semibold">{{ v.operation_date|date_fmt }}</span>
-            <span class="text-muted">{{ v.description or '—' }}</span>
-            <span class="tabular-nums">{{ v.amount_minor|money(base_ccy) }}</span>
-          </li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p class="text-muted text-sm">Nothing on the schedule.</p>
-    {% endif %}
   </section>
 {% endblock %}

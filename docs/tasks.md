@@ -296,7 +296,7 @@ Per service and repository. Target ≥90% coverage. Pure-function heavy, mocks o
 - Form labels associated.
 - Keyboard-navigable.
 
-### T-053 [P] Visual polish
+### ✅ T-053 [P] Visual polish
 - Consistent spacing, typography scale, color tokens via CSS custom properties layered on top of Tailwind.
 - Avoid default template look (see global web/design-quality rule).
 

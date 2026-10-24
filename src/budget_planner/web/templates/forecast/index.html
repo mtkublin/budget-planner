@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Forecast · Budget Planner{% endblock %}
 {% block main %}
-  <header class="mb-10 flex items-end justify-between gap-6">
+  <header class="mb-8 flex items-end justify-between gap-6">
     <div>
-      <h1 class="font-serif text-5xl leading-none">Forecast</h1>
-      <p class="text-muted mt-2">Horizon {{ horizon }} days · {{ series.base_currency }}</p>
+      <p class="eyebrow mb-2">Forecast</p>
+      <h1 class="leading-none">Projected balance</h1>
+      <p class="text-muted mt-2 text-sm">Horizon {{ horizon }} days · {{ series.base_currency }}</p>
     </div>
     <form hx-get="/forecast/chart"
           hx-target="#forecast-chart-wrap"
@@ -12,7 +13,7 @@
           hx-trigger="change"
           class="text-sm flex items-center gap-2">
       <label>
-        Horizon
+        <span class="eyebrow">Horizon</span>
         <input type="number"
                name="horizon_days"
                min="1"
@@ -21,7 +22,7 @@
       </label>
     </form>
   </header>
-  {% include "partials/forecast/_chart.html" %}
+  <div class="surface-chart">{% include "partials/forecast/_chart.html" %}</div>
 {% endblock %}
 {% block scripts %}
   <script>
