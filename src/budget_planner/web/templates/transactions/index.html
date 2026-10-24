@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Transactions · Budget Planner{% endblock %}
+{% block main %}
+  <header class="flex items-baseline justify-between gap-6 mb-10">
+    <h1 class="font-serif text-5xl leading-none">Transactions</h1>
+    <button hx-get="/transactions/new"
+            hx-target="#txn-form-slot"
+            hx-swap="innerHTML"
+            class="btn-accent">+ New transaction</button>
+  </header>
+  <div class="grid grid-cols-[280px_1fr] gap-10">
+    <aside aria-labelledby="filter-heading">
+      <h2 id="filter-heading" class="sr-only">Filter transactions</h2>
+      {% include "partials/transactions/_filter_form.html" %}
+    </aside>
+    <section>
+      <div id="txn-form-slot"></div>
+      {% include "partials/transactions/_table.html" %}
+      <div class="mt-6 flex gap-3">
+        <a class="link-muted" href="/transactions/export?format=csv">Export CSV</a>
+        <a class="link-muted" href="/transactions/export?format=parquet">Export Parquet</a>
+      </div>
+    </section>
+  </div>
+{% endblock %}

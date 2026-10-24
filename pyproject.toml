@@ -91,6 +91,7 @@ ignore = [
 "tests/**/*.py" = ["S101", "PLR2004", "ANN", "ARG001", "ARG002"]
 "src/budget_planner/db/migrate.py" = ["S608"]  # dynamic SQL permitted here
 "src/budget_planner/repositories/*.py" = ["S608"]  # column names from DTO fields, not user input
+"src/budget_planner/web/routers/*.py" = ["B008"]  # FastAPI Depends() in defaults is idiomatic
 
 [tool.ruff.lint.isort]
 known-first-party = ["budget_planner"]

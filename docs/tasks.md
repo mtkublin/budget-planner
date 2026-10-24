@@ -197,7 +197,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
 - `base.html`, `partials/` directory for HTMX fragments.
 - `just dev` → `uvicorn --reload --host 127.0.0.1 --port 8000`.
 
-### T-031 [P] Transactions router → T-030, T-013
+### ✅ T-031 [P] Transactions router → T-030, T-013
 - `GET /transactions` — list with filter sidebar; HTMX re-renders table partial on filter change.
 - `GET /transactions/new` — form fragment.
 - `POST /transactions` — create.
