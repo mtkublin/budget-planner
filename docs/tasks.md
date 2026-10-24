@@ -282,7 +282,7 @@ Per service and repository. Target ≥90% coverage. Pure-function heavy, mocks o
 
 ## Phase 5 — Polish
 
-### T-050 [P] README
+### ✅ T-050 [P] README
 - Prereqs (uv, just, Python 3.12).
 - Quick start (`just install`, `just migrate`, `just seed`, `just dev`).
 - Link to `docs/`.
