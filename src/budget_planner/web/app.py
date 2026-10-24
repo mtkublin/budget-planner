@@ -3,10 +3,14 @@
 Thin skeleton (T-030): config, Jinja env, static mount. Routers register
 themselves here as later Phase 3 tasks (T-031..T-039) land. Business logic
 belongs in Phase 2 services, not here.
+
+T-051 wires the per-request correlation id middleware and the domain-error
+exception handlers (see `web.errors`).
 """
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -14,6 +18,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from budget_planner.config import Settings, get_settings
+from budget_planner.web.errors import register_exception_handlers
+from budget_planner.web.middleware.request_id import RequestIdMiddleware
 from budget_planner.web.rendering import render
 from budget_planner.web.templating import build_jinja_env
 
@@ -22,8 +28,26 @@ _HOME_ROUTER_NAME = "home"
 _STATIC_DIR = Path(__file__).parent / "static"
 
 
+def _configure_logging() -> None:
+    """Idempotent root-logger config. Keep key=value style so request ids are grep-able."""
+    root = logging.getLogger()
+    if any(getattr(h, "_bp_configured", False) for h in root.handlers):
+        return
+    handler = logging.StreamHandler()
+    handler.setFormatter(
+        logging.Formatter(
+            fmt="%(asctime)s %(levelname)s %(name)s request_id=%(request_id)s %(message)s",
+            defaults={"request_id": "-"},
+        )
+    )
+    handler._bp_configured = True  # type: ignore[attr-defined]
+    root.addHandler(handler)
+    root.setLevel(logging.INFO)
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     cfg = settings or get_settings()
+    _configure_logging()
     app = FastAPI(
         title="Budget Planner",
         version="0.1.0",
@@ -33,9 +57,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = cfg
     app.state.jinja_env = build_jinja_env(cfg)
 
+    # Attach request id first so later middleware / handlers see it.
+    app.add_middleware(RequestIdMiddleware)
+
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
     _register_routers(app)
+    register_exception_handlers(app)
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:

@@ -1,0 +1,59 @@
+"""Domain-level exception types.
+
+Routers raise these from the HTTP boundary; `web.errors` maps them to HTTP
+responses. Keeping the hierarchy small on purpose — see T-051 plan.
+
+A fifth catch-all (`Exception`) is handled generically in `web.errors`;
+any uncaught error becomes a 500 with a correlation id.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+
+@dataclass(frozen=True)
+class ValidationError(Exception):
+    """Field-level validation failure. 422 on the wire.
+
+    `fields` maps form field name → user-facing message.
+    """
+
+    fields: dict[str, str] = field(default_factory=dict)
+
+    def __str__(self) -> str:  # pragma: no cover - repr helper
+        return "; ".join(f"{k}: {v}" for k, v in self.fields.items()) or "validation error"
+
+
+@dataclass(frozen=True)
+class NotFoundError(Exception):
+    """Entity missing or soft-deleted. 404 on the wire."""
+
+    entity: str
+    entity_id: int | str
+
+    def __str__(self) -> str:  # pragma: no cover
+        return f"{self.entity} {self.entity_id} not found"
+
+
+@dataclass(frozen=True)
+class ConflictError(Exception):
+    """Conflicting state (unique constraint, protected row, same-currency transit…).
+
+    409 on the wire.
+    """
+
+    message: str
+
+    def __str__(self) -> str:  # pragma: no cover
+        return self.message
+
+
+@dataclass(frozen=True)
+class ServiceError(Exception):
+    """Generic server-side failure. 500 on the wire. Message is user-safe only."""
+
+    message: str = "something went wrong"
+
+    def __str__(self) -> str:  # pragma: no cover
+        return self.message

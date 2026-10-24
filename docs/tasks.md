@@ -287,7 +287,7 @@ Per service and repository. Target ≥90% coverage. Pure-function heavy, mocks o
 - Quick start (`just install`, `just migrate`, `just seed`, `just dev`).
 - Link to `docs/`.
 
-### T-051 [P] Error handling + flash messages
+### ✅ T-051 [P] Error handling + flash messages
 - Validation errors shown inline via HTMX partials.
 - Server errors returned with 4xx/5xx + user-facing message, logged with context.
 
