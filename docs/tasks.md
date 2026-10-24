@@ -162,7 +162,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
 - `month_summary(conn, year, month) -> MonthSummary`: per-category budgeted/spent/remaining + analytics (avg monthly spend overall, avg this year, delta vs previous month).
 - Reference: ADR-0017.
 
-### T-025 [P] Forecast service → T-013, T-020, T-021, T-022
+### ✅ T-025 [P] Forecast service → T-013, T-020, T-021, T-022
 - `forecast(conn, horizon_days) -> ForecastSeries`:
     - For each day in horizon, project balance per account (base-currency converted via latest FX rate).
     - Return daily series + totals.
