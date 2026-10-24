@@ -206,7 +206,7 @@ Reference: ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0013.
 - `POST /transactions/{id}/delete` — soft delete.
 - `GET /transactions/export?format=csv|parquet` — download filtered view.
 
-### T-032 [P] Accounts router → T-030, T-013, T-021, T-026
+### ✅ T-032 [P] Accounts router → T-030, T-013, T-021, T-026
 - `GET /accounts` — list with derived balance + stats.
 - `POST /accounts` — create.
 - `POST /accounts/{id}` — update (not currency).

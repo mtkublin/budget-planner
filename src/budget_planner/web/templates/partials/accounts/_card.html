@@ -1,0 +1,35 @@
+<article id="account-{{ card.account.id }}"
+         class="p-5 border border-[color:var(--rule)] rounded-[var(--radius-card)]">
+  <header class="flex items-baseline justify-between">
+    <h3 class="font-serif text-2xl">{{ card.account.name }}</h3>
+    <span class="text-muted text-xs">{{ card.account.currency }}</span>
+  </header>
+  <p class="mt-3 text-3xl tabular-nums">{{ card.balance|money(card.account.currency) }}</p>
+  <p class="mt-1 text-muted text-sm">{{ card.stats.txn_count }} txns</p>
+  <ul id="account-{{ card.account.id }}-snapshots"
+      class="text-sm mt-3 text-muted">
+  </ul>
+  <div class="mt-4 flex gap-2 text-sm">
+    <button hx-get="/accounts/{{ card.account.id }}/edit"
+            hx-target="#account-form-slot"
+            hx-swap="innerHTML"
+            class="link-muted"
+            aria-label="Edit account {{ card.account.id }}">Edit</button>
+    <button hx-post="/accounts/{{ card.account.id }}/snapshot"
+            hx-target="#account-{{ card.account.id }}-snapshots"
+            hx-swap="beforeend"
+            class="link-muted"
+            aria-label="Snapshot account {{ card.account.id }}">Snapshot</button>
+    <button hx-get="/accounts/{{ card.account.id }}/reconcile"
+            hx-target="#modal-root"
+            hx-swap="innerHTML"
+            class="link-muted"
+            aria-label="Reconcile account {{ card.account.id }}">Reconcile</button>
+    <button hx-post="/accounts/{{ card.account.id }}/delete"
+            hx-target="#account-{{ card.account.id }}"
+            hx-swap="outerHTML"
+            hx-confirm="Soft-delete this account? Transactions remain."
+            class="link-muted"
+            aria-label="Delete account {{ card.account.id }}">Delete</button>
+  </div>
+</article>
