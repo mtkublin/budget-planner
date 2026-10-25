@@ -135,6 +135,20 @@ Hooks: `ruff`, `ruff-format`, `mypy`, `pytest` (fast subset), `sqlfluff`, `djlin
 - **Audit**: shared polymorphic `audit_log(id, entity_type, entity_id, changed_at, operation, prev_json, new_json)` written on every mutation.
 - **Multi-user scaffold**: every user-owned table has a nullable `user_id` column (defaults to `1`), unused in v1, ready for future auth.
 
+### 3.9 UI / Interaction Model
+
+- **Information architecture.** Four top-level nav items in a left rail: **Overview**, **Ledger**, **Accounts**, **Budget**. One Settings affordance at the bottom opens a slide-over drawer; Settings is not a top-level tab. Legacy routes (`/transactions`, `/planned`, `/recurring`, `/categories`, `/analytics`) continue to resolve via 302 redirects for one release before Phase 7 cleanup. See [ADR-0023](adr/0023-ux-redesign-information-architecture.md).
+- **Overview `/`.** Three panels: (1) all accounts with per-account balance + base-currency summed total, (2) current-month budget stats with **amount left** as the headline number plus spent/of + days-left + pace tag, (3) upcoming planned payments with rows where `planned_date >= today` at full emphasis and rows where `planned_date < today` (overdue, un-promoted) muted + italic with an `overdue` chip. Already-promoted planned rows do not appear here.
+- **Ledger `/ledger`.** One shell renders Actual | Planned | Recurring behind a segmented control; filter and column shape are shared. The fragment route `/ledger/table?view=…` dispatches to existing repository queries. Keyboard `[` and `]` cycle the segmented control.
+- **Settings drawer.** `/settings?tab=categories|fx|prefs` returns the drawer HTML; drawer is injected into a persistent `#drawer-root`. Opens via gear icon or `g s`.
+- **Command palette.** `⌘K` / `Ctrl K` opens an Alfred-style popover for navigation and quick actions. Vanilla JS (no framework), ~60 lines total.
+- **Keyboard shortcuts.** `g o / g l / g a / g b / g s` navigate. `n` opens the context-aware Quick-add form. `/` focuses the active page's search/filter. `[` / `]` cycle Ledger segmented control. `?` opens the cheatsheet. `⎋` closes the topmost overlay. All guards against capturing keys inside `<input>` / `<textarea>` / `[contenteditable]`.
+- **Quick-add FAB.** Fixed bottom-right. Click or `n`. Form shape is derived from the active Ledger tab (or defaults to actual transaction on Overview / Accounts).
+- **Design direction.** Editorial / Swiss, per [ADR-0023](adr/0023-ux-redesign-information-architecture.md) continuing [T-053](plans/v1/phase-5/T-053-visual-polish.md): oklch palette, hairline elevation, tabular numerals, one display + one text + one mono face, single accent colour. No dark mode, no mobile adaptive nav, no icon system in v1.
+- **Overlay stack.** Only one overlay (drawer, modal, palette) responds to Esc at a time; stack managed by `static/js/overlay-stack.js`.
+
+---
+
 ### 3.8 Out of Scope for v1
 
 - CSV import from banks (deferred to v2, pluggable parser pattern).
