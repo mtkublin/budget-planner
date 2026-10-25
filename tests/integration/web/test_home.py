@@ -56,22 +56,37 @@ def test_home_renders(client: TestClient, seeded: None) -> None:
 
 
 def test_nav_links_present(client: TestClient) -> None:
+    """Four-tab rail + Settings affordance (ADR-0023).
+
+    Ledger points at /transactions until T-064 lands /ledger; Settings points
+    at /categories until T-067 lands /settings. Future tasks flip these hrefs
+    without changing the number of nav items.
+    """
     r = client.get("/")
     assert r.status_code == 200
     soup = BeautifulSoup(r.text, "html.parser")
     hrefs = {a["href"] for a in soup.select("nav a")}
-    for path in (
-        "/",
-        "/transactions",
-        "/accounts",
-        "/categories",
-        "/planned",
-        "/recurring",
-        "/budget",
-        "/forecast",
-        "/analytics",
-    ):
-        assert path in hrefs
+    for path in ("/", "/transactions", "/accounts", "/budget", "/categories"):
+        assert path in hrefs, f"nav missing {path}"
+
+
+def test_nav_has_four_primary_items_plus_settings(client: TestClient) -> None:
+    r = client.get("/")
+    soup = BeautifulSoup(r.text, "html.parser")
+    primary = soup.select("nav ul.rail-list:not(.rail-list--footer) a")
+    footer = soup.select("nav ul.rail-list--footer a")
+    assert len(primary) == 4, f"expected 4 primary rail items, got {len(primary)}"
+    assert len(footer) == 1, f"expected 1 footer rail item (Settings), got {len(footer)}"
+
+
+def test_shell_slots_present(client: TestClient) -> None:
+    """T-061: base shell exposes drawer-root + modal-root for later tasks."""
+    r = client.get("/")
+    soup = BeautifulSoup(r.text, "html.parser")
+    assert soup.find(id="drawer-root") is not None
+    assert soup.find(id="modal-root") is not None
+    assert soup.select_one(".app-shell__rail") is not None
+    assert soup.select_one(".app-shell__main") is not None
 
 
 def test_fortune_shows_base_total(client: TestClient, seeded: None) -> None:

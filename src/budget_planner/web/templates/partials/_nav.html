@@ -1,25 +1,34 @@
 {% set path = request.url.path %}
-{% macro navlink(href, label) -%}
+{% macro navlink(href, label, shortcut, extra_paths=()) -%}
   {% set is_current = (href == '/' and path == '/') or (href != '/' and path.startswith(href)) %}
+  {%- if not is_current -%}
+    {%- for alt in extra_paths -%}
+      {%- if path.startswith(alt) %}{% set is_current = true %}{% endif -%}
+    {%- endfor -%}
+  {%- endif %}
   <li>
     <a href="{{ href }}"
-       class="link-muted{% if is_current %} nav-current{% endif %}"
+       class="rail-item{% if is_current %} rail-item--current{% endif %}"
+       data-shortcut="{{ shortcut }}"
        {% if is_current %}aria-current="page"{% endif %}>{{ label }}</a>
   </li>
 {%- endmacro %}
-<nav aria-label="Primary navigation"
-     class="border-b border-[color:var(--rule)]">
-  <ul class="mx-auto max-w-screen-xl px-6 py-4 flex gap-6 text-sm">
-    <li>
-      <a href="/" class="font-serif text-base">Budget Planner</a>
-    </li>
-    {{ navlink('/transactions', 'Transactions') }}
-    {{ navlink('/accounts', 'Accounts') }}
-    {{ navlink('/categories', 'Categories') }}
-    {{ navlink('/planned', 'Planned') }}
-    {{ navlink('/recurring', 'Recurring') }}
-    {{ navlink('/budget', 'Budget') }}
-    {{ navlink('/forecast', 'Forecast') }}
-    {{ navlink('/analytics', 'Analytics') }}
+<nav aria-label="Primary navigation" class="rail-nav">
+  <a href="/" class="rail-wordmark">
+    <span class="rail-wordmark__name">Budget Planner</span>
+    <span class="rail-wordmark__kicker">local-first</span>
+  </a>
+  <ul class="rail-list">
+    {# Note: /ledger lands in T-064; until then Ledger points at /transactions.
+       is_current also fires on /planned and /recurring so the active state
+       covers the three legacy routes that Ledger will subsume. #}
+    {{ navlink('/', 'Overview', 'g o') }}
+    {{ navlink('/transactions', 'Ledger', 'g l', extra_paths=('/ledger', '/planned', '/recurring')) }}
+    {{ navlink('/accounts', 'Accounts', 'g a') }}
+    {{ navlink('/budget', 'Budget', 'g b') }}
+  </ul>
+  <ul class="rail-list rail-list--footer">
+    {# /settings fragment lands in T-067; until then Settings points at /categories. #}
+    {{ navlink('/categories', 'Settings', 'g s', extra_paths=('/settings',)) }}
   </ul>
 </nav>

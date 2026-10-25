@@ -13,27 +13,34 @@
   </head>
   <body class="min-h-screen bg-[color:var(--surface)] text-[color:var(--ink)]">
     <a class="skip-link sr-only focus:not-sr-only" href="#main">Skip to content</a>
-    <header>
-      {% block nav %}
-        {% include "partials/_nav.html" %}
-      {% endblock %}
-    </header>
-    <main id="main" tabindex="-1" class="mx-auto max-w-screen-xl px-6 py-10">
-      <div id="flash-region"
-           role="status"
-           aria-live="polite"
-           class="flash-region"></div>
-      <div id="flash-region-assertive"
-           role="alert"
-           aria-live="assertive"
-           class="flash-region"></div>
-      {% block main %}{% endblock %}
-    </main>
-    <footer class="mx-auto max-w-screen-xl px-6 py-6 text-xs text-muted">
-      <p>
-        <span class="eyebrow">Budget Planner</span> · local-first
-      </p>
-    </footer>
+    <div class="app-shell">
+      <header class="app-shell__rail">
+        {% block nav %}
+          {% include "partials/_nav.html" %}
+        {% endblock %}
+      </header>
+      <div class="app-shell__content">
+        <main id="main" tabindex="-1" class="app-shell__main">
+          <div id="flash-region"
+               role="status"
+               aria-live="polite"
+               class="flash-region"></div>
+          <div id="flash-region-assertive"
+               role="alert"
+               aria-live="assertive"
+               class="flash-region"></div>
+          {% block main %}{% endblock %}
+        </main>
+        <footer class="app-shell__footer">
+          <p>
+            <span class="eyebrow">Budget Planner</span> · local-first
+          </p>
+        </footer>
+      </div>
+    </div>
+    <div id="drawer-root" aria-live="polite"></div>
+    <div id="modal-root"></div>
+    {% block fab %}{% include "partials/_fab.html" ignore missing %}{% endblock %}
     {% block scripts %}{% endblock %}
   </body>
 </html>

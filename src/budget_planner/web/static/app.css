@@ -157,21 +157,110 @@ a { color: inherit; }
   border-radius: var(--radius-sm);
 }
 
-/* ---- Nav rail — hairline bottom + accent underline on current ---- */
+/* ---- App shell (T-061) — 4-tab left rail + fluid main column ---- */
 
-nav[aria-label="Primary navigation"] { background: var(--surface); }
-nav[aria-label="Primary navigation"] a { position: relative; }
-nav[aria-label="Primary navigation"] a.nav-current {
+.app-shell {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  min-height: 100dvh;
+}
+.app-shell__rail {
+  border-right: 1px solid var(--rule);
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100dvh;
+  overflow-y: auto;
+  background: var(--surface);
+}
+.app-shell__content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.app-shell__main {
+  flex: 1;
+  padding-inline: var(--page-gutter);
+  padding-block: var(--space-6) var(--space-7);
+  max-width: 1200px;
+  width: 100%;
+  margin-inline: auto;
+}
+.app-shell__footer {
+  padding-inline: var(--page-gutter);
+  padding-block: var(--space-5);
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+@media (max-width: 768px) {
+  .app-shell { grid-template-columns: 1fr; }
+  .app-shell__rail {
+    position: static;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--rule);
+  }
+}
+
+/* ---- Rail nav (T-062) — grouped list, accent left-border on current ---- */
+
+.rail-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-6) var(--space-4);
+  height: 100%;
+}
+.rail-wordmark {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-family: var(--font-serif);
+  letter-spacing: -0.015em;
   color: var(--ink);
   text-decoration: none;
+  padding-inline: var(--space-2);
 }
-nav[aria-label="Primary navigation"] a.nav-current::after {
-  content: "";
-  position: absolute;
-  left: 0; right: 0; bottom: -0.4rem;
-  height: 2px;
-  background: var(--accent);
+.rail-wordmark__name  { font-size: var(--text-base); font-weight: 500; }
+.rail-wordmark__kicker {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-eyebrow);
+  color: var(--faint);
 }
+.rail-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.rail-list--footer { margin-top: auto; padding-top: var(--space-4); border-top: 1px solid var(--rule); }
+.rail-item {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--muted);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  transition: color var(--duration-fast) var(--ease-out-expo),
+              background var(--duration-fast) var(--ease-out-expo);
+}
+.rail-item:hover { color: var(--ink); background: var(--surface-raised); }
+.rail-item--current {
+  color: var(--ink);
+  background: var(--accent-wash);
+  border-left-color: var(--accent);
+}
+
+/* ---- Overlay slots (T-061) — drawer, modal, palette mount here ---- */
+
+#drawer-root:empty,
+#modal-root:empty { display: none; }
 
 /* ---- Direction pills ---- */
 
