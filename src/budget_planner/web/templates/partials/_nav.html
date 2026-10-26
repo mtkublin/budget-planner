@@ -1,16 +1,35 @@
 {% set path = request.url.path %}
 {% macro navlink(href, label, shortcut, extra_paths=()) -%}
-  {% set is_current = (href == '/' and path == '/') or (href != '/' and path.startswith(href)) %}
-  {%- if not is_current -%}
+  {# WHY: Jinja ``set`` inside ``for`` does not escape the loop scope, so we
+     use a namespace to track the active state across ``extra_paths``. #}
+  {% set ns = namespace(is_current=(href == '/' and path == '/') or (href != '/' and path.startswith(href))) %}
+  {%- if not ns.is_current -%}
     {%- for alt in extra_paths -%}
-      {%- if path.startswith(alt) %}{% set is_current = true %}{% endif -%}
+      {%- if path.startswith(alt) %}{% set ns.is_current = true %}{% endif -%}
     {%- endfor -%}
   {%- endif %}
   <li>
     <a href="{{ href }}"
-       class="rail-item{% if is_current %} rail-item--current{% endif %}"
+       class="rail-item{% if ns.is_current %} rail-item--current{% endif %}"
        data-shortcut="{{ shortcut }}"
-       {% if is_current %}aria-current="page"{% endif %}>{{ label }}</a>
+       {% if ns.is_current %}aria-current="page"{% endif %}>{{ label }}</a>
+  </li>
+{%- endmacro %}
+{% macro drawerlink(href, label, shortcut, extra_paths=()) -%}
+  {% set ns = namespace(is_current=path.startswith(href)) %}
+  {%- if not ns.is_current -%}
+    {%- for alt in extra_paths -%}
+      {%- if path.startswith(alt) %}{% set ns.is_current = true %}{% endif -%}
+    {%- endfor -%}
+  {%- endif %}
+  <li>
+    <a href="{{ href }}"
+       class="rail-item{% if ns.is_current %} rail-item--current{% endif %}"
+       data-shortcut="{{ shortcut }}"
+       hx-get="{{ href }}"
+       hx-target="#drawer-root"
+       hx-swap="innerHTML"
+       {% if ns.is_current %}aria-current="page"{% endif %}>{{ label }}</a>
   </li>
 {%- endmacro %}
 <nav aria-label="Primary navigation" class="rail-nav">
@@ -19,16 +38,18 @@
     <span class="rail-wordmark__kicker">local-first</span>
   </a>
   <ul class="rail-list">
-    {# Note: /ledger lands in T-064; until then Ledger points at /transactions.
-       is_current also fires on /planned and /recurring so the active state
-       covers the three legacy routes that Ledger will subsume. #}
+    {# T-064: Ledger is its own route. ``extra_paths`` keeps the active state
+       on the legacy /transactions, /planned, /recurring entry points so the
+       rail still highlights correctly until T-070 redirects them to /ledger. #}
     {{ navlink('/', 'Overview', 'g o') }}
-    {{ navlink('/transactions', 'Ledger', 'g l', extra_paths=('/ledger', '/planned', '/recurring')) }}
+    {{ navlink('/ledger', 'Ledger', 'g l', extra_paths=('/transactions', '/planned', '/recurring')) }}
     {{ navlink('/accounts', 'Accounts', 'g a') }}
     {{ navlink('/budget', 'Budget', 'g b') }}
   </ul>
   <ul class="rail-list rail-list--footer">
-    {# /settings fragment lands in T-067; until then Settings points at /categories. #}
-    {{ navlink('/categories', 'Settings', 'g s', extra_paths=('/settings',)) }}
+    {# T-067: Settings opens the drawer via HTMX; `href` is kept as a graceful
+       fallback for no-JS and for navigation tests. Active state also fires on
+       /categories while the standalone page coexists until T-070. #}
+    {{ drawerlink('/settings', 'Settings', 'g s', extra_paths=('/categories',)) }}
   </ul>
 </nav>

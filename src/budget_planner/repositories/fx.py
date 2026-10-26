@@ -53,6 +53,20 @@ def latest_rate(
     return _row_to_rate(row) if row is not None else None
 
 
+def list_recent(conn: sqlite3.Connection, *, limit: int = 50) -> list[FxRate]:
+    """Return the most-recently fetched FX rates, newest first.
+
+    Read-only; used by the Settings drawer FX tab (T-067). Ordering by
+    `fetched_at DESC` surfaces freshly refreshed rates first, with a stable
+    secondary sort on `date` for determinism when fetches batch together.
+    """
+    rows = conn.execute(
+        f"SELECT {_COLUMNS} FROM fx_rates ORDER BY fetched_at DESC, date DESC, id DESC LIMIT ?",
+        (int(limit),),
+    ).fetchall()
+    return [_row_to_rate(row) for row in rows]
+
+
 def upsert_rate(conn: sqlite3.Connection, data: NewFxRate) -> FxRate:
     existing = find_rate(conn, data.date, data.from_ccy, data.to_ccy)
     prev = existing
@@ -89,4 +103,4 @@ def upsert_rate(conn: sqlite3.Connection, data: NewFxRate) -> FxRate:
     )
 
 
-__all__ = ["find_rate", "latest_rate", "upsert_rate"]
+__all__ = ["find_rate", "latest_rate", "list_recent", "upsert_rate"]

@@ -1,0 +1,25 @@
+{# T-067 — Preferences tab. Read-only in v1 (editing is a v2 concern). #}
+<div class="drawer-section">
+  <header class="drawer-section__header">
+    <p class="eyebrow">Workspace</p>
+    <h3 class="drawer-section__title">Preferences</h3>
+  </header>
+  <dl class="drawer-prefs">
+    <div class="drawer-prefs__row">
+      <dt class="drawer-prefs__key">Base currency</dt>
+      <dd class="drawer-prefs__value numeric" data-pref="base-currency">
+        {{ settings.base_currency }}
+      </dd>
+    </div>
+    <div class="drawer-prefs__row">
+      <dt class="drawer-prefs__key">Display timezone</dt>
+      <dd class="drawer-prefs__value" data-pref="display-timezone">
+        {{ settings.display_timezone }}
+      </dd>
+    </div>
+  </dl>
+  <p class="text-muted drawer-section__hint">
+    These values are configured via the <code>BUDGET_*</code> environment
+    and will be editable here in a future release.
+  </p>
+</div>

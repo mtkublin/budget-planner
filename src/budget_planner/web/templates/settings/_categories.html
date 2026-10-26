@@ -1,0 +1,32 @@
+{# T-067 — Categories tab inside the Settings drawer.
+
+   Lifted from `categories/index.html`. Form posts still target the
+   existing `/categories` endpoints so there is a single source of truth
+   for the CRUD logic. #}
+<div class="drawer-section">
+  <header class="drawer-section__header">
+    <p class="eyebrow">Taxonomy</p>
+    <h3 class="drawer-section__title">Categories</h3>
+    <button type="button"
+            class="btn-ghost"
+            hx-get="/categories/new"
+            hx-target="#cat-form-slot"
+            hx-swap="innerHTML">+ New category</button>
+  </header>
+  <div id="cat-form-slot" class="drawer-section__slot"></div>
+  <table class="ledger">
+    <caption class="sr-only">Categories</caption>
+    <thead>
+      <tr>
+        <th scope="col">Name</th>
+        <th scope="col">Direction</th>
+        <th scope="col" class="text-right">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for category in categories %}
+        {% include "partials/categories/_row.html" %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

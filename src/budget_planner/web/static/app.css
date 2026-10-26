@@ -262,6 +262,118 @@ a { color: inherit; }
 #drawer-root:empty,
 #modal-root:empty { display: none; }
 
+/* ---- Drawer (T-067) — right-side slide-over, 480 px, three-tab panel ---- */
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(480px, 100vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-left: 1px solid var(--rule);
+  box-shadow: var(--elevation-2);
+  z-index: 50;
+  transform: translateX(100%);
+  transition: transform var(--duration-normal) var(--ease-out-expo);
+  overflow: hidden;
+}
+.drawer--open { transform: translateX(0); }
+.drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border-bottom: 1px solid var(--rule);
+}
+.drawer__title {
+  margin: 0;
+  font-size: var(--text-xl);
+  line-height: 1;
+}
+.drawer__close {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  font-size: var(--text-xl);
+  line-height: 1;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out-expo),
+              background var(--duration-fast) var(--ease-out-expo);
+}
+.drawer__close:hover { color: var(--ink); background: var(--surface-raised); }
+.drawer__tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--rule);
+  padding-inline: var(--space-5);
+}
+.drawer__tab {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  letter-spacing: 0.01em;
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out-expo),
+              border-color var(--duration-fast) var(--ease-out-expo);
+}
+.drawer__tab:hover { color: var(--ink); }
+.drawer__tab--active {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+.drawer__panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-5);
+}
+.drawer-section { display: flex; flex-direction: column; gap: var(--space-4); }
+.drawer-section__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.drawer-section__header .btn-ghost { align-self: flex-start; margin-top: var(--space-2); }
+.drawer-section__title { margin: 0; font-size: var(--text-lg); line-height: 1.2; }
+.drawer-section__slot:empty { display: none; }
+.drawer-section__hint { margin: 0; font-size: var(--text-sm); }
+.drawer-section__empty { margin: 0; font-size: var(--text-sm); }
+.drawer-prefs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+}
+.drawer-prefs__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--rule);
+}
+.drawer-prefs__row:last-child { border-bottom: 0; }
+.drawer-prefs__key {
+  margin: 0;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-eyebrow);
+  color: var(--faint);
+}
+.drawer-prefs__value { margin: 0; color: var(--ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer { transition: none; }
+}
+
 /* ---- Direction pills ---- */
 
 .pill {
@@ -646,6 +758,94 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
 .upcoming-row--overdue .upcoming-row__description { font-style: italic; }
 .upcoming-empty { margin: 0; padding: var(--space-3) 0; }
 
+/* ---- Budget page (T-066) — three stacked sections ------------------------
+   Composition only: hairline dividers between sections, remainder bar reuses
+   the Panel-B bar track (--surface-sunken) + --accent fill. No new palette. */
+
+.budget-page__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-6);
+}
+.budget-page__h1 {
+  font-size: var(--text-2xl);
+  line-height: 1;
+  margin: 0;
+}
+
+.budget-section {
+  padding-block: var(--space-6);
+  border-top: 1px solid var(--rule);
+}
+.budget-section:first-of-type { border-top: 0; padding-top: 0; }
+
+.budget-section__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+.budget-section__header h2 { margin: 0; }
+
+.budget-month-picker {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+.budget-month-picker input[type="number"] { width: 6rem; }
+
+.budget-row-table .budget-row td {
+  vertical-align: middle;
+}
+.budget-row--totals td {
+  border-top: 1px solid var(--rule-strong);
+  border-bottom: 0;
+  font-weight: 500;
+}
+
+.remainder-bar {
+  height: 6px;
+  min-width: 80px;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  position: relative;
+}
+.remainder-bar__fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width var(--duration-normal) var(--ease-out-expo);
+}
+
+.budget-rule-form {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+.budget-rule-form input[type="text"] {
+  width: 7rem;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.budget-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+.budget-breakdown-grid__full { grid-column: 1 / -1; }
+.budget-breakdown-grid figure { margin: 0; overflow: hidden; }
+.budget-breakdown-grid figcaption { margin-bottom: var(--space-3); }
+
+@media (max-width: 768px) {
+  .budget-breakdown-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
 /* ---- Command palette + shortcuts (T-068) ----------------------------------
    Composes existing tokens only. Both dialogs use the native <dialog> element
    so focus trap and Esc close are free. Keep motion compositor-friendly. */
@@ -757,3 +957,59 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
   color: var(--ink);
 }
 .shortcuts-close { margin-top: var(--space-4); text-align: right; }
+
+/* ---- Ledger (T-064) — segmented control + filter chip row + search input.
+   Composes only existing tokens; no new palette. The segmented control reuses
+   the Panel C `.segmented` tokens; the ledger variant lifts the control to a
+   block-level nav above the filter chip row. */
+
+.ledger-segmented {
+  display: inline-flex;
+  margin-bottom: var(--space-4);
+}
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+.filter-chips label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+.filter-chips__search { margin-left: auto; }
+.search-input {
+  min-width: 14rem;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  transition: border-color var(--duration-fast) var(--ease-out-expo);
+}
+.search-input::placeholder { color: var(--faint); }
+.search-input:focus-visible { border-color: var(--accent); }
+
+.overrides-accordion summary {
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  padding-block: var(--space-1);
+}
+.overrides-accordion[open] summary { color: var(--ink); }
+.overrides-list {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+}

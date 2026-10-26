@@ -1,0 +1,68 @@
+"""Settings drawer router (T-067).
+
+Serves the right-side slide-over Settings fragment with three internal tabs:
+
+- Categories — lifts the existing `/categories` CRUD into the drawer. Form
+  posts still target the `/categories` endpoints, so there is only one copy
+  of the business logic (ADR-0021 functional-first, thin web).
+- FX — read-only list of cached FX rates. Editing is a v2 concern.
+- Preferences — read-only base currency + display timezone (ADR-0006 / ADR-0007).
+
+The drawer deliberately does **not** change the browser URL. HTMX swaps the
+fragment HTML into `#drawer-root`; `GET /settings/close` returns an empty body
+so clients can clear the drawer via the same mechanism.
+"""
+
+from __future__ import annotations
+
+import sqlite3
+from typing import Any, Final, Literal, get_args
+
+from fastapi import APIRouter, Depends, Query, Request
+from fastapi.responses import HTMLResponse
+
+from budget_planner.repositories import (
+    categories as categories_repo,
+    fx as fx_repo,
+)
+from budget_planner.web.deps import get_db
+from budget_planner.web.rendering import render
+
+TabKind = Literal["categories", "fx", "prefs"]
+_VALID_TABS: Final[tuple[TabKind, ...]] = get_args(TabKind)
+_DEFAULT_TAB: Final[TabKind] = "categories"
+_FX_LIMIT: Final[int] = 50
+
+router = APIRouter(prefix="/settings", tags=["settings"])
+
+
+def _coerce_tab(raw: str | None) -> TabKind:
+    """Return a valid tab identifier, defaulting to Categories on absent/invalid."""
+    if raw is None:
+        return _DEFAULT_TAB
+    for valid in _VALID_TABS:
+        if raw == valid:
+            return valid
+    return _DEFAULT_TAB
+
+
+@router.get("", response_class=HTMLResponse)
+def drawer(
+    request: Request,
+    tab: str | None = Query(default=None),
+    conn: sqlite3.Connection = Depends(get_db),
+) -> HTMLResponse:
+    """Return the Settings drawer fragment with the requested tab active."""
+    active_tab = _coerce_tab(tab)
+    context: dict[str, Any] = {"active_tab": active_tab}
+    if active_tab == "categories":
+        context["categories"] = categories_repo.list_all(conn)
+    elif active_tab == "fx":
+        context["fx_rates"] = fx_repo.list_recent(conn, limit=_FX_LIMIT)
+    return render(request, "settings/_drawer.html", **context)
+
+
+@router.get("/close", response_class=HTMLResponse)
+def close() -> HTMLResponse:
+    """Return an empty fragment so HTMX can swap away the drawer contents."""
+    return HTMLResponse("")

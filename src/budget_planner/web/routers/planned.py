@@ -70,8 +70,13 @@ def index(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLR
 
 @router.get("/table", response_class=HTMLResponse)
 def table_fragment(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLResponse:
-    views = _views(conn, request)
-    return render(request, "partials/planned/_table.html", views=views)
+    """Legacy fragment alias (T-064).
+
+    Delegates to the unified ledger fragment with ``view=planned``.
+    """
+    from budget_planner.web.routers.ledger import render_table_for  # noqa: PLC0415
+
+    return render_table_for(request, conn, "planned")
 
 
 @router.get("/new", response_class=HTMLResponse)

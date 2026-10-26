@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Ledger · Budget Planner{% endblock %}
+{% block main %}
+  <header class="flex items-end justify-between gap-6 mb-6">
+    <div>
+      <p class="eyebrow mb-2">Ledger</p>
+      <h1 class="leading-none">Ledger</h1>
+    </div>
+  </header>
+
+  {# Segmented control — Actual · Planned · Recurring. [ and ] cycle via
+     data-shortcut-prev / data-shortcut-next (T-068 listener). #}
+  <nav class="segmented ledger-segmented"
+       aria-label="Ledger view"
+       data-ledger-views>
+    {% for v in views %}
+      {% set is_active = v == view %}
+      <button type="button"
+              class="segmented__btn{% if is_active %} segmented__btn--active{% endif %}"
+              data-view="{{ v }}"
+              aria-pressed="{% if is_active %}true{% else %}false{% endif %}"
+              hx-get="/ledger/table?view={{ v }}"
+              hx-target="#ledger-table"
+              hx-swap="outerHTML"
+              hx-push-url="/ledger?view={{ v }}">{{ v|capitalize }}</button>
+    {% endfor %}
+  </nav>
+
+  <form class="filter-chips mt-5"
+        hx-get="/ledger/table?view={{ view }}"
+        hx-target="#ledger-table"
+        hx-swap="outerHTML"
+        hx-trigger="change, submit">
+    <label>
+      <span class="sr-only">From</span>
+      <input type="date" name="date_from"
+             value="{{ filters.date_from.isoformat() if filters.date_from else '' }}">
+    </label>
+    <label>
+      <span class="sr-only">To</span>
+      <input type="date" name="date_to"
+             value="{{ filters.date_to.isoformat() if filters.date_to else '' }}">
+    </label>
+    <label>
+      <span class="sr-only">Category</span>
+      <select name="category_id">
+        <option value="">All categories</option>
+        {% for c in categories %}
+          <option value="{{ c.id }}"
+                  {% if filters.category_ids and c.id in filters.category_ids %}selected{% endif %}>
+            {{ c.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      <span class="sr-only">Account</span>
+      <select name="account_id">
+        <option value="">All accounts</option>
+        {% for a in accounts %}
+          <option value="{{ a.id }}"
+                  {% if filters.account_ids and a.id in filters.account_ids %}selected{% endif %}>
+            {{ a.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="filter-chips__search">
+      <span class="sr-only">Search</span>
+      <input class="search-input"
+             type="search"
+             name="q"
+             placeholder="Search description"
+             value="{{ filters.search or '' }}"
+             data-search-input
+             hx-get="/ledger/table?view={{ view }}"
+             hx-target="#ledger-table"
+             hx-swap="outerHTML"
+             hx-trigger="input changed delay:400ms"
+             hx-push-url="false">
+    </label>
+  </form>
+
+  <section class="mt-5">
+    {% include "ledger/_table.html" %}
+  </section>
+  <div id="modal-root"></div>
+{% endblock %}

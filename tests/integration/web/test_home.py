@@ -62,16 +62,17 @@ def test_home_renders(client: TestClient, seeded: None) -> None:
 def test_nav_links_present(client: TestClient) -> None:
     """Four-tab rail + Settings affordance (ADR-0023).
 
-    Ledger points at /transactions until T-064 lands /ledger; Settings points
-    at /categories until T-067 lands /settings. Future tasks flip these hrefs
-    without changing the number of nav items.
+    After T-064 Ledger points at /ledger; Settings opens the drawer at
+    /settings (T-067). The macro's ``extra_paths`` keep the active state
+    accurate on legacy /transactions, /planned, /recurring routes.
     """
     r = client.get("/")
     assert r.status_code == 200
     soup = BeautifulSoup(r.text, "html.parser")
     hrefs = {a["href"] for a in soup.select("nav a")}
-    for path in ("/", "/transactions", "/accounts", "/budget", "/categories"):
+    for path in ("/", "/ledger", "/accounts", "/budget", "/settings"):
         assert path in hrefs, f"nav missing {path}"
+    assert "/transactions" not in hrefs
 
 
 def test_nav_has_four_primary_items_plus_settings(client: TestClient) -> None:

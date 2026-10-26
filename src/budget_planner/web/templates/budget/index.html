@@ -1,32 +1,256 @@
 {% extends "base.html" %}
 {% block title %}Budget {{ year }}-{{ "%02d"|format(month) }} · Budget Planner{% endblock %}
 {% block main %}
-  <header class="flex items-baseline justify-between mb-10">
-    <div>
-      <h1 class="font-serif text-5xl leading-none">Budget</h1>
-      <p class="text-muted mt-2">{{ year }}-{{ "%02d"|format(month) }}</p>
-    </div>
-    <a href="/budget/manage" class="link-muted">Manage defaults →</a>
+  <header class="budget-page__header">
+    <p class="eyebrow">Budget</p>
+    <h1 class="budget-page__h1">Plan · spend · breakdown</h1>
   </header>
-  <table class="ledger" id="budget-summary">
-    <caption class="sr-only">Monthly budget summary</caption>
-    <thead>
-      <tr>
-        <th scope="col">Category</th>
-        <th scope="col" class="text-right">Budgeted</th>
-        <th scope="col" class="text-right">Spent</th>
-        <th scope="col" class="text-right">Remaining</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for line in summary.lines %}
-        <tr class="row">
-          <td>{{ line.category_name }}</td>
-          <td class="text-right tabular-nums">{{ line.budgeted_minor|money(base_ccy) }}</td>
-          <td class="text-right tabular-nums">{{ line.spent_minor|money(base_ccy) }}</td>
-          <td class="text-right tabular-nums">{{ line.remaining_minor|money(base_ccy) }}</td>
+
+  {# ------------------------------------------------------------------ #}
+  {# Section 1 — Monthly summary                                        #}
+  {# ------------------------------------------------------------------ #}
+  <section id="budget-summary"
+           class="budget-section"
+           aria-labelledby="budget-summary-heading">
+    <header class="budget-section__header">
+      <div>
+        <p class="eyebrow">Section 1</p>
+        <h2 id="budget-summary-heading">Monthly summary</h2>
+      </div>
+      <form class="budget-month-picker"
+            method="get"
+            action="/budget"
+            aria-label="Select month">
+        <label class="sr-only" for="budget-year">Year</label>
+        <input id="budget-year"
+               type="number"
+               name="year"
+               value="{{ year }}"
+               min="2000"
+               max="2100"
+               aria-label="Year">
+        <label class="sr-only" for="budget-month">Month</label>
+        <select id="budget-month" name="month" aria-label="Month">
+          {% for m in range(1, 13) %}
+            <option value="{{ m }}" {% if m == month %}selected{% endif %}>
+              {{ "%02d"|format(m) }}
+            </option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn-ghost">Go</button>
+      </form>
+    </header>
+
+    <table class="ledger budget-row-table">
+      <caption class="sr-only">
+        Planned vs actual per category for {{ year }}-{{ "%02d"|format(month) }}
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Category</th>
+          <th scope="col" class="text-right">Planned</th>
+          <th scope="col" class="text-right">Actual</th>
+          <th scope="col">Remainder</th>
+          <th scope="col" class="text-right">Remainder</th>
         </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {% for line in summary.lines %}
+          {% set planned = line.budgeted_minor or 0 %}
+          {% set actual = line.spent_minor %}
+          {% if planned > 0 %}
+            {% set ratio = 100 * actual / planned %}
+            {% set bar_pct = 0 if ratio < 0 else (100 if ratio > 100 else ratio|int) %}
+          {% else %}
+            {% set bar_pct = 0 %}
+          {% endif %}
+          <tr class="row budget-row">
+            <td>{{ line.category_name }}</td>
+            <td class="text-right tabular-nums">
+              {% if line.budgeted_minor is none %}
+                <span class="text-faint">—</span>
+              {% else %}
+                {{ line.budgeted_minor|money(base_ccy) }}
+              {% endif %}
+            </td>
+            <td class="text-right tabular-nums">{{ line.spent_minor|money(base_ccy) }}</td>
+            <td>
+              <div class="remainder-bar"
+                   role="progressbar"
+                   aria-valuemin="0"
+                   aria-valuemax="100"
+                   aria-valuenow="{{ bar_pct }}"
+                   aria-label="{{ line.category_name }} actual vs planned">
+                <span class="remainder-bar__fill" style="width: {{ bar_pct }}%"></span>
+              </div>
+            </td>
+            <td class="text-right tabular-nums">
+              {% if line.remaining_minor is none %}
+                <span class="text-faint">—</span>
+              {% else %}
+                {{ line.remaining_minor|money(base_ccy) }}
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="budget-row budget-row--totals">
+          <td>Total</td>
+          <td class="text-right tabular-nums">
+            {{ summary.totals.budgeted_minor|money(base_ccy) }}
+          </td>
+          <td class="text-right tabular-nums">
+            {{ summary.totals.spent_minor|money(base_ccy) }}
+          </td>
+          <td></td>
+          <td class="text-right tabular-nums">
+            {{ summary.totals.remaining_minor|money(base_ccy) }}
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </section>
+
+  {# ------------------------------------------------------------------ #}
+  {# Section 2 — Rules editor                                           #}
+  {# ------------------------------------------------------------------ #}
+  <section id="budget-rules"
+           class="budget-section"
+           aria-labelledby="budget-rules-heading">
+    <header class="budget-section__header">
+      <div>
+        <p class="eyebrow">Section 2</p>
+        <h2 id="budget-rules-heading">Rules</h2>
+      </div>
+      <p class="text-muted text-sm">
+        Three-tier resolution: one-off → recurring → default (in {{ base_ccy }}).
+      </p>
+    </header>
+
+    <table class="ledger budget-rules-table">
+      <caption class="sr-only">
+        Per-category budget rules: default, recurring for month {{ month }},
+        and one-off for {{ year }}-{{ "%02d"|format(month) }}
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Category</th>
+          <th scope="col">Default</th>
+          <th scope="col">Recurring · month {{ month }}</th>
+          <th scope="col">One-off · {{ year }}-{{ "%02d"|format(month) }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rules %}
+          <tr class="row">
+            <td>{{ row.category_name }}</td>
+            <td>
+              <form hx-post="/budget/defaults/{{ row.category_id }}"
+                    hx-swap="none"
+                    class="budget-rule-form">
+                <label class="sr-only"
+                       for="rule-default-{{ row.category_id }}">
+                  Default budget for {{ row.category_name }}
+                </label>
+                <input id="rule-default-{{ row.category_id }}"
+                       type="text"
+                       name="amount"
+                       value="{{ row.default_minor }}"
+                       inputmode="decimal">
+                <button type="submit" class="btn-ghost">Save</button>
+              </form>
+            </td>
+            <td>
+              <form hx-post="/budget/recurring/{{ row.category_id }}/{{ month }}"
+                    hx-swap="none"
+                    class="budget-rule-form">
+                <label class="sr-only"
+                       for="rule-recurring-{{ row.category_id }}">
+                  Recurring budget for {{ row.category_name }}, month {{ month }}
+                </label>
+                <input id="rule-recurring-{{ row.category_id }}"
+                       type="text"
+                       name="amount"
+                       value="{{ row.recurring_minor if row.recurring_minor is not none else '' }}"
+                       placeholder="—"
+                       inputmode="decimal">
+                <button type="submit" class="btn-ghost">Save</button>
+              </form>
+            </td>
+            <td>
+              <form hx-post="/budget/one-off/{{ row.category_id }}/{{ year }}/{{ month }}"
+                    hx-swap="none"
+                    class="budget-rule-form">
+                <label class="sr-only"
+                       for="rule-oneoff-{{ row.category_id }}">
+                  One-off budget for {{ row.category_name }},
+                  {{ year }}-{{ "%02d"|format(month) }}
+                </label>
+                <input id="rule-oneoff-{{ row.category_id }}"
+                       type="text"
+                       name="amount"
+                       value="{{ row.one_off_minor if row.one_off_minor is not none else '' }}"
+                       placeholder="—"
+                       inputmode="decimal">
+                <button type="submit" class="btn-ghost">Save</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  {# ------------------------------------------------------------------ #}
+  {# Section 3 — Breakdown                                              #}
+  {# ------------------------------------------------------------------ #}
+  <section id="budget-breakdown"
+           class="budget-section"
+           aria-labelledby="budget-breakdown-heading">
+    <header class="budget-section__header">
+      <div>
+        <p class="eyebrow">Section 3</p>
+        <h2 id="budget-breakdown-heading">Breakdown</h2>
+      </div>
+      <p class="text-muted text-sm">
+        Minor-unit sums divided by 100 for display.
+      </p>
+    </header>
+
+    <div class="budget-breakdown-grid">
+      <figure class="surface-chart">
+        <figcaption class="eyebrow">Spend by category</figcaption>
+        <div id="chart-spend"
+             data-plotly="{{ spend_json }}"
+             aria-label="Spend by category"></div>
+      </figure>
+      <figure class="surface-chart">
+        <figcaption class="eyebrow">Cashflow by account</figcaption>
+        <div id="chart-cashflow"
+             data-plotly="{{ cashflow_json }}"
+             aria-label="Cashflow by account"></div>
+      </figure>
+      <figure class="surface-chart budget-breakdown-grid__full">
+        <figcaption class="eyebrow">Income vs expense (monthly)</figcaption>
+        <div id="chart-monthly"
+             data-plotly="{{ monthly_json }}"
+             aria-label="Income vs expense"></div>
+      </figure>
+    </div>
+  </section>
+{% endblock %}
+{% block scripts %}
+  <script>
+    (function () {
+      function renderAll() {
+        if (typeof Plotly === "undefined") { return; }
+        document.querySelectorAll('[data-plotly]').forEach(function (el) {
+          var spec = JSON.parse(el.getAttribute('data-plotly'));
+          Plotly.newPlot(el, spec.data, spec.layout, { displayModeBar: false });
+        });
+      }
+      document.addEventListener('DOMContentLoaded', renderAll);
+    })();
+  </script>
 {% endblock %}

@@ -57,6 +57,19 @@
     if (e.key === "?") {
       const dlg = document.getElementById("shortcuts-dialog");
       if (dlg) { e.preventDefault(); dlg.showModal(); }
+      return;
+    }
+    // T-064 — [ / ] cycle the ledger segmented control. Discover views
+    // from the DOM so the keymap can never drift from the template.
+    if (e.key === "[" || e.key === "]") {
+      const seg = document.querySelector("[data-ledger-views]");
+      if (!seg) return;
+      const btns = Array.from(seg.querySelectorAll("[data-view]"));
+      if (btns.length === 0) return;
+      const idx = Math.max(0, btns.findIndex(b => b.getAttribute("aria-pressed") === "true"));
+      const delta = e.key === "]" ? 1 : -1;
+      const next = btns[(idx + delta + btns.length) % btns.length];
+      if (next) { e.preventDefault(); next.click(); }
     }
   });
 })();

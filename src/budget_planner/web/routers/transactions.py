@@ -134,28 +134,15 @@ def list_page(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> H
 
 @router.get("/table", response_class=HTMLResponse)
 def table_fragment(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLResponse:
-    flt = parse_filter(request)
-    page, size = _page(request)
-    paged = TransactionFilter(
-        date_from=flt.date_from,
-        date_to=flt.date_to,
-        account_ids=flt.account_ids,
-        category_ids=flt.category_ids,
-        amount_min=flt.amount_min,
-        amount_max=flt.amount_max,
-        description_contains=flt.description_contains,
-        limit=size,
-        offset=(page - 1) * size,
-    )
-    rows = _hydrate_rows(conn, transactions_repo.list_filtered(conn, paged))
-    return render(
-        request,
-        "partials/transactions/_table.html",
-        rows=rows,
-        page=page,
-        page_size=size,
-        has_next=len(rows) == size,
-    )
+    """Legacy fragment alias (T-064).
+
+    Delegates to the unified ledger fragment with ``view=actual`` so pre-T-064
+    HTMX scripts keep working. The response shape (``#txn-table`` container,
+    row ids ``#txn-{id}``) is preserved by the ledger template.
+    """
+    from budget_planner.web.routers.ledger import render_table_for  # noqa: PLC0415
+
+    return render_table_for(request, conn, "actual")
 
 
 @router.get("/new", response_class=HTMLResponse)

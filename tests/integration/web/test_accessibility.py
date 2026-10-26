@@ -127,12 +127,15 @@ def test_tables_have_captions_and_scoped_headers(client: TestClient, path: str) 
 
 
 def test_nav_marks_current_page(client: TestClient) -> None:
+    """After T-064 the Ledger rail item owns the legacy /transactions path
+    via ``extra_paths``, so visiting /transactions should still highlight it.
+    """
     soup = _soup(client, "/transactions")
     nav = soup.find("nav")
     assert nav is not None and isinstance(nav, Tag)
     current = nav.find("a", attrs={"aria-current": "page"})
     assert current is not None and isinstance(current, Tag)
-    assert current.get("href") == "/transactions"
+    assert current.get("href") == "/ledger"
 
 
 def test_dialogs_have_accessible_labels(client: TestClient) -> None:
