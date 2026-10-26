@@ -38,14 +38,48 @@ def _today() -> date:
     return date.today()  # noqa: DTZ011 — intentional naive local date
 
 
+_SPARKLINE_WIDTH = 120
+_SPARKLINE_HEIGHT = 32
+
+
+def _card_context(conn: sqlite3.Connection, account_id: int) -> dict[str, Any]:
+    """Build the full context dict a single `_card.html` include needs."""
+    acc = accounts_repo.find_by_id(conn, account_id)
+    assert acc is not None
+    bal = balance_service.derive_balance(conn, account_id)
+    stats = balance_service.account_stats(conn, account_id)
+    series = balance_service.balance_series(conn, account_id)
+    series_values = [v for _, v in series]
+    sparkline = balance_service.sparkline_points(
+        series_values, width=_SPARKLINE_WIDTH, height=_SPARKLINE_HEIGHT
+    )
+    sparkline_area = (
+        f"0,{_SPARKLINE_HEIGHT} {sparkline} {_SPARKLINE_WIDTH},{_SPARKLINE_HEIGHT}"
+        if sparkline
+        else ""
+    )
+    snapshots = snapshots_repo.list_for_account(conn, account_id)
+    return {
+        "account": acc,
+        "balance": bal,
+        "stats": stats,
+        "series": series,
+        "sparkline_points": sparkline,
+        "sparkline_area_points": sparkline_area,
+        "sparkline_width": _SPARKLINE_WIDTH,
+        "sparkline_height": _SPARKLINE_HEIGHT,
+        "snapshots": snapshots,
+    }
+
+
 def _hydrate(conn: sqlite3.Connection, settings: Settings) -> dict[str, Any]:
     accs = accounts_repo.list_all(conn)
     cards: list[dict[str, Any]] = []
     totals_by_ccy: dict[str, int] = {}
     for a in accs:
-        bal = balance_service.derive_balance(conn, a.id)
-        stats = balance_service.account_stats(conn, a.id)
-        cards.append({"account": a, "balance": bal, "stats": stats})
+        ctx = _card_context(conn, a.id)
+        cards.append(ctx)
+        bal: int = ctx["balance"]
         totals_by_ccy[a.currency] = totals_by_ccy.get(a.currency, 0) + bal
     fortune_base = (
         sum(totals_by_ccy.values())
@@ -114,12 +148,10 @@ def create_account(  # noqa: PLR0917
         conn,
         NewAccount(name=name.strip(), currency=cur, opening_balance=opening, type=type or None),
     )
-    bal = balance_service.derive_balance(conn, acc.id)
-    stats = balance_service.account_stats(conn, acc.id)
     html = render(
         request,
         "partials/accounts/_card.html",
-        card={"account": acc, "balance": bal, "stats": stats},
+        card=_card_context(conn, acc.id),
     )
     trigger(html, "balance-stale")
     return html
@@ -178,12 +210,10 @@ def update_account(
     accounts_repo.update(conn, account_id, PatchAccount(name=name.strip(), type=type or None))
     updated = accounts_repo.find_by_id(conn, account_id)
     assert updated is not None
-    bal = balance_service.derive_balance(conn, account_id)
-    stats = balance_service.account_stats(conn, account_id)
     html = render(
         request,
         "partials/accounts/_card.html",
-        card={"account": updated, "balance": bal, "stats": stats},
+        card=_card_context(conn, account_id),
     )
     trigger(html, "balance-stale")
     return html
@@ -266,12 +296,10 @@ def reconcile_submit(
     actual_minor = to_minor_units(actual, acc.currency)
     with contextlib.suppress(reconciliation_service.NoAdjustmentNeededError):
         reconciliation_service.reconcile(conn, account_id, actual_minor, _today())
-    bal = balance_service.derive_balance(conn, account_id)
-    stats = balance_service.account_stats(conn, account_id)
     html = render(
         request,
         "partials/accounts/_card.html",
-        card={"account": acc, "balance": bal, "stats": stats},
+        card=_card_context(conn, account_id),
     )
     trigger(html, "balance-stale", "forecast-stale")
     return html
