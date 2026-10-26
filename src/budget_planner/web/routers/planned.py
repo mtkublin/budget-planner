@@ -8,7 +8,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from budget_planner.domain.money import to_minor_units
 from budget_planner.domain.planned import (
@@ -51,21 +51,14 @@ def parse_filter(request: Request) -> PlannedFilter:
     )
 
 
-def _views(conn: sqlite3.Connection, request: Request) -> list[Any]:
-    flt = parse_filter(request)
-    return list(planned_service.list_planned(conn, flt))
+@router.get("")
+def index() -> RedirectResponse:
+    """Legacy page URL (T-070).
 
-
-@router.get("", response_class=HTMLResponse)
-def index(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLResponse:
-    views = _views(conn, request)
-    return render(
-        request,
-        "planned/index.html",
-        views=views,
-        categories=categories_repo.list_all(conn),
-        accounts=accounts_repo.list_all(conn),
-    )
+    Redirects to the unified ledger with the ``planned`` view selected. The
+    HTMX fragment alias ``/planned/table`` and the CRUD sub-routes stay live.
+    """
+    return RedirectResponse(url="/ledger?view=planned", status_code=302)
 
 
 @router.get("/table", response_class=HTMLResponse)
@@ -81,9 +74,12 @@ def table_fragment(request: Request, conn: sqlite3.Connection = Depends(get_db))
 
 @router.get("/new", response_class=HTMLResponse)
 def new_form(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLResponse:
+    # T-069 — slide-over wrapper for FAB launches.
     return render(
         request,
-        "partials/planned/_form.html",
+        "partials/_slideover.html",
+        slide_over_title="New planned transaction",
+        form_include="partials/planned/_form.html",
         planned=None,
         action="/planned",
         categories=categories_repo.list_all(conn),

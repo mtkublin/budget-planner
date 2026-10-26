@@ -48,7 +48,14 @@
       return;
     }
     if (e.key === "g") { pending = { prefix: "g", expiresAt: now + CHORD_MS }; return; }
-    if (e.key === "n") { e.preventDefault(); window.openCommandPalette?.(); return; }
+    if (e.key === "n") {
+      e.preventDefault();
+      // T-069 — `n` clicks the context-aware FAB. Fall back to the palette
+      // so pages that opt out of the FAB still have a quick-add affordance.
+      const fab = document.querySelector("[data-fab]");
+      if (fab) { fab.click(); } else { window.openCommandPalette?.(); }
+      return;
+    }
     if (e.key === "/") {
       const target = document.querySelector("[data-search-input]");
       if (target) { e.preventDefault(); target.focus(); }

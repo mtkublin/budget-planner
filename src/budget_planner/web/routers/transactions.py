@@ -12,7 +12,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from budget_planner.config import Settings
 from budget_planner.domain.enums import Direction
@@ -33,8 +33,6 @@ from budget_planner.web.htmx import trigger
 from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
-
-_PAGE_SIZE_DEFAULT = 50
 
 
 def _parse_date(value: str | None) -> date | None:
@@ -72,12 +70,6 @@ def parse_filter(request: Request) -> TransactionFilter:
     )
 
 
-def _page(request: Request) -> tuple[int, int]:
-    page = max(1, _parse_int(request.query_params.get("page")) or 1)
-    size = _parse_int(request.query_params.get("page_size")) or _PAGE_SIZE_DEFAULT
-    return page, max(1, min(size, 500))
-
-
 def _hydrate_rows(conn: sqlite3.Connection, rows: list[Any]) -> list[dict[str, Any]]:
     cats = {c.id: c for c in categories_repo.list_all(conn, include_deleted=True)}
     accts = {a.id: a for a in accounts_repo.list_all(conn, include_deleted=True)}
@@ -101,35 +93,16 @@ def _hydrate_rows(conn: sqlite3.Connection, rows: list[Any]) -> list[dict[str, A
     return out
 
 
-@router.get("", response_class=HTMLResponse)
-def list_page(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLResponse:
-    flt = parse_filter(request)
-    page, size = _page(request)
-    paged = TransactionFilter(
-        date_from=flt.date_from,
-        date_to=flt.date_to,
-        account_ids=flt.account_ids,
-        category_ids=flt.category_ids,
-        amount_min=flt.amount_min,
-        amount_max=flt.amount_max,
-        description_contains=flt.description_contains,
-        limit=size,
-        offset=(page - 1) * size,
-    )
-    rows = _hydrate_rows(conn, transactions_repo.list_filtered(conn, paged))
-    cats = categories_repo.list_all(conn)
-    accs = accounts_repo.list_all(conn)
-    return render(
-        request,
-        "transactions/index.html",
-        rows=rows,
-        categories=cats,
-        accounts=accs,
-        filter=flt,
-        page=page,
-        page_size=size,
-        has_next=len(rows) == size,
-    )
+@router.get("")
+def list_page() -> RedirectResponse:
+    """Legacy page URL (T-070).
+
+    Redirects to the unified ledger with the ``actual`` view selected. Kept at
+    ``302`` for one release per ADR-0023; a follow-up task flips to ``301``.
+    The HTMX fragment alias ``/transactions/table`` and the CRUD sub-routes
+    (``/transactions/new``, ``/transactions/{id}/edit``, etc.) remain live.
+    """
+    return RedirectResponse(url="/ledger?view=actual", status_code=302)
 
 
 @router.get("/table", response_class=HTMLResponse)
@@ -147,9 +120,14 @@ def table_fragment(request: Request, conn: sqlite3.Connection = Depends(get_db))
 
 @router.get("/new", response_class=HTMLResponse)
 def new_form(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLResponse:
+    # T-069 — wrap the form in a slide-over so the FAB can swap it into
+    # `#modal-root`. The inner include preserves the legacy fragment shape
+    # (same form fields + hx-post target) so existing tests + flows stand.
     return render(
         request,
-        "partials/transactions/_form.html",
+        "partials/_slideover.html",
+        slide_over_title="New transaction",
+        form_include="partials/transactions/_form.html",
         action="/transactions",
         method="post",
         txn=None,

@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from budget_planner.domain.categories import NewCategory, PatchCategory
 from budget_planner.domain.enums import Direction
@@ -17,10 +17,15 @@ from budget_planner.web.rendering import render
 router = APIRouter(prefix="/categories", tags=["categories"])
 
 
-@router.get("", response_class=HTMLResponse)
-def index(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLResponse:
-    cats = categories_repo.list_all(conn)
-    return render(request, "categories/index.html", categories=cats)
+@router.get("")
+def index() -> RedirectResponse:
+    """Legacy page URL (T-070).
+
+    Redirects to the Settings drawer's Categories tab. The CRUD sub-routes
+    (``/categories/new``, ``/categories/{id}/edit``, etc.) remain live
+    because the Settings drawer reuses them as HTMX fragments.
+    """
+    return RedirectResponse(url="/settings?tab=categories", status_code=302)
 
 
 @router.get("/new", response_class=HTMLResponse)

@@ -41,10 +41,11 @@ def ctx(_migrated: Settings) -> dict[str, int]:
         conn.close()
 
 
-def test_index(client: TestClient, ctx: dict[str, int]) -> None:
-    r = client.get("/recurring")
-    assert r.status_code == 200
-    assert f'id="recurring-{ctx["rule"]}"' in r.text
+def test_index_redirects_to_ledger(client: TestClient, ctx: dict[str, int]) -> None:
+    """T-070: ``/recurring`` returns 302 to the unified ledger (recurring view)."""
+    r = client.get("/recurring", follow_redirects=False)
+    assert r.status_code == 302
+    assert r.headers["location"] == "/ledger?view=recurring"
 
 
 def test_new_form(client: TestClient) -> None:

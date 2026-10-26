@@ -23,7 +23,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from budget_planner.config import Settings
 from budget_planner.domain.budgets import (
@@ -227,18 +227,14 @@ def index(
     return _render_index(request, conn, settings)
 
 
-@router.get("/manage", response_class=HTMLResponse)
-def manage(
-    request: Request,
-    conn: sqlite3.Connection = Depends(get_db),
-    settings: Settings = Depends(get_settings_dep),
-) -> HTMLResponse:
-    """Legacy entrypoint kept live for one release (T-070 will redirect).
+@router.get("/manage")
+def manage() -> RedirectResponse:
+    """Legacy page URL (T-070).
 
-    Renders the same consolidated page as ``/budget`` so the Rules editor
-    section is reachable at both URLs.
+    Redirects to the ``/budget`` Rules section anchor. Kept at ``302`` for
+    one release per ADR-0023; a follow-up task flips to ``301``.
     """
-    return _render_index(request, conn, settings)
+    return RedirectResponse(url="/budget#budget-rules", status_code=302)
 
 
 def _parse_decimal(value: str) -> Decimal | None:

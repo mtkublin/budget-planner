@@ -1,0 +1,29 @@
+{# T-069 — Slide-over container for FAB-launched forms.
+
+   Wraps a form fragment inside an accessible dialog that slides in from
+   the right (compositor-friendly transform + opacity). Esc close is
+   handled by `shortcuts.js` (dialog[open] stack); click on the backdrop
+   or the close button clears `#modal-root`. Requires caller to pass:
+     - slide_over_title: visible heading text.
+     - form_include:     template path to render inside the body. #}
+<div class="slide-over-root"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="slide-over-title"
+     data-slideover
+     onclick="if(event.target===this){this.parentElement.innerHTML='';}">
+  <aside class="slide-over" tabindex="-1">
+    <header class="slide-over__header">
+      <h2 id="slide-over-title" class="slide-over__title">{{ slide_over_title }}</h2>
+      <button type="button"
+              class="slide-over__close"
+              aria-label="Close"
+              onclick="this.closest('#modal-root').innerHTML='';">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </header>
+    <div class="slide-over__body">
+      {% include form_include %}
+    </div>
+  </aside>
+</div>

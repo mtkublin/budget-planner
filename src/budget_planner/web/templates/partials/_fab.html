@@ -1,0 +1,17 @@
+{# T-069 — Quick-add floating action button.
+
+   The FAB is context-aware: `fab_target_for(request)` picks the right
+   create endpoint based on the current path + ledger `view` param
+   (ADR-0023). The response is rendered into `#modal-root` as a slide-over
+   (see `partials/_slideover.html`). The `data-shortcut="n"` is read by
+   `shortcuts.js` so pressing `n` clicks the FAB. #}
+<button type="button"
+        class="fab"
+        data-fab
+        aria-label="Add transaction"
+        data-shortcut="n"
+        hx-get="{{ fab_target_for(request) }}"
+        hx-target="#modal-root"
+        hx-swap="innerHTML">
+  <span aria-hidden="true">+</span>
+</button>

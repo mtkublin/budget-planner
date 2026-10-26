@@ -8,7 +8,6 @@ from datetime import date
 
 import pyarrow.parquet as pq
 import pytest
-from bs4 import BeautifulSoup
 from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
@@ -45,11 +44,11 @@ def ctx(_migrated: Settings) -> dict[str, int]:
         conn.close()
 
 
-def test_index(client: TestClient, ctx: dict[str, int]) -> None:
-    r = client.get("/planned")
-    assert r.status_code == 200
-    soup = BeautifulSoup(r.text, "html.parser")
-    assert soup.find(id=f"planned-p-{ctx['pl']}") is not None
+def test_index_redirects_to_ledger(client: TestClient, ctx: dict[str, int]) -> None:
+    """T-070: ``/planned`` returns 302 to the unified ledger (planned view)."""
+    r = client.get("/planned", follow_redirects=False)
+    assert r.status_code == 302
+    assert r.headers["location"] == "/ledger?view=planned"
 
 
 def test_table_fragment(client: TestClient, ctx: dict[str, int]) -> None:

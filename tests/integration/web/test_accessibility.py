@@ -17,11 +17,16 @@ import pytest
 from bs4 import BeautifulSoup, Tag
 from fastapi.testclient import TestClient
 
+# T-070: /categories now redirects to the Settings drawer, which is a
+# fragment (not a full page), so it no longer carries the usual landmarks.
+# Every other legacy page URL still redirects to a landmarked full page
+# (``/transactions`` → ``/ledger``, ``/budget/manage`` → ``/budget#…``,
+# ``/analytics`` → ``/budget#…``). Those are kept here under
+# ``follow_redirects=True`` so the full-page assertions keep running.
 _ROUTES = (
     "/",
     "/transactions",
     "/accounts",
-    "/categories",
     "/planned",
     "/recurring",
     "/budget",
@@ -91,10 +96,12 @@ def _control_is_labelled(control: Tag) -> bool:
 @pytest.mark.parametrize(
     "path",
     (
+        # T-070: /categories now redirects to the Settings drawer (fragment),
+        # so it is intentionally omitted here; the labelling is still
+        # exercised via /settings?tab=categories in test_settings.py.
         "/transactions",
         "/transactions/new",
         "/accounts",
-        "/categories",
         "/planned",
         "/recurring",
         "/budget/manage",

@@ -41,10 +41,11 @@ def test_index_with_year_month(client: TestClient, cat_id: int) -> None:
     assert "2026-10" in r.text
 
 
-def test_manage_page(client: TestClient, cat_id: int) -> None:
-    r = client.get("/budget/manage")
-    assert r.status_code == 200
-    assert "Groceries" in r.text
+def test_manage_page_redirects_to_budget_rules(client: TestClient, cat_id: int) -> None:
+    """T-070: ``/budget/manage`` returns 302 to ``/budget#budget-rules``."""
+    r = client.get("/budget/manage", follow_redirects=False)
+    assert r.status_code == 302
+    assert r.headers["location"] == "/budget#budget-rules"
 
 
 def test_set_default(client: TestClient, cat_id: int) -> None:
@@ -168,8 +169,8 @@ def test_budget_breakdown_has_three_charts(client: TestClient, cat_id: int) -> N
     assert ids == {"chart-spend", "chart-cashflow", "chart-monthly"}
 
 
-def test_budget_manage_still_live(client: TestClient, cat_id: int) -> None:
-    """``/budget/manage`` keeps returning 200 for one more release (T-070)."""
-    r = client.get("/budget/manage")
+def test_budget_manage_lands_on_rules_section(client: TestClient, cat_id: int) -> None:
+    """``/budget/manage`` follows to ``/budget`` and the Rules section is present."""
+    r = client.get("/budget/manage")  # follow_redirects=True by default
     assert r.status_code == 200
     assert "Rules" in r.text

@@ -63,16 +63,11 @@ def _create_txn(
         conn.close()
 
 
-def test_list_page_renders(client: TestClient, seeded: dict[str, int]) -> None:
-    r = client.get("/transactions")
-    assert r.status_code == 200
-    soup = BeautifulSoup(r.text, "html.parser")
-    assert soup.find(id="txn-table") is not None
-    btn = soup.find("button", string=lambda s: s is not None and "+ New" in s)
-    assert btn is not None
-    form_names = {inp.get("name") for inp in soup.find_all(["input", "select"])}
-    for n in ("date_from", "date_to", "category_id", "account_id", "min_amount", "max_amount", "q"):
-        assert n in form_names
+def test_list_page_redirects_to_ledger(client: TestClient, seeded: dict[str, int]) -> None:
+    """T-070: ``/transactions`` returns 302 to the unified ledger (actual view)."""
+    r = client.get("/transactions", follow_redirects=False)
+    assert r.status_code == 302
+    assert r.headers["location"] == "/ledger?view=actual"
 
 
 def test_table_fragment_is_not_full_page(client: TestClient, seeded: dict[str, int]) -> None:
@@ -287,6 +282,8 @@ def test_update_invalid(client: TestClient, seeded: dict[str, int], _migrated: S
 
 
 def test_bad_query_params_tolerated(client: TestClient, seeded: dict[str, int]) -> None:
+    # Legacy path redirects to /ledger (T-070); follow it to confirm the
+    # ledger likewise tolerates garbled query params.
     r = client.get("/transactions?account_id=notanint&page=notanint&min_amount=xx")
     assert r.status_code == 200
 

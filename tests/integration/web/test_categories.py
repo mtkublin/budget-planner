@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from bs4 import BeautifulSoup
 from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
@@ -25,13 +24,11 @@ def cat_id(_migrated: Settings) -> int:
         conn.close()
 
 
-def test_index(client: TestClient, cat_id: int) -> None:
-    r = client.get("/categories")
-    assert r.status_code == 200
-    soup = BeautifulSoup(r.text, "html.parser")
-    assert soup.find(id=f"category-{cat_id}") is not None
-    # system categories should show
-    assert "Transit" in r.text
+def test_index_redirects_to_settings(client: TestClient, cat_id: int) -> None:
+    """T-070: ``/categories`` returns 302 to the Settings drawer tab."""
+    r = client.get("/categories", follow_redirects=False)
+    assert r.status_code == 302
+    assert r.headers["location"] == "/settings?tab=categories"
 
 
 def test_new_form(client: TestClient) -> None:

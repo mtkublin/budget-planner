@@ -7,7 +7,7 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from budget_planner.domain.enums import Cadence, OverrideState
 from budget_planner.domain.money import to_minor_units
@@ -46,25 +46,25 @@ def _parse_int(value: str | None) -> int | None:
         return None
 
 
-@router.get("", response_class=HTMLResponse)
-def index(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLResponse:
-    rules = recurring_repo.list_rules(conn)
-    overrides = {r.id: recurring_repo.list_overrides(conn, r.id) for r in rules}
-    return render(
-        request,
-        "recurring/index.html",
-        rules=rules,
-        overrides=overrides,
-        categories=categories_repo.list_all(conn),
-        accounts=accounts_repo.list_all(conn),
-    )
+@router.get("")
+def index() -> RedirectResponse:
+    """Legacy page URL (T-070).
+
+    Redirects to the unified ledger with the ``recurring`` view selected. The
+    CRUD sub-routes (``/recurring/new``, ``/recurring/{id}/edit``, etc.)
+    remain live for the FAB and settings tooling.
+    """
+    return RedirectResponse(url="/ledger?view=recurring", status_code=302)
 
 
 @router.get("/new", response_class=HTMLResponse)
 def new_form(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLResponse:
+    # T-069 — slide-over wrapper for FAB launches.
     return render(
         request,
-        "partials/recurring/_form.html",
+        "partials/_slideover.html",
+        slide_over_title="New recurring rule",
+        form_include="partials/recurring/_form.html",
         rule=None,
         action="/recurring",
         categories=categories_repo.list_all(conn),
