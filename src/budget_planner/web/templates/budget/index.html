@@ -229,7 +229,7 @@
         if (typeof Plotly === "undefined") { return; }
         document.querySelectorAll('[data-plotly]').forEach(function (el) {
           var spec = JSON.parse(el.getAttribute('data-plotly'));
-          Plotly.newPlot(el, spec.data, spec.layout, { displayModeBar: false });
+          Plotly.newPlot(el, spec.data, spec.layout, { displayModeBar: false, responsive: true });
         });
       }
       document.addEventListener('DOMContentLoaded', renderAll);
