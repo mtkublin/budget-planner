@@ -33,3 +33,9 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0027 | [Frontend Toolchain Hardening — Local Tailwind, Stylelint, Partials, Visual Regression](0027-frontend-toolchain-hardening.md) |
 | 0028 | [Ledger Segmented Control — Full Navigation, Not Partial Swap](0028-ledger-segmented-full-nav.md) |
 | 0029 | [SQLite Connection Threading — `check_same_thread=False`, Per-Request Connection](0029-sqlite-connection-threading.md) |
+| 0030 | [v2 Remote Deployment — Scaleway Stardust Warsaw + Scaleway Object Storage](0030-v2-remote-deployment-scaleway-stardust-warsaw.md) |
+| 0031 | [v2 Authentication — Single-User Passkey (WebAuthn) + Fallback Password](0031-v2-auth-single-user-passkey.md) |
+| 0032 | [v2 SQLite Durability — Continuous Replication via Litestream to Scaleway Object Storage](0032-v2-sqlite-replication-litestream.md) |
+| 0033 | [v2 Infrastructure as Code — Terraform (Scaleway Provider) + Cloud-Init Bootstrap](0033-v2-infrastructure-as-code-terraform.md) |
+| 0034 | [v2 Reverse Proxy & TLS — Caddy with Automatic HTTPS](0034-v2-reverse-proxy-caddy-auto-tls.md) |
+| 0035 | [v2 Deployment Pipeline — GitHub Actions SSH Deploy with Immutable Image Tags](0035-v2-github-actions-deploy-pipeline.md) |
