@@ -1,7 +1,9 @@
 # ADR-0013: Recurring Rules — Virtual Occurrences with Sparse Overrides
 
-- **Status**: Accepted
+- **Status**: Superseded by [ADR-0038](0038-recurring-standalone-lifecycle.md) (2026-10-27).
 - **Date**: 2026-10-23
+
+> **Supersession note (2026-10-27):** The virtual-occurrence model is retained *only* for the forecast service (F5.2) as a read-only projection helper. Ledger + Overview + Budget no longer union virtual occurrences; `recurring_rules` carries a persisted `next_due` and gains its own promotion flow. Per-occurrence overrides remain, with narrowed semantics (one override applies to one promotion, then self-destructs). See ADR-0038 §Decision.
 
 ## Decision
 

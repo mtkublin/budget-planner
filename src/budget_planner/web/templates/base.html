@@ -67,15 +67,22 @@
           evt.detail.isError = false;
         }
       });
+      // T-124 / ADR-0040 — scope reset-and-close to the form's own submit
+      // event. The `evt.target` on an HTMX form submission is the form
+      // element itself; on input-level side-effect requests (e.g. the
+      // amount input's `hx-get="/transactions/_limit_preview"`) it is the
+      // input, which fails the instanceof + attribute check. The verb
+      // check is defence in depth against a rare `hx-get` on the form
+      // root (e.g. a future live-search form).
       document.body.addEventListener("htmx:afterRequest", function (evt) {
         var detail = evt.detail || {};
-        if (!detail.successful) return;
         var xhr = detail.xhr;
         if (!xhr || xhr.status < 200 || xhr.status >= 300) return;
-        var form = evt.target && evt.target.closest
-          ? evt.target.closest("form[data-reset-on-submit]")
-          : null;
-        if (!form) return;
+        var form = evt.target;
+        if (!(form instanceof HTMLFormElement)) return;
+        if (!form.hasAttribute("data-reset-on-submit")) return;
+        var verb = (detail.requestConfig && detail.requestConfig.verb) || "";
+        if (["post", "put", "delete"].indexOf(verb.toLowerCase()) === -1) return;
         form.reset();
         form.querySelectorAll("input[data-default-today]").forEach(function (i) {
           i.value = window.__TODAY_LOCAL__ || "";

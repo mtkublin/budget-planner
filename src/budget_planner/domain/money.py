@@ -7,7 +7,7 @@ integer minor units routes through this module.
 
 from __future__ import annotations
 
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Final
 
 # Minor-unit decimals for currencies we care about in v1. Default is 2.
@@ -205,6 +205,35 @@ def to_minor_units(amount: Decimal, currency: str) -> int:
     quant = Decimal(10) ** -decimals
     quantised = amount.quantize(quant, rounding=ROUND_HALF_UP)
     return int(quantised * (Decimal(10) ** decimals))
+
+
+def parse_amount_str(raw: str, currency: str) -> Decimal | None:
+    """Parse a user-entered amount string into a Decimal (T-124 / ADR-0040).
+
+    - Normalises comma to dot so Polish/EU-style ``12,34`` and dot-style
+      ``12.34`` both round-trip to the same minor-unit value.
+    - Rejects more fractional digits than the currency supports (e.g.
+      ``12.345`` for PLN) by returning ``None``; the router surfaces a 422
+      with the same inline error shape as other invalid-amount cases.
+    - Rejects non-decimal strings and non-finite values by returning ``None``.
+
+    Mirrors ``numeric-input.js`` which already allows either separator in
+    the UI; this helper pins the server contract against future
+    regressions.
+    """
+    normalised = raw.strip().replace(",", ".")
+    if not normalised:
+        return None
+    try:
+        dec = Decimal(normalised)
+    except (InvalidOperation, ValueError):
+        return None
+    if not dec.is_finite():
+        return None
+    _, _, frac = normalised.partition(".")
+    if len(frac) > currency_decimals(currency):
+        return None
+    return dec
 
 
 def from_minor_units(amount_minor: int, currency: str) -> Decimal:

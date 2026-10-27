@@ -593,6 +593,75 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 
 ---
 
+## Phase 12 — Recurring Standalone + Overview/Budget Fixups + Modal Scope + Account/Form Bugs
+
+> Driven by field-use report 2026-10-27. Four non-negotiable UX/correctness changes: (1) separate Planned ≠ Recurring with their own promote-and-advance flow and `next_due`; (2) Overview Upcoming unions planned + recurring with grouped add buttons; (3) New-transaction popover must stop dismissing on amount keystroke; (4) Account slide-over credit-limit must respect the lockstep on initial render. Decisions: [ADR-0038](../../adr/0038-recurring-standalone-lifecycle.md), [ADR-0039](../../adr/0039-budget-daily-spend-includes-recurring.md), [ADR-0040](../../adr/0040-modal-dismissal-scope.md). Detailed plan: [`phase-12/README.md`](phase-12/README.md).
+
+### ✅ T-116 [S] ADR-0038 + ADR-0039 + ADR-0040 + requirements + Phase 12 docs scaffolding
+- Write `docs/adr/0038-recurring-standalone-lifecycle.md`, `docs/adr/0039-budget-daily-spend-includes-recurring.md`, `docs/adr/0040-modal-dismissal-scope.md` (all Accepted).
+- Flip `docs/adr/0013-recurring-virtual-occurrences-and-overrides.md` to Superseded by ADR-0038; keep file for forecast.
+- Update `docs/adr/README.md` index.
+- Update `docs/requirements.md`: F1.1 (amount `,`/`.` + modal-safe side effects), F2.1 (credit-limit lockstep on initial render), split §2.3 into §2.3a planned + §2.3b recurring with F3.1 narrowed, F3.2 `next_due`, F3.5 Promote/Override/Skip/Delete, F3.6 narrowed override semantics, F3.7 unchanged, new F3.8/F3.9/F3.10, F4.6 includes `committed`, §3.9 Overview + Ledger panels.
+- Create `docs/plans/v1/phase-12/README.md` + per-task stubs (T-116..T-124).
+- Append dated line to `docs/CHANGELOG.md`.
+- Append this block to `docs/plans/v1/tasks.md`.
+- Docs only; no code.
+
+### T-117 [S] Migration + domain + repository: `recurring_rules.next_due` / `last_promoted_date` + `transactions.promoted_from_recurring_*` → T-116, ADR-0038
+- `migrations/0006_add_recurring_next_due.sql`: additive columns + indexes; backfill `next_due` via Python hook using the existing occurrence generator; flip `next_due` to NOT NULL via SQLite 12-step rebuild inside the same migration file (or a trailing `0007_recurring_next_due_not_null.sql`, authors choice).
+- `domain/recurring.RecurringRule` gains `next_due: dt.date` + `last_promoted_date: dt.date | None`; `NewRecurringRule` does not expose `next_due` (repository computes).
+- `domain/transactions.Transaction` + `NewTransaction` gain `promoted_from_recurring_rule_id` + `promoted_from_recurring_date`.
+- `repositories/recurring.create_rule` populates `next_due`; `list_rules` SELECTs the new columns; new `set_next_due` + `set_inactive` thin helpers.
+- `repositories/transactions.create` round-trips the recurring provenance fields.
+- Test shape per `phase-12/T-117-migration-and-domain.md`.
+
+### T-118 [S] Recurring promotion service + routes → T-117
+- `services/recurring.advance_next_due` (pure), `services/recurring.first_due_on_or_after` (pure), `services/recurring.promote_recurring`, `services/recurring.skip_and_advance`.
+- Shared `services/_promotion.py` validator consumed by both planned and recurring promotion paths.
+- `POST /recurring/{id}/promote` + `GET /recurring/{id}/promote` (modal partial) + `POST /recurring/{id}/skip-next`.
+- Audit entries on all mutations; HX-Trigger emits `ledger-stale`, `forecast-stale`, `budget-stale`.
+- Test shape per `phase-12/T-118-recurring-promote-service.md`.
+
+### T-119 [S] Decouple planned log from recurring; introduce `services.upcoming` + `services.income` → T-117
+- `services/planned.list_planned` drops the virtual branch; `PlannedKind` collapses to `"persisted"`.
+- Delete `services/planned.next_planned_for_category`; callers switch to `services/income.next_anchor_date`.
+- New `services/upcoming.list_upcoming(window)` composing planned one-offs + recurring `next_due` with override merge/skip handling.
+- `web/routers/home.py` Upcoming fragment switches to `services.upcoming.list_upcoming`.
+- `web/routers/ledger._hydrate_recurring_rows` reads `rule.next_due` instead of aliasing `start_date`.
+- `services/budget.month_summary` wires the new income-anchor service.
+- Test shape per `phase-12/T-119-decouple-planned-from-recurring.md`.
+
+### T-120 [S] Budget `committed_in_window` + `MonthTotals.committed_minor` + template surfaces → T-117, T-118, T-119, ADR-0039
+- `MonthTotals` gains `committed_minor` field; `remaining_minor = budgeted − spent − committed`.
+- New `services/budget.committed_in_window(start, end)` summing unpromoted planned-expense + recurring-expense amounts in window (overrides applied; skipped excluded; transit/adjustment excluded).
+- `templates/budget/_hero.html` + `templates/home/_month_panel.html` render dim sub-line `"X committed (recurring + planned)"`.
+- Test shape per `phase-12/T-120-budget-committed-minor.md`; `frontend-visual-audit` on `/` + `/budget`.
+
+### T-121 [P] Overview Upcoming unions planned + recurring; group `+ Planned` + `+ Recurring` buttons → T-119
+- `web/routers/home.py` Upcoming hydrator consumes `UpcomingItem.kind`.
+- `templates/home/_upcoming_list.html` branches on `kind`: planned → promote-planned modal; recurring → Promote / Skip / Override buttons.
+- `templates/home/_upcoming_panel.html` wraps `+ Planned` + `+ Recurring` in `.panel__add-group` cluster + stylesheet.
+- Test shape per `phase-12/T-121-overview-upcoming-union.md`; `frontend-visual-audit` on `/`.
+
+### T-122 [P] Ledger Recurring row: Promote / Override-next / Skip-next / Delete + `next_due` column → T-118
+- `partials/recurring/_row.html` renders `next_due` column (bold if override on `next_due`); amount italic if override overrides amount.
+- Actions: Promote (opens `_promote_modal.html`), Override-next (reuses existing override form prefilled with `occurrence_date=next_due`), Skip-next (`POST .../skip-next` with `hx-confirm`), Edit (unchanged), Delete (renames Deactivate → Delete).
+- New `partials/recurring/_promote_modal.html` slide-over with editable fields + "Override applied" banner.
+- Test shape per `phase-12/T-122-ledger-recurring-actions.md`; `frontend-visual-audit` on `/ledger?view=recurring`.
+
+### T-123 [P] Account form credit-limit initial-render bug → T-116
+- `partials/accounts/_form.html`: rewrite the sync `<script>` to find the form via `[data-account-form]` attribute, run on `DOMContentLoaded` + `htmx:afterSwap`; add defensive early-return.
+- Confirm Jinja condition `account is None or not account.is_liability` drives all three attributes together.
+- Test shape per `phase-12/T-123-account-credit-limit-initial-render.md`; `frontend-visual-audit` on `/accounts`.
+
+### ✅ T-124 [P] Modal dismissal scope + amount `,`/`.` regression test → ADR-0040
+- `templates/base.html` scripts block: scope reset-and-close to `evt.target instanceof HTMLFormElement && form[data-reset-on-submit] && verb ∈ {post, put, delete}` (ADR-0040). The 422-shouldSwap branch above is unchanged.
+- `domain/money.parse_amount_str(raw, currency)` normalises `,`/`.` separators and rejects more fractional digits than the currency supports; `routers/transactions._validate_amount` + `_compute_limit_preview` delegate to it. Planned / recurring / budget routers unchanged in this task — follow-up required to extend normalisation to their create flows.
+- Tests: `tests/integration/web/test_forms.py` pins slide-over markup, side-effect preview isolation, handler bytes (presence of `HTMLFormElement` + `data-reset-on-submit` + `requestConfig` + `"post"`), form-submit response shape (no slide-over), and both decimal separators landing on `1234` minor units with `12.345` → 422; four new unit tests in `tests/unit/domain/test_money.py` pin the `parse_amount_str` accept / reject matrix.
+- Test shape per `phase-12/T-124-modal-dismissal-scope.md`.
+
+---
+
 ## Phase 7 — Deferred to v2
 
 - CSV import with pluggable parsers.

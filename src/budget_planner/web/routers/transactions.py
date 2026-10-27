@@ -9,7 +9,6 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
-from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -17,7 +16,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from budget_planner.config import Settings
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import to_minor_units
+from budget_planner.domain.money import parse_amount_str, to_minor_units
 from budget_planner.domain.transactions import (
     NewTransaction,
     PatchTransaction,
@@ -136,11 +135,8 @@ def _compute_limit_preview(
     cat = categories_repo.find_by_id(conn, category_id)
     if cat is None:
         return None
-    try:
-        dec = Decimal(amount_raw)
-    except (InvalidOperation, TypeError):
-        return None
-    if dec <= 0:
+    dec = parse_amount_str(amount_raw, acc.currency)
+    if dec is None or dec <= 0:
         return None
     amount_minor = to_minor_units(dec, acc.currency)
     current = balance_service.derive_balance(conn, account_id)
@@ -215,9 +211,12 @@ def new_form(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HT
 
 
 def _validate_amount(amount: str, currency: str) -> tuple[int | None, str | None]:
-    try:
-        dec = Decimal(amount)
-    except (InvalidOperation, TypeError):
+    # T-124 / ADR-0040 — accept both `,` and `.` as decimal separators and
+    # cap fractional digits at the currency's minor-unit scale (two for
+    # PLN/EUR/USD, zero for JPY/KRW), mirroring the UI contract in
+    # `numeric-input.js`.
+    dec = parse_amount_str(amount, currency)
+    if dec is None:
         return None, "amount must be a decimal number"
     if dec <= 0:
         return None, "amount must be positive"
