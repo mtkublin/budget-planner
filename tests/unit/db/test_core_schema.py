@@ -8,7 +8,7 @@ import pytest
 
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
-from budget_planner.db.migrate import apply_migrations
+from budget_planner.db.migrate import _split_sql_statements, apply_migrations, discover
 
 _EXPECTED_TABLES = {
     "schema_migrations",
@@ -200,3 +200,78 @@ def test_recurring_end_date_after_start(conn: sqlite3.Connection) -> None:
             "VALUES ('monthly', '2026-02-01', '2026-01-01', ?, ?, 100)",
             (cat, acc),
         )
+
+
+def test_is_liability_default_zero_on_insert(conn: sqlite3.Connection) -> None:
+    _insert_user(conn)
+    acc = _insert_account(conn, name="Checking")
+    row = conn.execute(
+        "SELECT is_liability, credit_limit_minor FROM accounts WHERE id = ?",
+        (acc,),
+    ).fetchone()
+    assert row["is_liability"] == 0
+    assert row["credit_limit_minor"] is None
+
+
+def test_is_liability_check_rejects_two(conn: sqlite3.Connection) -> None:
+    _insert_user(conn)
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("INSERT INTO accounts(name, currency, is_liability) VALUES ('X', 'PLN', 2)")
+
+
+@pytest.mark.parametrize(
+    ("value", "ok"),
+    [(0, False), (-1, False), (None, True), (1, True), (1_000_000, True)],
+)
+def test_credit_limit_check(conn: sqlite3.Connection, value: int | None, ok: bool) -> None:
+    _insert_user(conn)
+    if ok:
+        conn.execute(
+            "INSERT INTO accounts(name, currency, is_liability, credit_limit_minor) "
+            "VALUES ('V', 'PLN', 1, ?)",
+            (value,),
+        )
+    else:
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO accounts(name, currency, is_liability, credit_limit_minor) "
+                "VALUES ('V', 'PLN', 1, ?)",
+                (value,),
+            )
+
+
+def test_existing_rows_backfill_to_defaults(tmp_path: Path) -> None:
+    url = f"sqlite:///{(tmp_path / 'db.sqlite').as_posix()}"
+    settings = Settings(_env_file=None, database_url=url)
+    c = get_connection(settings)
+    try:
+        # Apply only the first three migrations by discovering and running them manually.
+        migrations = discover()
+        c.execute("BEGIN")
+        for mig in migrations[:3]:
+            for statement in _split_sql_statements(mig.sql):
+                c.execute(statement)
+            c.execute(
+                "INSERT INTO schema_migrations(version, filename, checksum) VALUES (?, ?, ?)",
+                (mig.version, mig.filename, mig.checksum),
+            )
+        c.execute("COMMIT")
+        # Insert a legacy account before the liability columns exist.
+        c.execute("INSERT INTO accounts(name, currency) VALUES ('Legacy', 'PLN')")
+        # Now apply the remaining migration(s) — 0004 among them.
+        apply_migrations(c)
+        row = c.execute(
+            "SELECT is_liability, credit_limit_minor FROM accounts WHERE name = 'Legacy'"
+        ).fetchone()
+        assert row["is_liability"] == 0
+        assert row["credit_limit_minor"] is None
+    finally:
+        c.close()
+
+
+def test_migration_is_idempotent_via_ledger(conn: sqlite3.Connection) -> None:
+    before = conn.execute("SELECT COUNT(*) AS n FROM schema_migrations").fetchone()["n"]
+    newly = apply_migrations(conn)
+    assert newly == []
+    after = conn.execute("SELECT COUNT(*) AS n FROM schema_migrations").fetchone()["n"]
+    assert before == after
