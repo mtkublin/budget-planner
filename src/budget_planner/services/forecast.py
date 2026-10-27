@@ -232,7 +232,7 @@ def _collect_events(
             continue
         overrides = recurring_repo.list_overrides(conn, rule.id)
         direction = directions_by_cat[rule.category_id]
-        for occ in recurring_svc.expand(rule, overrides, event_start, end_date):
+        for occ in recurring_svc.rt_expand(conn, rule, overrides, event_start, end_date):
             if (rule.id, occ.occurrence_date) in dedup_keys:
                 continue
             for ev in _events_from_occurrence(occ, direction):

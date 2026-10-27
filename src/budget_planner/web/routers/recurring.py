@@ -1,17 +1,20 @@
-"""Recurring rules router (T-035)."""
+"""Recurring rules router (T-035; formula support per ADR-0041)."""
 
 from __future__ import annotations
 
+import datetime as dt
 import sqlite3
 from datetime import date
 from decimal import Decimal, InvalidOperation
+from typing import Any
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
-from budget_planner.domain.enums import Cadence, OverrideState
+from budget_planner.domain.enums import Cadence, Direction, OverrideState
 from budget_planner.domain.money import to_minor_units
 from budget_planner.domain.recurring import (
+    AmountFormula,
     NewRecurringOverride,
     NewRecurringRule,
     PatchRecurringRule,
@@ -22,7 +25,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     recurring as recurring_repo,
 )
-from budget_planner.services import recurring as recurring_svc
+from budget_planner.services import recurring as recurring_svc, recurring_formula as formula_svc
 from budget_planner.services._promotion import UnsupportedDirectionError, ValidationError
 from budget_planner.web.deps import get_db
 from budget_planner.web.htmx import trigger
@@ -60,6 +63,15 @@ def index() -> RedirectResponse:
     return RedirectResponse(url="/ledger?view=recurring", status_code=302)
 
 
+def _formula_source_candidates(conn: sqlite3.Connection) -> list[Any]:
+    """Return categories eligible as formula sources (user-visible income+expense)."""
+    return [
+        c
+        for c in categories_repo.list_all(conn)
+        if c.direction in (Direction.INCOME, Direction.EXPENSE)
+    ]
+
+
 @router.get("/new", response_class=HTMLResponse)
 def new_form(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLResponse:
     # T-069 — slide-over wrapper for FAB launches.
@@ -72,6 +84,10 @@ def new_form(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HT
         action="/recurring",
         categories=categories_repo.list_all(conn),
         accounts=accounts_repo.list_all(conn),
+        source_categories=_formula_source_candidates(conn),
+        amount_source="fixed",
+        coefficient_percent="",
+        selected_source_ids=(),
         errors={},
     )
 
@@ -83,6 +99,86 @@ def _validate_cadence(value: str) -> Cadence | None:
         return None
 
 
+def _resolve_amount_inputs(  # noqa: PLR0911
+    conn: sqlite3.Connection,
+    *,
+    amount_source: str,
+    default_amount: str,
+    coefficient_percent: str,
+    source_category_ids: list[int],
+    account_currency: str | None,
+    exclude_rule_id: int | None,
+    today: date,
+) -> tuple[int | None, AmountFormula | None, dict[str, str]]:
+    """Validate the fixed-vs-formula branch; return (default_amount_minor, formula, errors)."""
+    errors: dict[str, str] = {}
+    if amount_source == "formula":
+        if account_currency is None:
+            errors["amount_source"] = "unknown account currency"
+            return None, None, errors
+        try:
+            formula = formula_svc.build_formula(
+                coefficient_percent=coefficient_percent,
+                source_category_ids=source_category_ids,
+            )
+        except formula_svc.FormulaError as exc:
+            errors["formula"] = str(exc)
+            return None, None, errors
+        try:
+            formula_svc.validate_formula_sources(conn, formula, exclude_rule_id=exclude_rule_id)
+        except formula_svc.FormulaError as exc:
+            errors["formula"] = str(exc)
+            return None, None, errors
+        snapshot = formula_svc.compute_formula_amount(
+            conn,
+            formula,
+            today.year,
+            today.month,
+            exclude_rule_id=exclude_rule_id,
+        )
+        return snapshot, formula, errors
+    # fixed branch
+    if account_currency is None:
+        errors["default_amount"] = "unknown account currency"
+        return None, None, errors
+    try:
+        dec = Decimal(default_amount)
+    except InvalidOperation:
+        errors["default_amount"] = "invalid amount"
+        return None, None, errors
+    if dec <= 0:
+        errors["default_amount"] = "must be positive"
+        return None, None, errors
+    return to_minor_units(dec, account_currency), None, errors
+
+
+def _render_form_errors(
+    request: Request,
+    conn: sqlite3.Connection,
+    *,
+    rule: Any,
+    action: str,
+    errors: dict[str, str],
+    amount_source: str,
+    coefficient_percent: str,
+    selected_source_ids: tuple[int, ...],
+) -> Response:
+    return render(
+        request,
+        "partials/recurring/_form.html",
+        rule=rule,
+        action=action,
+        categories=categories_repo.list_all(conn),
+        accounts=accounts_repo.list_all(conn),
+        source_categories=_formula_source_candidates(conn),
+        amount_source=amount_source,
+        coefficient_percent=coefficient_percent,
+        selected_source_ids=selected_source_ids,
+        errors=errors,
+        status_code=422,
+    )
+
+
 @router.post("")
 def create_rule(  # noqa: PLR0917
     request: Request,
@@ -90,9 +186,12 @@ def create_rule(  # noqa: PLR0917
     start_date: str = Form(...),
     category_id: int = Form(...),
     account_id: int = Form(...),
-    default_amount: str = Form(...),
+    default_amount: str = Form(""),
     default_description: str = Form(""),
     day_of_month: str = Form(""),
+    amount_source: str = Form("fixed"),
+    coefficient_percent: str = Form(""),
+    source_category_ids: list[int] = Form(default_factory=list),
     conn: sqlite3.Connection = Depends(get_db),
 ) -> Response:
     errors: dict[str, str] = {}
@@ -108,27 +207,27 @@ def create_rule(  # noqa: PLR0917
         errors["account_id"] = "unknown account"
     if cat is None:
         errors["category_id"] = "unknown category"
-    minor: int | None = None
-    if acc is not None:
-        try:
-            dec = Decimal(default_amount)
-        except InvalidOperation:
-            errors["default_amount"] = "invalid amount"
-        else:
-            if dec <= 0:
-                errors["default_amount"] = "must be positive"
-            else:
-                minor = to_minor_units(dec, acc.currency)
+    minor, formula, amount_errors = _resolve_amount_inputs(
+        conn,
+        amount_source=amount_source,
+        default_amount=default_amount,
+        coefficient_percent=coefficient_percent,
+        source_category_ids=source_category_ids,
+        account_currency=acc.currency if acc else None,
+        exclude_rule_id=None,
+        today=dt.date.today(),  # noqa: DTZ011 — date-only anchor
+    )
+    errors.update(amount_errors)
     if errors:
-        return render(
+        return _render_form_errors(
             request,
-            "partials/recurring/_form.html",
+            conn,
             rule=None,
             action="/recurring",
-            categories=categories_repo.list_all(conn),
-            accounts=accounts_repo.list_all(conn),
             errors=errors,
-            status_code=422,
+            amount_source=amount_source,
+            coefficient_percent=coefficient_percent,
+            selected_source_ids=tuple(source_category_ids),
         )
     assert c is not None and start is not None and minor is not None
     rule = recurring_repo.create_rule(
@@ -141,6 +240,7 @@ def create_rule(  # noqa: PLR0917
             default_amount=minor,
             default_description=default_description,
             day_of_month=_parse_int(day_of_month),
+            amount_formula=formula,
         ),
     )
     html = render(
@@ -150,9 +250,19 @@ def create_rule(  # noqa: PLR0917
         overrides=[],
         account=acc,
         category=cat,
+        effective_amount_minor=minor,
     )
     trigger(html, "forecast-stale", "ledger-stale")
     return html
+
+
+def _formula_prefill(rule: Any) -> tuple[str, str, tuple[int, ...]]:
+    """Return (amount_source, coefficient_percent_str, selected_source_ids)."""
+    if rule is None or rule.amount_formula is None:
+        return "fixed", "", ()
+    pct = (Decimal(rule.amount_formula.coefficient_bps) / Decimal(100)).normalize()
+    pct_str = format(pct, "f")
+    return "formula", pct_str, tuple(rule.amount_formula.source_category_ids)
 
 
 @router.get("/{rule_id}/edit", response_class=HTMLResponse)
@@ -168,9 +278,14 @@ def edit_form(
             action="",
             categories=[],
             accounts=[],
+            source_categories=[],
+            amount_source="fixed",
+            coefficient_percent="",
+            selected_source_ids=(),
             errors={"rule": "not found"},
             status_code=404,
         )
+    amount_source, coefficient_percent, selected_source_ids = _formula_prefill(rule)
     # T-114 / ADR-0030 §4 — slide-over wrapper mirrors /recurring/new.
     return render(
         request,
@@ -181,6 +296,10 @@ def edit_form(
         action=f"/recurring/{rule_id}",
         categories=categories_repo.list_all(conn),
         accounts=accounts_repo.list_all(conn),
+        source_categories=_formula_source_candidates(conn),
+        amount_source=amount_source,
+        coefficient_percent=coefficient_percent,
+        selected_source_ids=selected_source_ids,
         errors={},
     )
 
@@ -193,8 +312,11 @@ def update_rule_handler(  # noqa: PLR0917
     start_date: str = Form(...),
     category_id: int = Form(...),
     account_id: int = Form(...),
-    default_amount: str = Form(...),
+    default_amount: str = Form(""),
     default_description: str = Form(""),
+    amount_source: str = Form("fixed"),
+    coefficient_percent: str = Form(""),
+    source_category_ids: list[int] = Form(default_factory=list),
     conn: sqlite3.Connection = Depends(get_db),
 ) -> Response:
     rule = recurring_repo.find_rule(conn, rule_id)
@@ -210,27 +332,27 @@ def update_rule_handler(  # noqa: PLR0917
         errors["start_date"] = "invalid date"
     if acc is None:
         errors["account_id"] = "unknown account"
-    minor: int | None = None
-    if acc is not None:
-        try:
-            dec = Decimal(default_amount)
-        except InvalidOperation:
-            errors["default_amount"] = "invalid amount"
-        else:
-            if dec <= 0:
-                errors["default_amount"] = "must be positive"
-            else:
-                minor = to_minor_units(dec, acc.currency)
+    minor, formula, amount_errors = _resolve_amount_inputs(
+        conn,
+        amount_source=amount_source,
+        default_amount=default_amount,
+        coefficient_percent=coefficient_percent,
+        source_category_ids=source_category_ids,
+        account_currency=acc.currency if acc else None,
+        exclude_rule_id=rule_id,
+        today=dt.date.today(),  # noqa: DTZ011
+    )
+    errors.update(amount_errors)
     if errors:
-        return render(
+        return _render_form_errors(
             request,
-            "partials/recurring/_form.html",
+            conn,
             rule=rule,
             action=f"/recurring/{rule_id}",
-            categories=categories_repo.list_all(conn),
-            accounts=accounts_repo.list_all(conn),
             errors=errors,
-            status_code=422,
+            amount_source=amount_source,
+            coefficient_percent=coefficient_percent,
+            selected_source_ids=tuple(source_category_ids),
         )
     assert c is not None and start is not None and minor is not None
     recurring_repo.update_rule(
@@ -243,6 +365,7 @@ def update_rule_handler(  # noqa: PLR0917
             account_id=account_id,
             default_amount=minor,
             default_description=default_description,
+            amount_formula=formula,
         ),
     )
     updated = recurring_repo.find_rule(conn, rule_id)
@@ -255,9 +378,18 @@ def update_rule_handler(  # noqa: PLR0917
         overrides=recurring_repo.list_overrides(conn, rule_id),
         account=acc,
         category=cat,
+        effective_amount_minor=minor,
     )
     trigger(html, "forecast-stale", "ledger-stale")
     return html
+
+
+def _effective_amount_for_render(
+    conn: sqlite3.Connection,
+    rule: Any,
+) -> int:
+    """Return the amount to render in the Ledger row for a rule (formula-aware)."""
+    return formula_svc.resolve_rule_amount(conn, rule, rule.next_due)
 
 
 @router.post("/{rule_id}/deactivate")
@@ -279,6 +411,7 @@ def deactivate_rule(
         overrides=recurring_repo.list_overrides(conn, rule_id),
         account=acc,
         category=cat,
+        effective_amount_minor=_effective_amount_for_render(conn, updated),
     )
     trigger(html, "forecast-stale", "ledger-stale")
     return html
@@ -373,6 +506,7 @@ def add_override(  # noqa: PLR0917, PLR0911
         overrides=overrides,
         account=acc,
         category=cat,
+        effective_amount_minor=_effective_amount_for_render(conn, rule),
     )
     trigger(html, "forecast-stale", "ledger-stale")
     return html
@@ -399,6 +533,7 @@ def delete_override(
         request,
         "partials/recurring/_row.html",
         rule=rule,
+        effective_amount_minor=_effective_amount_for_render(conn, rule),
         overrides=overrides,
         account=acc,
         category=cat,
@@ -447,7 +582,7 @@ def _render_promote_modal(
     override = _override_on_next_due(conn, rule_id, rule.next_due)
     account = accounts_repo.find_by_id(conn, rule.account_id, include_deleted=True)
     prefill_date = rule.next_due
-    prefill_amount = rule.default_amount
+    prefill_amount = formula_svc.resolve_rule_amount(conn, rule, rule.next_due)
     prefill_description = rule.default_description
     if override is not None:
         if override.date_override is not None:
@@ -552,6 +687,7 @@ def promote_submit(  # noqa: PLR0912, PLR0917
         overrides=recurring_repo.list_overrides(conn, rule_id),
         account=acc,
         category=cat,
+        effective_amount_minor=_effective_amount_for_render(conn, updated),
     )
     trigger(html, "ledger-stale", "forecast-stale", "budget-stale")
     return html
@@ -581,6 +717,7 @@ def skip_next(
         overrides=recurring_repo.list_overrides(conn, rule_id),
         account=acc,
         category=cat,
+        effective_amount_minor=_effective_amount_for_render(conn, updated),
     )
     trigger(html, "ledger-stale", "forecast-stale", "budget-stale")
     return html

@@ -23,7 +23,7 @@ from budget_planner.repositories import (
     recurring as recurring_repo,
     transactions as transactions_repo,
 )
-from budget_planner.services import planned as planned_service
+from budget_planner.services import planned as planned_service, recurring_formula as formula_svc
 from budget_planner.web.deps import get_db
 from budget_planner.web.ledger_types import LedgerFilters, ViewKind, coerce_view, view_kinds
 from budget_planner.web.rendering import render
@@ -141,10 +141,15 @@ def _hydrate_recurring_rows(conn: sqlite3.Connection) -> list[dict[str, Any]]:
             (ov for ov in overrides if ov.occurrence_date == rule.next_due),
             None,
         )
+        # Formula-aware default: fixed rules use `rule.default_amount`;
+        # formula rules recompute from the current source-rule state for
+        # the `next_due` calendar month (ADR-0041). Overrides win per the
+        # unchanged ADR-0038 override precedence.
+        formula_amount = formula_svc.resolve_rule_amount(conn, rule, rule.next_due)
         effective_amount_minor = (
             override_on_next_due.amount_override
             if override_on_next_due is not None and override_on_next_due.amount_override is not None
-            else rule.default_amount
+            else formula_amount
         )
         out.append(
             {
@@ -165,6 +170,8 @@ def _hydrate_recurring_rows(conn: sqlite3.Connection) -> list[dict[str, Any]]:
                     and override_on_next_due.amount_override is not None
                 ),
                 "effective_amount_minor": effective_amount_minor,
+                "amount_formula": rule.amount_formula,
+                "is_formula": rule.amount_formula is not None,
                 "currency": acc.currency if acc else "",
             }
         )

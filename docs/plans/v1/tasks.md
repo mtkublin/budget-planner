@@ -660,6 +660,15 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 - Tests: `tests/integration/web/test_forms.py` pins slide-over markup, side-effect preview isolation, handler bytes (presence of `HTMLFormElement` + `data-reset-on-submit` + `requestConfig` + `"post"`), form-submit response shape (no slide-over), and both decimal separators landing on `1234` minor units with `12.345` → 422; four new unit tests in `tests/unit/domain/test_money.py` pin the `parse_amount_str` accept / reject matrix.
 - Test shape per `phase-12/T-124-modal-dismissal-scope.md`.
 
+### ✅ T-125 [M] Recurring formula amount → ADR-0041
+- Migration `0008_recurring_amount_formula.sql`: add nullable `amount_formula TEXT`, rebuild `recurring_rules` to relax CHECK (`amount_formula IS NOT NULL OR default_amount <> 0`); FK pragma off during rebuild via `FK_OFF_MIGRATIONS = {7, 8}`.
+- Domain: `AmountFormula(coefficient_bps, source_category_ids)`; `RecurringRule.amount_formula` defaulted `None`; `NewRecurringRule.amount_formula`; `PatchRecurringRule.amount_formula` via `_UNCHANGED` sentinel.
+- Service `services/recurring_formula.py`: `parse_percent_to_bps`, `build_formula`, `compute_formula_amount`, `resolve_rule_amount`, `rt_expand`, `validate_formula_sources`. Pure cycle guard: skip formula sources at compute, reject at save.
+- Wire-in: `services/recurring.promote_recurring`, `services/budget.committed_in_window`, `services/forecast._upcoming_events`, `web/routers/ledger._hydrate_recurring_rows` route through formula-aware runtime expand.
+- Repository: JSON serialize/deserialize round-trip; snapshot `default_amount` written at save using `compute_formula_amount(today.year, today.month)`.
+- UI: `partials/recurring/_form.html` gains `fixed | formula` radio toggle with coefficient % + source-category checkbox grid (JS swap via `data-amount-source-panel` + `hidden` + `aria-hidden` lockstep); Ledger row + Ledger table render `ƒ` chip when `is_formula`.
+- Tests: `tests/unit/services/test_recurring_formula.py` (parser, builder, rounding); `tests/integration/web/test_recurring_formula.py` (compute, repo roundtrip, promote live-recompute, override precedence over formula, save-time cycle rejection, router smoke).
+
 ---
 
 ## Phase 7 — Deferred to v2

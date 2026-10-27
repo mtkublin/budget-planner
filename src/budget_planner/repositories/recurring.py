@@ -1,14 +1,16 @@
-"""Recurring rules + sparse overrides repository (ADR-0013 / ADR-0038)."""
+"""Recurring rules + sparse overrides repository (ADR-0013 / ADR-0038 / ADR-0041)."""
 
 from __future__ import annotations
 
 import datetime as dt
+import json
 import sqlite3
 from datetime import date
 from typing import Any
 
 from budget_planner.domain.enums import Cadence, OverrideState
 from budget_planner.domain.recurring import (
+    AmountFormula,
     NewRecurringOverride,
     NewRecurringRule,
     PatchRecurringRule,
@@ -21,9 +23,33 @@ from budget_planner.services.recurring import first_due_on_or_after
 _RULE_COLUMNS = (
     "id, user_id, cadence, start_date, end_date, category_id, account_id, "
     "dest_account_id, default_amount, default_description, day_of_month, "
-    "month_of_year, active, next_due, last_promoted_date, "
+    "month_of_year, active, next_due, last_promoted_date, amount_formula, "
     "created_at, updated_at, deleted_at"
 )
+
+
+def _formula_to_json(formula: AmountFormula | None) -> str | None:
+    if formula is None:
+        return None
+    return json.dumps(
+        {
+            "coefficient_bps": formula.coefficient_bps,
+            "source_category_ids": list(formula.source_category_ids),
+        },
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+
+
+def _formula_from_json(raw: str | None) -> AmountFormula | None:
+    if raw is None:
+        return None
+    data = json.loads(raw)
+    return AmountFormula(
+        coefficient_bps=int(data["coefficient_bps"]),
+        source_category_ids=tuple(int(v) for v in data["source_category_ids"]),
+    )
+
 
 _OVERRIDE_COLUMNS = (
     "id, rule_id, occurrence_date, state, amount_override, description_override, "
@@ -52,6 +78,7 @@ def _row_to_rule(row: sqlite3.Row) -> RecurringRule:
             if row["last_promoted_date"] is not None
             else None
         ),
+        amount_formula=_formula_from_json(row["amount_formula"]),
         created_at=parse_dt_required(row["created_at"]),
         updated_at=parse_dt_required(row["updated_at"]),
         deleted_at=parse_dt(row["deleted_at"]),
@@ -82,6 +109,7 @@ def _compute_initial_next_due(data: NewRecurringRule, today: date) -> date:
         active=True,
         next_due=data.start_date,  # placeholder; helper doesn't read it
         last_promoted_date=None,
+        amount_formula=data.amount_formula,
         created_at=dt.datetime.now(dt.UTC),
         updated_at=dt.datetime.now(dt.UTC),
         deleted_at=None,
@@ -144,6 +172,8 @@ def _normalise_rule_patch(changes: dict[str, Any]) -> dict[str, Any]:
             norm[key] = value.isoformat()
         elif key == "active":
             norm[key] = int(bool(value))
+        elif key == "amount_formula":
+            norm[key] = _formula_to_json(value)
         else:
             norm[key] = value
     return norm
@@ -158,8 +188,8 @@ def create_rule(conn: sqlite3.Connection, data: NewRecurringRule) -> RecurringRu
             "INSERT INTO recurring_rules("
             "user_id, cadence, start_date, end_date, category_id, account_id, "
             "dest_account_id, default_amount, default_description, "
-            "day_of_month, month_of_year, active, next_due) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "day_of_month, month_of_year, active, next_due, amount_formula) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 data.user_id,
                 data.cadence.value,
@@ -174,6 +204,7 @@ def create_rule(conn: sqlite3.Connection, data: NewRecurringRule) -> RecurringRu
                 data.month_of_year,
                 int(data.active),
                 initial_next_due.isoformat(),
+                _formula_to_json(data.amount_formula),
             ),
         )
         new_id = int(cursor.lastrowid or 0)

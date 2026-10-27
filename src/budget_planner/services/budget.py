@@ -222,7 +222,7 @@ def committed_in_window(
         if rule_start > inclusive_end:
             continue
         overrides = recurring_repo.list_overrides(conn, rule.id)
-        occurrences = recurring_svc.expand(rule, overrides, rule_start, inclusive_end)
+        occurrences = recurring_svc.rt_expand(conn, rule, overrides, rule_start, inclusive_end)
         total += sum(occ.amount for occ in occurrences)
 
     return total

@@ -1,4 +1,4 @@
-"""Recurring rules + overrides + virtual occurrence shape (ADR-0013 / ADR-0038)."""
+"""Recurring rules + overrides + virtual occurrence shape (ADR-0013 / ADR-0038 / ADR-0041)."""
 
 from __future__ import annotations
 
@@ -8,11 +8,26 @@ from typing import Any, Final
 
 from budget_planner.domain.enums import Cadence, OverrideState
 
-# Sentinel for `PatchRecurringRule.next_due` so we can distinguish "no change"
-# from "explicitly clear" (clearing is not allowed — `next_due` is NOT NULL —
-# but the sentinel keeps the shape symmetric with other patch DTOs and lets
-# admin flows pass through an unmodified value without re-asserting it).
+# Sentinel for `PatchRecurringRule.next_due` / `amount_formula` so we can
+# distinguish "no change" from "explicitly clear". `amount_formula` is
+# nullable at the storage layer; the sentinel keeps the shape symmetric with
+# `next_due` and lets admin flows pass through an unmodified value without
+# re-asserting it.
 _UNCHANGED: Final[object] = object()
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class AmountFormula:
+    """Formula spec for a recurring rule's amount (ADR-0041).
+
+    Stored as JSON in `recurring_rules.amount_formula`. The amount is derived
+    as `coefficient_bps / 10_000 * Σ(occurrence amounts of other recurring
+    rules in the same calendar month whose category_id is in
+    source_category_ids)`.
+    """
+
+    coefficient_bps: int
+    source_category_ids: tuple[int, ...]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -22,6 +37,8 @@ class RecurringRule:
     `next_due` is the authoritative "when is the next occurrence" column
     (ADR-0038). Every mutation that could shift it must keep it in sync.
     `last_promoted_date` is informational (nullable; untouched by overrides).
+    `amount_formula`, when present, overrides `default_amount` at every
+    expand / promote / render site (ADR-0041).
     """
 
     id: int
@@ -42,6 +59,9 @@ class RecurringRule:
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None
+    # ADR-0041 — optional with default so pre-formula callers / tests
+    # that construct `RecurringRule` directly keep working.
+    amount_formula: AmountFormula | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -64,15 +84,17 @@ class NewRecurringRule:
     month_of_year: int | None = None
     active: bool = True
     user_id: int = 1
+    amount_formula: AmountFormula | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class PatchRecurringRule:
     """Partial update DTO.
 
-    `next_due` accepts an explicit admin override via the `_UNCHANGED`
-    sentinel pattern — passing a `date` writes it, leaving the default
-    does not touch the column.
+    `next_due` and `amount_formula` accept an explicit admin override via
+    the `_UNCHANGED` sentinel pattern — passing a value writes it (including
+    `None` to clear a formula), leaving the default does not touch the
+    column.
     """
 
     cadence: Cadence | None = None
@@ -87,12 +109,13 @@ class PatchRecurringRule:
     month_of_year: int | None = None
     active: bool | None = None
     next_due: date | object = _UNCHANGED
+    amount_formula: AmountFormula | object | None = _UNCHANGED
 
     def as_dict(self) -> dict[str, Any]:
         out: dict[str, Any] = {}
         for f in fields(self):
             value = getattr(self, f.name)
-            if f.name == "next_due":
+            if f.name in {"next_due", "amount_formula"}:
                 if value is _UNCHANGED:
                     continue
                 out[f.name] = value

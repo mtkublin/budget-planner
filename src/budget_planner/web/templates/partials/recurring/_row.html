@@ -1,17 +1,20 @@
-{# T-122 — Recurring row (ADR-0038).
+{# T-122 — Recurring row (ADR-0038 + formula ADR-0041).
 
    Columns: Cadence · Next due · Account · Category · Amount · Active · Actions.
    Next due renders bold when an override exists for `rule.next_due`; Amount
-   renders italic when that same override overrides the amount. Actions
-   wire to the Phase 12 standalone promote/skip-next endpoints (T-118) and
-   to a thin GET wrapper that opens the existing override form slide-over
-   pre-filled with `occurrence_date = rule.next_due`. Delete behaviourally
-   maps to the pre-Phase-11 "deactivate" soft-delete so historical
-   promotions stay intact. #}
+   renders italic when that same override overrides the amount, and tags with
+   a tiny `ƒ` chip when the amount is formula-derived. Actions wire to the
+   Phase 12 standalone promote/skip-next endpoints (T-118) and to a thin GET
+   wrapper that opens the existing override form slide-over pre-filled with
+   `occurrence_date = rule.next_due`. Delete behaviourally maps to the
+   pre-Phase-11 "deactivate" soft-delete so historical promotions stay
+   intact. #}
 {% set _matches = (overrides or [])|selectattr('occurrence_date', 'equalto', rule.next_due)|list %}
 {% set override_on_next_due = _matches[0] if _matches else none %}
 {% set override_present = override_on_next_due is not none %}
 {% set amount_overridden = override_present and override_on_next_due.amount_override is not none %}
+{% set is_formula = rule.amount_formula is not none %}
+{% set display_amount = effective_amount_minor if effective_amount_minor is defined and effective_amount_minor is not none else rule.default_amount %}
 <tr id="recurring-{{ rule.id }}" class="row">
   <td>{{ rule.cadence.value|capitalize }}</td>
   <td class="whitespace-nowrap tabular-nums" data-next-due>
@@ -25,9 +28,15 @@
   <td>{{ category.name if category else '—' }}</td>
   <td class="text-right tabular-nums">
     {% if amount_overridden %}
-      <em data-amount-overridden>{{ rule.default_amount|money(account.currency if account else 'PLN') }}</em>
+      <em data-amount-overridden>{{ display_amount|money(account.currency if account else 'PLN') }}</em>
+    {% elif is_formula %}
+      <span data-formula-amount
+            title="{{ (rule.amount_formula.coefficient_bps / 100)|round(2) }}% of selected categories">
+        {{ display_amount|money(account.currency if account else 'PLN') }}
+        <span class="formula-chip" aria-label="computed amount">ƒ</span>
+      </span>
     {% else %}
-      {{ rule.default_amount|money(account.currency if account else 'PLN') }}
+      {{ display_amount|money(account.currency if account else 'PLN') }}
     {% endif %}
   </td>
   <td>{{ 'Yes' if rule.active else 'No' }}</td>

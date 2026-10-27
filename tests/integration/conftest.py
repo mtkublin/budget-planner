@@ -26,7 +26,7 @@ from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Cadence, Direction
 from budget_planner.domain.fx import NewFxRate
 from budget_planner.domain.planned import NewPlannedTransaction
-from budget_planner.domain.recurring import NewRecurringRule
+from budget_planner.domain.recurring import AmountFormula, NewRecurringRule
 from budget_planner.domain.transactions import NewTransaction
 from budget_planner.repositories import (
     accounts as accounts_repo,
@@ -155,6 +155,7 @@ def make_rule(conn: sqlite3.Connection) -> Callable[..., int]:
         start_date: date = date(2026, 1, 15),
         amount: int = 1000,
         description: str = "",
+        amount_formula: AmountFormula | None = None,
     ) -> int:
         return recurring_repo.create_rule(
             conn,
@@ -165,6 +166,7 @@ def make_rule(conn: sqlite3.Connection) -> Callable[..., int]:
                 account_id=account_id,
                 default_amount=amount,
                 default_description=description,
+                amount_formula=amount_formula,
             ),
         ).id
 

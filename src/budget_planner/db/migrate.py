@@ -218,7 +218,7 @@ _POST_APPLY_HOOKS: dict[int, Callable[[sqlite3.Connection], None]] = {
 # The pragma must flip OUTSIDE any transaction, so the toggle lives here
 # rather than inside the SQL file. A post-rebuild ``PRAGMA foreign_key_check``
 # fails fast if the rebuild dropped a reference.
-FK_OFF_MIGRATIONS: frozenset[int] = frozenset({7})
+FK_OFF_MIGRATIONS: frozenset[int] = frozenset({7, 8})
 
 
 def apply_migrations(
