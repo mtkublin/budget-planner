@@ -1,7 +1,8 @@
 """T-069 — Quick-add FAB + slide-over form.
+T-094 — Narrowed FAB visibility (ADR-0026): Overview + Ledger only.
 
-Template-level assertions only: the FAB ships on every primary surface,
-its ``hx-get`` target is context-aware against the current path + ledger
+Template-level assertions only: the FAB ships on allow-listed surfaces, its
+``hx-get`` target is context-aware against the current path + ledger
 ``view`` query param, and the slide-over wrapper still carries the raw
 form fragment (so legacy submit flows continue to work).
 """
@@ -19,6 +20,14 @@ def _fab(client: TestClient, path: str) -> Tag:
     fab = soup.find("button", class_="fab")
     assert isinstance(fab, Tag), f"FAB missing on {path}"
     return fab
+
+
+def _assert_no_fab(client: TestClient, path: str) -> None:
+    response = client.get(path)
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    fab = soup.find("button", class_="fab")
+    assert fab is None, f"FAB should be hidden on {path}"
 
 
 def test_fab_present_on_overview(client: TestClient) -> None:
@@ -44,14 +53,24 @@ def test_fab_present_on_ledger_recurring(client: TestClient) -> None:
     assert fab.get("hx-get") == "/recurring/new"
 
 
-def test_fab_present_on_accounts(client: TestClient) -> None:
-    fab = _fab(client, "/accounts")
-    assert fab.get("hx-get") == "/transactions/new"
+def test_fab_hidden_on_accounts(client: TestClient) -> None:
+    _assert_no_fab(client, "/accounts")
 
 
-def test_fab_present_on_budget(client: TestClient) -> None:
-    fab = _fab(client, "/budget")
-    assert fab.get("hx-get") == "/transactions/new"
+def test_fab_hidden_on_budget(client: TestClient) -> None:
+    _assert_no_fab(client, "/budget")
+
+
+def test_fab_hidden_on_settings(client: TestClient) -> None:
+    _assert_no_fab(client, "/settings")
+
+
+def test_fab_hidden_on_forecast(client: TestClient) -> None:
+    _assert_no_fab(client, "/forecast")
+
+
+def test_fab_hidden_on_analytics(client: TestClient) -> None:
+    _assert_no_fab(client, "/analytics")
 
 
 def test_new_transaction_returns_slideover(client: TestClient) -> None:

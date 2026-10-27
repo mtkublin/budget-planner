@@ -212,3 +212,24 @@ def test_ledger_filter_by_category(
     assert r.status_code == 200
     assert "Milk" in r.text
     assert "Payday" not in r.text
+
+
+def test_ledger_table_wrapper_exposes_segmented_swap_target(
+    client: TestClient, seeded: dict[str, int]
+) -> None:
+    """T-092: segmented control targets ``#ledger-table`` with ``outerHTML``
+    swap. Both the page and the fragment response must contain the wrapper so
+    the swap resolves and the inner view id is preserved for legacy selectors.
+    """
+    for view, inner_id in (
+        ("actual", "txn-table"),
+        ("planned", "planned-table"),
+        ("recurring", "recurring-table"),
+    ):
+        r = client.get(f"/ledger/table?view={view}")
+        assert r.status_code == 200, view
+        soup = BeautifulSoup(r.text, "html.parser")
+        wrapper = soup.find(id="ledger-table")
+        assert wrapper is not None and isinstance(wrapper, Tag), view
+        inner = soup.find(id=inner_id)
+        assert inner is not None and isinstance(inner, Tag), view

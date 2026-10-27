@@ -2,22 +2,35 @@
       hx-post="{{ action }}"
       hx-target="{% if txn %}#txn-{{ txn.id }}{% else %}#txn-table tbody{% endif %}"
       hx-swap="{% if txn %}outerHTML{% else %}afterbegin{% endif %}"
-      class="mb-6 grid grid-cols-2 gap-3 p-4 border border-[color:var(--rule)] rounded">
+      class="form-stack mb-6">
   <label>
-    Date<input type="date"
-       name="operation_date"
-       value="{{ txn.operation_date|date_fmt if txn else '' }}"
-       required>
+    Date
+    <input type="date"
+           name="operation_date"
+           value="{{ txn.operation_date|date_fmt if txn else '' }}"
+           required>
   </label>
   <label>
-    Amount<input type="text"
-       name="amount"
-       value="{{ txn.amount if txn else '' }}"
-       required>
+    Amount
+    <input type="text"
+           name="amount"
+           value="{{ txn.amount if txn else '' }}"
+           required
+           hx-get="/transactions/_limit_preview"
+           hx-include="[name='account_id'],[name='category_id'],[name='amount']"
+           hx-target="#limit-preview"
+           hx-swap="outerHTML"
+           hx-trigger="change delay:200ms, keyup changed delay:400ms">
   </label>
   <label>
     Category
-    <select name="category_id" required>
+    <select name="category_id"
+            required
+            hx-get="/transactions/_limit_preview"
+            hx-include="[name='account_id'],[name='category_id'],[name='amount']"
+            hx-target="#limit-preview"
+            hx-swap="outerHTML"
+            hx-trigger="change">
       {% for c in categories %}
         <option value="{{ c.id }}"
                 {% if txn and txn.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
@@ -26,7 +39,13 @@
   </label>
   <label>
     Account
-    <select name="account_id" required>
+    <select name="account_id"
+            required
+            hx-get="/transactions/_limit_preview"
+            hx-include="[name='account_id'],[name='category_id'],[name='amount']"
+            hx-target="#limit-preview"
+            hx-swap="outerHTML"
+            hx-trigger="change">
       {% for a in accounts %}
         <option value="{{ a.id }}"
                 {% if txn and txn.account_id == a.id %}selected{% endif %}>{{ a.name }}</option>
@@ -43,13 +62,15 @@
       {% endfor %}
     </select>
   </label>
-  <label class="col-span-2">
-    Description<input type="text"
-       name="description"
-       value="{{ txn.description if txn else '' }}">
+  <label>
+    Description
+    <input type="text"
+           name="description"
+           value="{{ txn.description if txn else '' }}">
   </label>
   {% include "partials/_form_errors.html" %}
-  <div class="col-span-2 flex justify-end gap-2">
+  {% include "partials/transactions/_limit_preview.html" %}
+  <div class="form-stack__actions">
     <button type="submit" class="btn-accent">Save</button>
   </div>
 </form>

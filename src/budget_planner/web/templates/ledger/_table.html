@@ -1,149 +1,147 @@
-{# Ledger table (T-064).
+{# Ledger table (T-064, T-092).
 
    Renders one of three view variants — Actual · Planned · Recurring — picked
    by the ``view`` context var. Shared columns (date, direction, amount,
    category, account, description) come first; view-specific extras follow.
 
-   Legacy ids preserved so pre-T-064 HTMX scripts + tests continue to find
-   `#txn-table` / `#planned-table` / `#recurring-table` by substring. #}
+   Outer wrapper id ``ledger-table`` is the single swap target for the
+   segmented control and filters in ``ledger/index.html``. Inner id
+   (``txn-table`` / ``planned-table`` / ``recurring-table``) is preserved so
+   pre-T-064 scripts + tests continue to find it by substring. #}
 {% set table_id = (
-     "txn-table" if view == "actual"
-     else "planned-table" if view == "planned"
-     else "recurring-table"
-   ) %}
-<div id="{{ table_id }}"
-     data-ledger-table
+  "txn-table" if view == "actual"
+  else "planned-table" if view == "planned"
+  else "recurring-table"
+) %}
+<div id="ledger-table"
+     data-ledger-table-root
      data-view="{{ view }}"
      aria-live="polite">
-  <table class="ledger">
-    <caption class="sr-only">Ledger — {{ view }}</caption>
-    <thead>
-      <tr>
-        <th scope="col">Date</th>
-        <th scope="col">Direction</th>
-        <th scope="col" class="text-right">Amount</th>
-        <th scope="col">Category</th>
-        <th scope="col">Account</th>
-        <th scope="col">Description</th>
-        {% if view == "planned" %}
-          <th scope="col">Promoted?</th>
-          <th scope="col" class="text-right">Actions</th>
-        {% elif view == "recurring" %}
-          <th scope="col">Cadence</th>
-          <th scope="col">Next due</th>
-          <th scope="col">Overrides</th>
-        {% else %}
-          <th scope="col" class="text-right">Actions</th>
+  <div id="{{ table_id }}" data-ledger-table data-view="{{ view }}">
+    <div class="ledger-scroll">
+      <table class="ledger">
+        <caption class="sr-only">Ledger — {{ view }}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Date</th>
+            <th scope="col">Direction</th>
+            <th scope="col" class="text-right">Amount</th>
+            <th scope="col">Category</th>
+            <th scope="col">Account</th>
+            <th scope="col">Description</th>
+            {% if view == "planned" %}
+              <th scope="col">Promoted?</th>
+              <th scope="col" class="text-right">Actions</th>
+            {% elif view == "recurring" %}
+              <th scope="col">Cadence</th>
+              <th scope="col">Next due</th>
+              <th scope="col">Overrides</th>
+            {% else %}
+              <th scope="col" class="text-right">Actions</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            {% if view == "actual" %}
+              <tr id="txn-{{ row.id }}" class="row">
+                <td class="whitespace-nowrap font-semibold">{{ row.operation_date|date_fmt }}</td>
+                <td>{% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}</td>
+                <td class="text-right"><span class="tabular-nums">{{ row.amount|money(row.currency) }}</span></td>
+                <td>{{ row.category.name if row.category else '' }}</td>
+                <td>
+                  {{ row.account.name if row.account else '' }}
+                  {% if row.dest_account %}→ {{ row.dest_account.name }}{% endif %}
+                </td>
+                <td class="text-muted">{{ row.description }}</td>
+                <td class="text-right space-x-2 text-sm">
+                  <button type="button"
+                          hx-get="/transactions/{{ row.id }}/edit"
+                          hx-target="#txn-{{ row.id }}"
+                          hx-swap="outerHTML"
+                          aria-label="Edit transaction {{ row.id }}">Edit</button>
+                </td>
+              </tr>
+            {% elif view == "planned" %}
+              <tr id="planned-{{ row.key }}" class="row">
+                <td class="whitespace-nowrap font-semibold">{{ row.operation_date|date_fmt }}</td>
+                <td>{% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}</td>
+                <td class="text-right"><span class="tabular-nums">{{ row.amount_minor|money(row.currency) }}</span></td>
+                <td>{{ row.category.name if row.category else '' }}</td>
+                <td>{{ row.account.name if row.account else '' }}</td>
+                <td class="text-muted">{{ row.description }}</td>
+                <td>
+                  {% if row.is_promoted %}
+                    <span class="pill pill-income">promoted</span>
+                  {% else %}
+                    <span class="text-faint">—</span>
+                  {% endif %}
+                </td>
+                <td class="text-right space-x-2 text-sm">
+                  {% if row.kind == "persisted" and not row.is_promoted %}
+                    <button type="button"
+                            hx-get="/planned/{{ row.persisted_id }}/promote"
+                            hx-target="#modal-root"
+                            hx-swap="innerHTML"
+                            aria-label="Promote planned {{ row.persisted_id }}">Promote →</button>
+                  {% endif %}
+                </td>
+              </tr>
+            {% elif view == "recurring" %}
+              <tr id="recurring-{{ row.id }}" class="row">
+                <td class="whitespace-nowrap font-semibold">{{ row.start_date|date_fmt }}</td>
+                <td>{% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}</td>
+                <td class="text-right"><span class="tabular-nums">{{ row.default_amount|money(row.currency) }}</span></td>
+                <td>{{ row.category.name if row.category else '' }}</td>
+                <td>{{ row.account.name if row.account else '' }}</td>
+                <td class="text-muted">{{ row.default_description }}</td>
+                <td data-cadence>{{ row.cadence.value|capitalize }}</td>
+                <td class="whitespace-nowrap tabular-nums" data-next-due>{{ row.next_due|date_fmt }}</td>
+                <td>
+                  <details class="overrides-accordion">
+                    <summary>{{ row.overrides|length }} override{{ '' if row.overrides|length == 1 else 's' }}</summary>
+                    {% if row.overrides %}
+                      <ul class="overrides-list">
+                        {% for ov in row.overrides %}
+                          <li>
+                            <span class="tabular-nums">{{ ov.occurrence_date|date_fmt }}</span>
+                            <span class="text-muted">{{ ov.state.value }}</span>
+                          </li>
+                        {% endfor %}
+                      </ul>
+                    {% else %}
+                      <p class="text-faint text-sm">No overrides</p>
+                    {% endif %}
+                  </details>
+                </td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if not rows %}
+      <p class="text-faint mt-4">No {{ view }} entries.</p>
+    {% endif %}
+    {% if view == "actual" %}
+      <nav class="pagination mt-4 flex items-center gap-3 text-sm"
+           aria-label="Pagination">
+        {% if page > 1 %}
+          <a class="link-muted"
+             hx-get="/ledger/table?view={{ view }}&page={{ page - 1 }}"
+             hx-target="#ledger-table"
+             hx-swap="outerHTML"
+             href="/ledger?view={{ view }}&page={{ page - 1 }}">Prev</a>
         {% endif %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in rows %}
-        {% if view == "actual" %}
-          <tr id="txn-{{ row.id }}" class="row">
-            <td class="whitespace-nowrap font-semibold">{{ row.operation_date|date_fmt }}</td>
-            <td>
-              {% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}
-            </td>
-            <td class="text-right"><span class="tabular-nums">{{ row.amount|money(row.currency) }}</span></td>
-            <td>{{ row.category.name if row.category else '' }}</td>
-            <td>
-              {{ row.account.name if row.account else '' }}
-              {% if row.dest_account %}→ {{ row.dest_account.name }}{% endif %}
-            </td>
-            <td class="text-muted">{{ row.description }}</td>
-            <td class="text-right space-x-2 text-sm">
-              <button type="button"
-                      hx-get="/transactions/{{ row.id }}/edit"
-                      hx-target="#txn-{{ row.id }}"
-                      hx-swap="outerHTML"
-                      aria-label="Edit transaction {{ row.id }}">Edit</button>
-            </td>
-          </tr>
-        {% elif view == "planned" %}
-          <tr id="planned-{{ row.key }}" class="row">
-            <td class="whitespace-nowrap font-semibold">{{ row.operation_date|date_fmt }}</td>
-            <td>
-              {% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}
-            </td>
-            <td class="text-right"><span class="tabular-nums">{{ row.amount_minor|money(row.currency) }}</span></td>
-            <td>{{ row.category.name if row.category else '' }}</td>
-            <td>{{ row.account.name if row.account else '' }}</td>
-            <td class="text-muted">{{ row.description }}</td>
-            <td>
-              {% if row.is_promoted %}
-                <span class="pill pill-income">promoted</span>
-              {% else %}
-                <span class="text-faint">—</span>
-              {% endif %}
-            </td>
-            <td class="text-right space-x-2 text-sm">
-              {% if row.kind == "persisted" and not row.is_promoted %}
-                <button type="button"
-                        hx-get="/planned/{{ row.persisted_id }}/promote"
-                        hx-target="#modal-root"
-                        hx-swap="innerHTML"
-                        aria-label="Promote planned {{ row.persisted_id }}">Promote →</button>
-              {% endif %}
-            </td>
-          </tr>
-        {% elif view == "recurring" %}
-          <tr id="recurring-{{ row.id }}" class="row">
-            <td class="whitespace-nowrap font-semibold">{{ row.start_date|date_fmt }}</td>
-            <td>
-              {% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}
-            </td>
-            <td class="text-right"><span class="tabular-nums">{{ row.default_amount|money(row.currency) }}</span></td>
-            <td>{{ row.category.name if row.category else '' }}</td>
-            <td>{{ row.account.name if row.account else '' }}</td>
-            <td class="text-muted">{{ row.default_description }}</td>
-            <td data-cadence>{{ row.cadence.value|capitalize }}</td>
-            <td class="whitespace-nowrap tabular-nums" data-next-due>{{ row.next_due|date_fmt }}</td>
-            <td>
-              <details class="overrides-accordion">
-                <summary>{{ row.overrides|length }} override{{ '' if row.overrides|length == 1 else 's' }}</summary>
-                {% if row.overrides %}
-                  <ul class="overrides-list">
-                    {% for ov in row.overrides %}
-                      <li>
-                        <span class="tabular-nums">{{ ov.occurrence_date|date_fmt }}</span>
-                        <span class="text-muted">{{ ov.state.value }}</span>
-                      </li>
-                    {% endfor %}
-                  </ul>
-                {% else %}
-                  <p class="text-faint text-sm">No overrides</p>
-                {% endif %}
-              </details>
-            </td>
-          </tr>
+        <span class="text-muted">Page {{ page }}</span>
+        {% if has_next %}
+          <a class="link-muted"
+             hx-get="/ledger/table?view={{ view }}&page={{ page + 1 }}"
+             hx-target="#ledger-table"
+             hx-swap="outerHTML"
+             href="/ledger?view={{ view }}&page={{ page + 1 }}">Next</a>
         {% endif %}
-      {% endfor %}
-    </tbody>
-  </table>
-
-  {% if not rows %}
-    <p class="text-faint mt-4">No {{ view }} entries.</p>
-  {% endif %}
-
-  {% if view == "actual" %}
-    <nav class="pagination mt-4 flex items-center gap-3 text-sm"
-         aria-label="Pagination">
-      {% if page > 1 %}
-        <a class="link-muted"
-           hx-get="/ledger/table?view={{ view }}&page={{ page - 1 }}"
-           hx-target="#{{ table_id }}"
-           hx-swap="outerHTML"
-           href="/ledger?view={{ view }}&page={{ page - 1 }}">Prev</a>
-      {% endif %}
-      <span class="text-muted">Page {{ page }}</span>
-      {% if has_next %}
-        <a class="link-muted"
-           hx-get="/ledger/table?view={{ view }}&page={{ page + 1 }}"
-           hx-target="#{{ table_id }}"
-           hx-swap="outerHTML"
-           href="/ledger?view={{ view }}&page={{ page + 1 }}">Next</a>
-      {% endif %}
-    </nav>
-  {% endif %}
+      </nav>
+    {% endif %}
+  </div>
 </div>

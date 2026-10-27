@@ -374,33 +374,74 @@ Per service and repository. Target ≥90% coverage. Pure-function heavy, mocks o
 
 ---
 
+## Phase 7 — Liability accounts (credit cards)
+
+Adds behavioural classification + credit limit to accounts (ADR-0024, F2.1a). Scope: accounts surface + fortune reporting. See `docs/plans/v1/phase-7/README.md`.
+
+### ✅ T-080 [S] ADR-0024 + Phase 7 docs scaffolding
+- ADR-0024, F2.1a in `docs/requirements.md`, Phase 7 README + task stubs.
+
+### ✅ T-081 [S] Migration `0004_add_liability_columns.sql` → T-080
+- `accounts.is_liability INTEGER NOT NULL DEFAULT 0 CHECK (0,1)`; `accounts.credit_limit_minor INTEGER CHECK (NULL or > 0)`.
+- Idempotent additive migration; existing rows default to assets.
+- Reference: `docs/plans/v1/phase-7/T-081-migration-liability-columns.md`.
+
+### ✅ T-082 [S] Domain + repository → T-081
+- `Account`, `NewAccount`, `PatchAccount` gain `is_liability: bool` + `credit_limit_minor: int | None`.
+- `PatchAccount.clear_credit_limit` sentinel distinguishes "no change" from "clear to NULL".
+- Repository CRUD, hydrator, audit payloads thread the two new fields.
+- Reference: `docs/plans/v1/phase-7/T-082-domain-and-repository.md`.
+
+### ✅ T-083 [S] Fortune service → T-082
+- New `services/fortune.py` with `compute_fortune(conn, settings) -> FortuneTotals`.
+- Both `/` and `/accounts` routers call the service; `derive_balance` / `signed_legs` untouched.
+- Reference: `docs/plans/v1/phase-7/T-083-fortune-service.md`.
+
+### ✅ T-084 [S] Web form + templates → T-083
+- Account form: "Credit card (liability)" checkbox + conditional credit-limit input.
+- Account card: pill, utilization strip, over-limit badge.
+- Overview + Accounts: Assets / Liabilities / Net worth split.
+- Reference: `docs/plans/v1/phase-7/T-084-web-form-and-templates.md`.
+
+### ✅ T-085 [S] Transaction-form soft warning → T-084
+- `GET /transactions/_limit_preview` HTMX fragment previews post-transaction utilization for a liability account.
+- Soft-only: form continues to submit when `over_by > 0`.
+- Reference: `docs/plans/v1/phase-7/T-085-transaction-form-soft-warning.md`.
+
+### ✅ T-086 [S] Seed + e2e journey → T-084
+- `seed.seed()` adds demo "Bank (PLN)" + "Visa (PLN)" accounts, idempotent on re-seed.
+- `tests/e2e/test_credit_card_journey.py` exercises the full user flow end-to-end.
+- Reference: `docs/plans/v1/phase-7/T-086-seed-and-e2e-journey.md`.
+
+---
+
 ## Phase 8 — Post-redesign UX fixes
 
 Driven by field-use report 2026-10-27. Scope: UX bugfix + polish only. See `docs/plans/v1/phase-8/README.md` for the root-cause analysis.
 
 > **ID note:** these use `T-090..T-094` as successors to Phase 7 (last `T-086`). Phase 9 (user preferences, directory `phase-9/`) currently uses `T-090..T-096` and will be renumbered by its own agent to avoid collision.
 
-### T-090 [S] Shell + rail layout fit → T-061, T-062
+### ✅ T-090 [S] Shell + rail layout fit → T-061, T-062
 - `.app-shell__main` gains `min-width: 0`; wide tables scroll inside their surface, not the page.
 - `.rail-nav` tightened so Settings footer fits at 720 px high.
 - Reference: `docs/plans/v1/phase-8/T-090-shell-and-rail-fit.md`.
 
-### T-091 [S] One-field-per-row forms (`.form-stack`) → T-053, T-069
+### ✅ T-091 [S] One-field-per-row forms (`.form-stack`) → T-053, T-069
 - Shared `.form-stack` component replaces `grid grid-cols-2` on all five create/edit partials.
 - Applies to Transactions, Planned, Recurring, Accounts, Categories.
 - Reference: `docs/plans/v1/phase-8/T-091-form-stack-layout.md`.
 
-### T-092 [S] Ledger segmented wiring → T-064
+### ✅ T-092 [S] Ledger segmented wiring → T-064
 - Wrap `_table.html` in `<div id="ledger-table">` so segmented `hx-target` resolves. Preserves legacy inner ids.
 - Secondary effect: FAB view-aware routing becomes reachable, closing the "no option to add Planned/Recurring" gap.
 - Reference: `docs/plans/v1/phase-8/T-092-ledger-segmented-wiring.md`.
 
-### T-093 [S] Overview upcoming interactions → T-063, T-069
+### ✅ T-093 [S] Overview upcoming interactions → T-063, T-069
 - `+ Planned` button wired to `/planned/new` slide-over.
 - Range segmented active state updated via `hx-swap-oob` on the segmented group.
 - Reference: `docs/plans/v1/phase-8/T-093-overview-upcoming-interactions.md`.
 
-### T-094 [S] FAB visibility scope + Budget rules affordance → T-069, T-092, ADR-0026
+### ✅ T-094 [S] FAB visibility scope + Budget rules affordance → T-069, T-092, ADR-0026
 - `fab_target_for` returns `None` outside Overview + Ledger; `base.html` skips the include.
 - Budget rules section gains an inline-edit hint; no new endpoint.
 - New ADR-0026 narrows ADR-0023 affordance #4.

@@ -87,3 +87,37 @@ def test_seed_module_importable() -> None:
     # `just seed` CLI shim: ensure it imports cleanly so the pre-commit hook
     # catches regressions earlier than runtime invocation.
     assert callable(seed.main)
+
+
+def test_demo_credit_card_account_seeded(conn: sqlite3.Connection) -> None:
+    """T-086 — ``seed()`` plants the Visa demo liability account (ADR-0024)."""
+    seed.seed(conn)
+    row = conn.execute(
+        "SELECT is_liability, credit_limit_minor FROM accounts WHERE name = 'Visa (PLN)'"
+    ).fetchone()
+    assert row is not None
+    assert row["is_liability"] == 1
+    assert row["credit_limit_minor"] == 1_000_000
+
+
+def test_demo_bank_account_seeded(conn: sqlite3.Connection) -> None:
+    seed.seed(conn)
+    row = conn.execute(
+        "SELECT is_liability, opening_balance FROM accounts WHERE name = 'Bank (PLN)'"
+    ).fetchone()
+    assert row is not None
+    assert row["is_liability"] == 0
+    assert row["opening_balance"] == 5_000_000
+
+
+def test_demo_accounts_idempotent(conn: sqlite3.Connection) -> None:
+    seed.seed(conn)
+    seed.seed(conn)
+    n_visa = conn.execute(
+        "SELECT count(*) AS n FROM accounts WHERE name = 'Visa (PLN)' AND deleted_at IS NULL"
+    ).fetchone()["n"]
+    n_bank = conn.execute(
+        "SELECT count(*) AS n FROM accounts WHERE name = 'Bank (PLN)' AND deleted_at IS NULL"
+    ).fetchone()["n"]
+    assert n_visa == 1
+    assert n_bank == 1
