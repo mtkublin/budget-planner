@@ -17,6 +17,7 @@ from budget_planner.repositories._shared import mutate, parse_dt, parse_dt_requi
 _COLUMNS = (
     "id, user_id, operation_date, category_id, account_id, dest_account_id, "
     "amount, description, promoted_from_planned_id, "
+    "promoted_from_recurring_rule_id, promoted_from_recurring_date, "
     "created_at, updated_at, deleted_at"
 )
 
@@ -32,6 +33,12 @@ def _row_to_txn(row: sqlite3.Row) -> Transaction:
         amount=row["amount"],
         description=row["description"],
         promoted_from_planned_id=row["promoted_from_planned_id"],
+        promoted_from_recurring_rule_id=row["promoted_from_recurring_rule_id"],
+        promoted_from_recurring_date=(
+            date.fromisoformat(row["promoted_from_recurring_date"])
+            if row["promoted_from_recurring_date"] is not None
+            else None
+        ),
         created_at=parse_dt_required(row["created_at"]),
         updated_at=parse_dt_required(row["updated_at"]),
         deleted_at=parse_dt(row["deleted_at"]),
@@ -130,8 +137,9 @@ def create(conn: sqlite3.Connection, data: NewTransaction) -> Transaction:
         cursor = c.execute(
             "INSERT INTO transactions("
             "user_id, operation_date, category_id, account_id, dest_account_id, "
-            "amount, description, promoted_from_planned_id) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "amount, description, promoted_from_planned_id, "
+            "promoted_from_recurring_rule_id, promoted_from_recurring_date) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 data.user_id,
                 data.operation_date.isoformat(),
@@ -141,6 +149,12 @@ def create(conn: sqlite3.Connection, data: NewTransaction) -> Transaction:
                 data.amount,
                 data.description,
                 data.promoted_from_planned_id,
+                data.promoted_from_recurring_rule_id,
+                (
+                    data.promoted_from_recurring_date.isoformat()
+                    if data.promoted_from_recurring_date is not None
+                    else None
+                ),
             ),
         )
         new_id = int(cursor.lastrowid or 0)

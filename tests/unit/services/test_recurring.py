@@ -40,6 +40,8 @@ def _rule(
         day_of_month=day_of_month,
         month_of_year=month_of_year,
         active=active,
+        next_due=start_date,
+        last_promoted_date=None,
         created_at=datetime(2026, 1, 1, tzinfo=_UTC),
         updated_at=datetime(2026, 1, 1, tzinfo=_UTC),
         deleted_at=None,

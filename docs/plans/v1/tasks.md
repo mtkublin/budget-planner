@@ -607,7 +607,7 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 - Append this block to `docs/plans/v1/tasks.md`.
 - Docs only; no code.
 
-### T-117 [S] Migration + domain + repository: `recurring_rules.next_due` / `last_promoted_date` + `transactions.promoted_from_recurring_*` → T-116, ADR-0038
+### ✅ T-117 [S] Migration + domain + repository: `recurring_rules.next_due` / `last_promoted_date` + `transactions.promoted_from_recurring_*` → T-116, ADR-0038
 - `migrations/0006_add_recurring_next_due.sql`: additive columns + indexes; backfill `next_due` via Python hook using the existing occurrence generator; flip `next_due` to NOT NULL via SQLite 12-step rebuild inside the same migration file (or a trailing `0007_recurring_next_due_not_null.sql`, authors choice).
 - `domain/recurring.RecurringRule` gains `next_due: dt.date` + `last_promoted_date: dt.date | None`; `NewRecurringRule` does not expose `next_due` (repository computes).
 - `domain/transactions.Transaction` + `NewTransaction` gain `promoted_from_recurring_rule_id` + `promoted_from_recurring_date`.

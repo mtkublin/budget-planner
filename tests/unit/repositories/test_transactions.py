@@ -5,13 +5,14 @@ from datetime import date
 
 import pytest
 
-from budget_planner.domain.enums import Direction
+from budget_planner.domain.enums import Cadence, Direction
+from budget_planner.domain.recurring import NewRecurringRule
 from budget_planner.domain.transactions import (
     NewTransaction,
     PatchTransaction,
     TransactionFilter,
 )
-from budget_planner.repositories import audit, transactions
+from budget_planner.repositories import audit, recurring as recurring_repo, transactions
 
 
 def _mk(
@@ -156,3 +157,57 @@ def test_list_filtered_hides_soft_deleted(
     assert transactions.list_filtered(conn, TransactionFilter()) == []
     all_rows = transactions.list_filtered(conn, TransactionFilter(), include_deleted=True)
     assert any(t.id == tid for t in all_rows)
+
+
+def test_create_round_trips_recurring_provenance_fields(
+    conn: sqlite3.Connection, account_id: int, category_id: int
+) -> None:
+    """T-117 / ADR-0038: `create` persists + hydrates the recurring provenance pair.
+
+    The service layer (T-118) enforces XOR with `promoted_from_planned_id`;
+    the repository itself takes whatever the DTO gives it.
+    """
+    rule = recurring_repo.create_rule(
+        conn,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=date(2026, 1, 1),
+            category_id=category_id,
+            account_id=account_id,
+            default_amount=10_000,
+            day_of_month=1,
+        ),
+    )
+    txn = transactions.create(
+        conn,
+        NewTransaction(
+            operation_date=date(2026, 1, 1),
+            category_id=category_id,
+            account_id=account_id,
+            amount=10_000,
+            description="rent for jan",
+            promoted_from_recurring_rule_id=rule.id,
+            promoted_from_recurring_date=date(2026, 1, 1),
+        ),
+    )
+    assert txn.promoted_from_recurring_rule_id == rule.id
+    assert txn.promoted_from_recurring_date == date(2026, 1, 1)
+    assert txn.promoted_from_planned_id is None
+
+    # list_filtered surfaces the same shape.
+    rows = transactions.list_filtered(conn, TransactionFilter())
+    hit = next(r for r in rows if r.id == txn.id)
+    assert hit.promoted_from_recurring_rule_id == rule.id
+    assert hit.promoted_from_recurring_date == date(2026, 1, 1)
+
+
+def test_create_defaults_recurring_provenance_fields_to_none(
+    conn: sqlite3.Connection, account_id: int, category_id: int
+) -> None:
+    """A plain user-entered transaction has no provenance stamps."""
+    tid = _mk(conn, account_id, category_id)
+    hit = transactions.find_by_id(conn, tid)
+    assert hit is not None
+    assert hit.promoted_from_recurring_rule_id is None
+    assert hit.promoted_from_recurring_date is None
+    assert hit.promoted_from_planned_id is None

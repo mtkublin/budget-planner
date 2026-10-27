@@ -18,14 +18,19 @@ Public surface:
 
 from __future__ import annotations
 
+import datetime as dt
 import hashlib
 import re
 import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
 from budget_planner.config import get_settings
 from budget_planner.db.connection import get_connection
+from budget_planner.domain.enums import Cadence
+from budget_planner.domain.recurring import RecurringRule
+from budget_planner.services.recurring import generate_occurrences
 
 MIGRATIONS_DIR: Path = Path(__file__).resolve().parents[3] / "migrations"
 _FILENAME_RE = re.compile(r"^(\d{4})_[a-z0-9_]+\.sql$")
@@ -116,6 +121,106 @@ def applied_versions(conn: sqlite3.Connection) -> dict[int, str]:
     return {int(r["version"]): r["checksum"] for r in rows}
 
 
+def _backfill_recurring_next_due(conn: sqlite3.Connection) -> None:
+    """Populate ``recurring_rules.next_due`` after migration 0006 applies.
+
+    Runs idempotently in its own BEGIN/COMMIT: only rows whose ``next_due``
+    is still ``NULL`` are touched. The schedule arithmetic reuses the pure
+    ``services.recurring.generate_occurrences`` generator so canonical
+    occurrence semantics (EOM clamp, yearly month-of-year roll-forward)
+    stay in a single place. Rules whose ``end_date`` has already passed are
+    deactivated and get ``next_due = start_date`` as a stable sentinel —
+    the service layer ignores inactive rules anyway, so the sentinel never
+    drives UI.
+    """
+    rows = conn.execute(
+        "SELECT id, user_id, cadence, start_date, end_date, category_id, "
+        "account_id, dest_account_id, default_amount, default_description, "
+        "day_of_month, month_of_year, active "
+        "FROM recurring_rules WHERE next_due IS NULL"
+    ).fetchall()
+    if not rows:
+        return
+
+    today = dt.date.today()  # noqa: DTZ011 — UTC vs local is irrelevant for a date-only anchor
+    # 400 days covers monthly / quarterly / yearly in one shot — the first
+    # canonical occurrence on-or-after `range_start` is at most one cadence
+    # period away, and 400d > 366d.
+    horizon_days = 400
+
+    conn.execute("BEGIN")
+    try:
+        for row in rows:
+            start_date = dt.date.fromisoformat(row["start_date"])
+            end_date = (
+                dt.date.fromisoformat(row["end_date"]) if row["end_date"] is not None else None
+            )
+            # Hydrate a minimal RecurringRule for the generator; the stub
+            # satisfies the frozen dataclass but we force `active=True` so
+            # the generator does not short-circuit for inactive rows — we
+            # deactivate explicitly below when there is no occurrence left.
+            rule = RecurringRule(
+                id=row["id"],
+                user_id=row["user_id"],
+                cadence=Cadence(row["cadence"]),
+                start_date=start_date,
+                end_date=end_date,
+                category_id=row["category_id"],
+                account_id=row["account_id"],
+                dest_account_id=row["dest_account_id"],
+                default_amount=row["default_amount"],
+                default_description=row["default_description"],
+                day_of_month=row["day_of_month"],
+                month_of_year=row["month_of_year"],
+                active=True,
+                next_due=start_date,  # placeholder; generator does not read it
+                last_promoted_date=None,
+                created_at=dt.datetime.now(dt.UTC),
+                updated_at=dt.datetime.now(dt.UTC),
+                deleted_at=None,
+            )
+            range_start = max(start_date, today)
+            range_end = range_start + dt.timedelta(days=horizon_days)
+            occurrences = generate_occurrences(rule, range_start, range_end)
+            if occurrences:
+                next_due = occurrences[0].occurrence_date
+                conn.execute(
+                    "UPDATE recurring_rules SET next_due = ? WHERE id = ?",
+                    (next_due.isoformat(), row["id"]),
+                )
+            else:
+                # Rule end has passed (or something equally terminal).
+                # Sentinel + deactivation keeps the NOT NULL promise and
+                # keeps the service layer honest.
+                conn.execute(
+                    "UPDATE recurring_rules SET next_due = ?, active = 0 WHERE id = ?",
+                    (start_date.isoformat(), row["id"]),
+                )
+        conn.execute("COMMIT")
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+
+
+# Mapping of migration version -> post-apply hook. Hooks run inside their
+# own BEGIN/COMMIT after the migration's SQL commits, but strictly before
+# any later migration runs. The sequence (0006 adds nullable column →
+# backfill populates → 0007 flips to NOT NULL) hangs on this ordering.
+_POST_APPLY_HOOKS: dict[int, Callable[[sqlite3.Connection], None]] = {
+    6: _backfill_recurring_next_due,
+}
+
+# Migrations that require ``PRAGMA foreign_keys = OFF`` for the duration of
+# their SQL body. Needed for SQLite's 12-step table-rebuild on tables with
+# incoming foreign keys (ADR-0038 flips ``recurring_rules.next_due`` to
+# NOT NULL at migration 0007; ``planned_transactions``, ``transactions``,
+# and ``recurring_rule_overrides`` all reference ``recurring_rules.id``).
+# The pragma must flip OUTSIDE any transaction, so the toggle lives here
+# rather than inside the SQL file. A post-rebuild ``PRAGMA foreign_key_check``
+# fails fast if the rebuild dropped a reference.
+FK_OFF_MIGRATIONS: frozenset[int] = frozenset({7})
+
+
 def apply_migrations(
     conn: sqlite3.Connection,
     migrations_dir: Path = MIGRATIONS_DIR,
@@ -127,6 +232,16 @@ def apply_migrations(
     - If an applied version's checksum differs from the file on disk, raises
       ``RuntimeError`` (editing applied migrations is forbidden).
     - Each pending migration runs inside its own ``BEGIN``/``COMMIT`` guard.
+    - Migrations listed in :data:`FK_OFF_MIGRATIONS` run with
+      ``PRAGMA foreign_keys = OFF`` for the duration of their SQL body
+      (the pragma must flip outside the transaction). ``foreign_key_check``
+      runs after the rebuild to surface any dangling references.
+    - If ``_POST_APPLY_HOOKS`` registers a hook for a migration version,
+      the hook runs AFTER the migration commits but BEFORE later migrations
+      begin. Hooks must be idempotent (they are re-invoked on every
+      ``just migrate`` run until the condition that makes them a no-op
+      is satisfied; e.g. the ``next_due`` backfill checks for
+      ``next_due IS NULL`` before writing).
     """
     all_migrations = discover(migrations_dir)
     applied = applied_versions(conn)
@@ -139,6 +254,11 @@ def apply_migrations(
                     "already-applied migrations must not be edited."
                 )
             continue
+        fk_off = mig.version in FK_OFF_MIGRATIONS
+        if fk_off:
+            # Must be flipped outside any transaction; the runner has none
+            # open at this point (prior migration committed).
+            conn.execute("PRAGMA foreign_keys = OFF")
         # SQLite DDL is transactional. We avoid ``executescript`` (which
         # auto-commits any open transaction) by splitting the file into
         # individual statements and running each inside a single explicit
@@ -155,8 +275,23 @@ def apply_migrations(
             conn.execute("COMMIT")
         except Exception:
             conn.execute("ROLLBACK")
+            if fk_off:
+                conn.execute("PRAGMA foreign_keys = ON")
             raise
+        if fk_off:
+            # Validate that the rebuild left no dangling foreign keys.
+            offending = conn.execute("PRAGMA foreign_key_check").fetchall()
+            if offending:
+                conn.execute("PRAGMA foreign_keys = ON")
+                raise RuntimeError(
+                    f"Foreign-key check failed after migration {mig.filename}: "
+                    f"{len(offending)} violation(s)."
+                )
+            conn.execute("PRAGMA foreign_keys = ON")
         newly_applied.append(mig)
+        hook = _POST_APPLY_HOOKS.get(mig.version)
+        if hook is not None:
+            hook(conn)
     return newly_applied
 
 

@@ -15,6 +15,12 @@ class Transaction:
 
     `amount` is positive integer minor units except when the paired category
     has direction=`adjustment` (ADR-0008).
+
+    Promotion provenance (ADR-0012 planned → actual, ADR-0038 recurring →
+    actual) is tracked by two mutually-exclusive columns:
+    `promoted_from_planned_id` and `promoted_from_recurring_rule_id` +
+    `promoted_from_recurring_date`. The XOR invariant lives in the service
+    layer (not a CHECK constraint) so the migration stays additive.
     """
 
     id: int
@@ -26,6 +32,8 @@ class Transaction:
     amount: int
     description: str
     promoted_from_planned_id: int | None
+    promoted_from_recurring_rule_id: int | None
+    promoted_from_recurring_date: date | None
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None
@@ -42,6 +50,8 @@ class NewTransaction:
     description: str = ""
     dest_account_id: int | None = None
     promoted_from_planned_id: int | None = None
+    promoted_from_recurring_rule_id: int | None = None
+    promoted_from_recurring_date: date | None = None
     user_id: int = 1
 
 

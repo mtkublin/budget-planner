@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime as dt
 import sqlite3
 from datetime import date
 
@@ -81,6 +82,143 @@ def test_list_rules_active_only(
 def test_update_rule_missing_raises(conn: sqlite3.Connection) -> None:
     with pytest.raises(LookupError):
         recurring.update_rule(conn, 999, PatchRecurringRule(active=False))
+
+
+def test_create_rule_populates_next_due_from_generator(
+    conn: sqlite3.Connection, account_id: int, category_id: int
+) -> None:
+    """T-117 / ADR-0038: `next_due` is computed on create.
+
+    For a monthly rule starting on day 1 with a start_date far in the
+    past, the first canonical occurrence on-or-after today is at most
+    one calendar month away.
+    """
+
+    today = dt.datetime.now(tz=dt.UTC).date()
+    past_start = today - dt.timedelta(days=120)
+    rule = recurring.create_rule(
+        conn,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=past_start,
+            category_id=category_id,
+            account_id=account_id,
+            default_amount=10_000,
+            day_of_month=past_start.day,
+        ),
+    )
+    assert rule.next_due >= today
+    assert (rule.next_due - today).days <= 32
+    assert rule.last_promoted_date is None
+
+
+def test_create_rule_future_start_sets_next_due_to_start(
+    conn: sqlite3.Connection, account_id: int, category_id: int
+) -> None:
+    """Future-start rule: `next_due` is the start_date itself."""
+
+    today = dt.datetime.now(tz=dt.UTC).date()
+    future_start = today + dt.timedelta(days=60)
+    rule = recurring.create_rule(
+        conn,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=future_start,
+            category_id=category_id,
+            account_id=account_id,
+            default_amount=10_000,
+            day_of_month=future_start.day,
+        ),
+    )
+    assert rule.next_due == future_start
+
+
+def test_create_rule_terminal_end_date_falls_back_to_start_sentinel(
+    conn: sqlite3.Connection, account_id: int, category_id: int
+) -> None:
+    """If `end_date` has already passed, repository returns start_date as sentinel.
+
+    The repository alone does not deactivate the rule — that is the
+    migration backfill's job for pre-existing rows and the T-118 promote
+    service's job going forward. Here we assert the sentinel contract.
+    """
+
+    today = dt.datetime.now(tz=dt.UTC).date()
+    rule = recurring.create_rule(
+        conn,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=today - dt.timedelta(days=400),
+            end_date=today - dt.timedelta(days=10),
+            category_id=category_id,
+            account_id=account_id,
+            default_amount=10_000,
+            day_of_month=1,
+        ),
+    )
+    assert rule.next_due == today - dt.timedelta(days=400)
+
+
+def test_list_rules_surfaces_next_due_and_last_promoted(
+    conn: sqlite3.Connection, account_id: int, category_id: int
+) -> None:
+    created = recurring.create_rule(conn, _new_rule(account_id, category_id))
+    rules = recurring.list_rules(conn)
+    hit = next(r for r in rules if r.id == created.id)
+    assert hit.next_due == created.next_due
+    assert hit.last_promoted_date is None
+
+
+def test_set_next_due_round_trip(
+    conn: sqlite3.Connection, account_id: int, category_id: int
+) -> None:
+
+    rule = recurring.create_rule(conn, _new_rule(account_id, category_id))
+    new_date = dt.date(2027, 6, 15)
+    promoted_on = dt.date(2027, 5, 15)
+    recurring.set_next_due(conn, rule.id, next_due=new_date, last_promoted_date=promoted_on)
+    refreshed = recurring.find_rule(conn, rule.id)
+    assert refreshed is not None
+    assert refreshed.next_due == new_date
+    assert refreshed.last_promoted_date == promoted_on
+
+
+def test_set_next_due_accepts_null_last_promoted(
+    conn: sqlite3.Connection, account_id: int, category_id: int
+) -> None:
+
+    rule = recurring.create_rule(conn, _new_rule(account_id, category_id))
+    new_date = dt.date(2027, 6, 15)
+    recurring.set_next_due(conn, rule.id, next_due=new_date, last_promoted_date=None)
+    refreshed = recurring.find_rule(conn, rule.id)
+    assert refreshed is not None
+    assert refreshed.next_due == new_date
+    assert refreshed.last_promoted_date is None
+
+
+def test_set_inactive_marks_rule_inactive(
+    conn: sqlite3.Connection, account_id: int, category_id: int
+) -> None:
+    rule = recurring.create_rule(conn, _new_rule(account_id, category_id))
+    assert rule.active is True
+    recurring.set_inactive(conn, rule.id)
+    refreshed = recurring.find_rule(conn, rule.id)
+    assert refreshed is not None
+    assert refreshed.active is False
+
+
+def test_patch_recurring_rule_next_due_sentinel_is_passthrough(
+    conn: sqlite3.Connection, account_id: int, category_id: int
+) -> None:
+    """Admin-only `next_due` override via the explicit patch field."""
+
+    rule = recurring.create_rule(conn, _new_rule(account_id, category_id))
+    new_date = dt.date(2028, 1, 1)
+    updated = recurring.update_rule(conn, rule.id, PatchRecurringRule(next_due=new_date))
+    assert updated.next_due == new_date
+    # Omitting next_due keeps it untouched.
+    bumped = recurring.update_rule(conn, rule.id, PatchRecurringRule(default_amount=99_999))
+    assert bumped.next_due == new_date
 
 
 def test_override_upsert_and_delete(
