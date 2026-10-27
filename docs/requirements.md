@@ -72,7 +72,7 @@ Planned transactions and recurring rules are two independent concepts with two i
 ### 2.5 Forecasting
 
 - **F5.1** Long-term fortune forecast across accounts and in aggregate (base currency = PLN by default, configurable).
-- **F5.2** **Deterministic projection**: `projected_balance(account, date) = current_balance(today) + Σ planned_txns + Σ virtual_recurring_occurrences` up to `date`. Cross-currency aggregation uses the latest cached FX rate.
+- **F5.2** **Deterministic projection**: `projected_balance(account, date) = current_balance(today) + Σ planned_txns + Σ virtual_recurring_occurrences + Σ budget_overlay_events` up to `date`. The **budget overlay** materialises per-category per-month residual budget — `unaccounted(c, m) = max(resolved_budget(c, m) − spent_so_far(c, m) − committed_future(c, m), 0)` — as synthetic expense events distributed evenly across the remaining days of each month inside the horizon, allocated to the first active account (deterministic by `id`). Clamped per category — a category whose planned+recurring already exceeds its budget does not generate income. Overlay is on by default; the service accepts `include_budget_overlay=False` for the pre-overlay projection exercised by targeted unit tests. See [ADR-0042](adr/0042-forecast-budget-overlay.md). Cross-currency aggregation uses the latest cached FX rate.
 - **F5.3** Live-updating via HTMX fragment swap: every edit to planned/recurring/account state triggers a server-side recomputation and chart redraw.
 - **F5.4** Horizon selectable by the user (e.g. 6 months, 1 year, 5 years).
 

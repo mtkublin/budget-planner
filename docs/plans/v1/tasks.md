@@ -667,6 +667,12 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 - Tests pin anchor mid-month, no-prior-anchor fallback, zero-budget fallback, no-anchor-configured fallback, and formula consistency.
 - Test shape per `phase-12/T-125-budget-anchor-window.md`.
 
+### T-126 [S] Forecast budget overlay → ADR-0042, T-025, T-120
+- `services/forecast.budget_overlay_events(...)` computes per-category per-month unaccounted budget (`resolved_budget − spent_so_far − committed_future`, clamped ≥ 0) and emits `_CashEvent`s distributed evenly across the month window `[max(today+1, month_start), min(month_end, horizon_end)]` on the first active account (lowest id).
+- `services/forecast.forecast(...)` gains `include_budget_overlay: bool = True` and merges overlay events into `_collect_events` output ahead of day-walk accumulation. Existing dedup for persisted ↔ virtual recurring preserved.
+- Pre-overlay projection remains reachable via `include_budget_overlay=False` for the pure planned+recurring regression tests. `forecast` router + home mini-chart adopt the default (`True`) with no API change.
+- Tests pin: single-category unaccounted spread, zero-residual skip when planned+recurring ≥ budget, cross-month boundary distribution, zero-length-window skip (last-day-of-month `today`), overlay-off parity with pre-overlay series, deterministic re-run equivalence.
+
 ---
 
 ## Phase 7 — Deferred to v2
