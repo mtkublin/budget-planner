@@ -1,6 +1,6 @@
 # Phase 9 — Left Daily Spend
 
-> Status: pending (docs scaffolding landed via T-090; code starts at T-091). Scope: budget surface + first per-user preference. No change to transaction / account / category / FX arithmetic.
+> Status: pending (docs scaffolding landed via T-095; code starts at T-096). Scope: budget surface + first per-user preference. No change to transaction / account / category / FX arithmetic.
 
 ## Overview
 
@@ -33,23 +33,23 @@ Decision: see [`ADR-0025`](../../../adr/0025-user-preferences-and-income-anchor.
 
 | ID | Task | Dep |
 |---|---|---|
-| T-090 | ADR-0025 + requirements + CHANGELOG (docs only) | — |
-| T-091 | Migration `0005_user_preferences.sql` | T-090 |
-| T-092 | Domain + repository (`preferences.py` modules) | T-091 |
-| T-093 | Preferences service + income anchor resolver (liveness + direction defence) | T-092, T-033 |
-| T-094 | Next-planned-income lookup on `services/planned.py` | T-023 |
-| T-095 | Left daily spend in `services/budget.py` (`MonthSummary` extension + `today` injection) | T-024, T-093, T-094 |
-| T-096 | `/budget` card + `/budget/manage` anchor selector + endpoint | T-036, T-095 |
+| T-095 | ADR-0025 + requirements + CHANGELOG (docs only) | — |
+| T-096 | Migration `0005_user_preferences.sql` | T-095 |
+| T-097 | Domain + repository (`preferences.py` modules) | T-096 |
+| T-098 | Preferences service + income anchor resolver (liveness + direction defence) | T-097, T-033 |
+| T-099 | Next-planned-income lookup on `services/planned.py` | T-023 |
+| T-100 | Left daily spend in `services/budget.py` (`MonthSummary` extension + `today` injection) | T-024, T-098, T-099 |
+| T-101 | `/budget` card + `/budget/manage` anchor selector + endpoint | T-036, T-100 |
 
 ## Dependency map
 
-- **T-090** unblocks every code task; it is the docs round itself.
-- **T-091** → **T-092** → **T-093** (vertical slice through the new preference store).
-- **T-094** is independent of the preferences work and may land in parallel with T-091..T-093.
-- **T-095** needs both T-093 (anchor resolver) and T-094 (next-income lookup).
-- **T-096** closes the phase; depends on T-095 and the existing budget router (T-036).
+- **T-095** unblocks every code task; it is the docs round itself.
+- **T-096** → **T-097** → **T-098** (vertical slice through the new preference store).
+- **T-099** is independent of the preferences work and may land in parallel with T-096..T-098.
+- **T-100** needs both T-098 (anchor resolver) and T-099 (next-income lookup).
+- **T-101** closes the phase; depends on T-100 and the existing budget router (T-036).
 
-Parallel-safe set once T-092 is in: `{T-093, T-094}`.
+Parallel-safe set once T-097 is in: `{T-098, T-099}`.
 
 Est. size: each task ≤ 1 day; whole phase ~1 week sequential, ~3 days with fan-out.
 

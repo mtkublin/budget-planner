@@ -101,7 +101,7 @@ Integration-level touch under `tests/integration/web/test_home.py` and `tests/in
 - **Base-currency semantics.** Current behaviour selects only accounts whose currency equals `settings.base_currency` for the single-number fortune. The new `*_base` figures preserve that behaviour verbatim. Full cross-currency aggregation stays deferred (T-032 scope).
 - **Negative balance on an asset account.** An overdrawn checking account naturally produces a negative asset bucket entry. That is correct — the asset bucket is `Σ balance`, not `Σ max(balance, 0)`. Do not clamp.
 - **Over-limit credit cards.** A credit card with `balance = -12_000` and `credit_limit_minor = 10_000` contributes `|balance| = 12_000` to liabilities. The limit is a UX concern (T-084), not an arithmetic one.
-- **Pure function discipline.** The service reads `conn` + `settings`; it does not read the clock, filesystem, or env. Keep it that way so T-095-style future metrics compose cleanly.
+- **Pure function discipline.** The service reads `conn` + `settings`; it does not read the clock, filesystem, or env. Keep it that way so T-100-style future metrics compose cleanly.
 - **Dict ordering.** `dict` preserves insertion order; aggregation ordering reflects `accounts_repo.list_all` ordering. Templates that iterate for display should sort explicitly (currency code ascending). The service does **not** sort — that is a presentation choice.
 
 ## Handoff notes
