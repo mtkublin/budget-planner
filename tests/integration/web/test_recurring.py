@@ -189,39 +189,27 @@ def test_deactivate_404(client: TestClient) -> None:
     assert client.post("/recurring/9999/deactivate").status_code == 404
 
 
-def test_add_override_skipped(client: TestClient, ctx: dict[str, int]) -> None:
+def test_add_override_overridden_amount(client: TestClient, ctx: dict[str, int]) -> None:
     r = client.post(
         f"/recurring/{ctx['rule']}/overrides",
-        data={"occurrence_date": "2026-05-01", "state": "skipped"},
+        data={"year": 2026, "month": 5, "amount": "9.99"},
     )
     assert r.status_code == 200
     assert "forecast-stale" in r.headers["HX-Trigger"]
 
 
-def test_add_override_overridden_amount(client: TestClient, ctx: dict[str, int]) -> None:
+def test_add_override_accepts_comma_decimal(client: TestClient, ctx: dict[str, int]) -> None:
     r = client.post(
         f"/recurring/{ctx['rule']}/overrides",
-        data={
-            "occurrence_date": "2026-05-01",
-            "state": "overridden",
-            "amount_override": "9.99",
-        },
+        data={"year": 2026, "month": 5, "amount": "9,99"},
     )
     assert r.status_code == 200
 
 
-def test_override_invalid_state(client: TestClient, ctx: dict[str, int]) -> None:
+def test_override_invalid_month(client: TestClient, ctx: dict[str, int]) -> None:
     r = client.post(
         f"/recurring/{ctx['rule']}/overrides",
-        data={"occurrence_date": "2026-05-01", "state": "bogus"},
-    )
-    assert r.status_code == 422
-
-
-def test_override_invalid_date(client: TestClient, ctx: dict[str, int]) -> None:
-    r = client.post(
-        f"/recurring/{ctx['rule']}/overrides",
-        data={"occurrence_date": "nope", "state": "skipped"},
+        data={"year": 2026, "month": 13, "amount": "9.99"},
     )
     assert r.status_code == 422
 
@@ -229,11 +217,15 @@ def test_override_invalid_date(client: TestClient, ctx: dict[str, int]) -> None:
 def test_override_invalid_amount(client: TestClient, ctx: dict[str, int]) -> None:
     r = client.post(
         f"/recurring/{ctx['rule']}/overrides",
-        data={
-            "occurrence_date": "2026-05-01",
-            "state": "overridden",
-            "amount_override": "nope",
-        },
+        data={"year": 2026, "month": 5, "amount": "nope"},
+    )
+    assert r.status_code == 422
+
+
+def test_override_non_positive_amount(client: TestClient, ctx: dict[str, int]) -> None:
+    r = client.post(
+        f"/recurring/{ctx['rule']}/overrides",
+        data={"year": 2026, "month": 5, "amount": "0"},
     )
     assert r.status_code == 422
 
@@ -241,7 +233,7 @@ def test_override_invalid_amount(client: TestClient, ctx: dict[str, int]) -> Non
 def test_override_404_rule(client: TestClient) -> None:
     r = client.post(
         "/recurring/9999/overrides",
-        data={"occurrence_date": "2026-05-01", "state": "skipped"},
+        data={"year": 2026, "month": 5, "amount": "9.99"},
     )
     assert r.status_code == 404
 
@@ -249,7 +241,7 @@ def test_override_404_rule(client: TestClient) -> None:
 def test_delete_override(client: TestClient, ctx: dict[str, int]) -> None:
     client.post(
         f"/recurring/{ctx['rule']}/overrides",
-        data={"occurrence_date": "2026-05-01", "state": "skipped"},
+        data={"year": 2026, "month": 5, "amount": "9.99"},
     )
     r = client.post(f"/recurring/{ctx['rule']}/overrides/2026-05-01/delete")
     assert r.status_code == 200
@@ -426,11 +418,7 @@ def test_recurring_promote_modal_shows_override_banner(
     # Install an override on next_due.
     client.post(
         f"/recurring/{ctx['rule']}/overrides",
-        data={
-            "occurrence_date": next_due.isoformat(),
-            "state": "overridden",
-            "amount_override": "123.45",
-        },
+        data={"year": next_due.year, "month": next_due.month, "amount": "123.45"},
     )
     r_after = client.get(f"/recurring/{ctx['rule']}/promote")
     assert r_after.status_code == 200
@@ -495,18 +483,14 @@ def test_recurring_delete_soft_deactivates(
 def test_recurring_overrides_new_form_renders(
     client: TestClient, ctx: dict[str, int], _migrated: Settings
 ) -> None:
-    """T-122: GET /recurring/{id}/overrides/new returns the slide-over
-    form pre-filled with the given occurrence_date."""
+    """GET /recurring/{id}/overrides/new returns the generic override form
+    with year + month pre-filled from the rule's current ``next_due``."""
     next_due = _get_rule_next_due(_migrated, ctx["rule"])
-    r = client.get(
-        f"/recurring/{ctx['rule']}/overrides/new",
-        params={"occurrence_date": next_due.isoformat()},
-    )
+    r = client.get(f"/recurring/{ctx['rule']}/overrides/new")
     assert r.status_code == 200
     assert f"/recurring/{ctx['rule']}/overrides" in r.text
-    # The occurrence_date hidden field is pre-filled.
-    assert f'value="{next_due.isoformat()}"' in r.text
-    assert "Override next occurrence" in r.text
+    assert f'value="{next_due.year}"' in r.text
+    assert "Override occurrence" in r.text
 
 
 def test_recurring_overrides_new_form_404(client: TestClient) -> None:
@@ -517,27 +501,22 @@ def test_recurring_overrides_new_form_404(client: TestClient) -> None:
 def test_recurring_overrides_new_form_defaults_to_next_due(
     client: TestClient, ctx: dict[str, int], _migrated: Settings
 ) -> None:
-    """When no `occurrence_date` is passed, the form defaults to the rule's
-    current `next_due` so the Ledger-row link stays usable."""
+    """The year input defaults to the rule's current ``next_due`` year."""
     next_due = _get_rule_next_due(_migrated, ctx["rule"])
     r = client.get(f"/recurring/{ctx['rule']}/overrides/new")
     assert r.status_code == 200
-    assert f'value="{next_due.isoformat()}"' in r.text
+    assert f'value="{next_due.year}"' in r.text
 
 
 def test_recurring_row_amount_italic_when_override_amount_set(
     client: TestClient, ctx: dict[str, int], _migrated: Settings
 ) -> None:
-    """T-122: amount cell gains `<em data-amount-overridden>` when the
-    override on `next_due` carries an amount_override."""
+    """Amount cell gains ``<em data-amount-overridden>`` when the override
+    on the current ``next_due`` carries an ``amount_override``."""
     next_due = _get_rule_next_due(_migrated, ctx["rule"])
     client.post(
         f"/recurring/{ctx['rule']}/overrides",
-        data={
-            "occurrence_date": next_due.isoformat(),
-            "state": "overridden",
-            "amount_override": "99.00",
-        },
+        data={"year": next_due.year, "month": next_due.month, "amount": "99.00"},
     )
     r = client.get("/ledger?view=recurring")
     assert r.status_code == 200

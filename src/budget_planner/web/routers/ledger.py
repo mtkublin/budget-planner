@@ -127,7 +127,7 @@ def _hydrate_planned_rows(conn: sqlite3.Connection, views: list[Any]) -> list[di
 
 
 def _hydrate_recurring_rows(conn: sqlite3.Connection) -> list[dict[str, Any]]:
-    rules = recurring_repo.list_rules(conn)
+    rules = sorted(recurring_repo.list_rules(conn), key=lambda r: (r.next_due, r.id))
     cats = {c.id: c for c in categories_repo.list_all(conn, include_deleted=True)}
     accts = {a.id: a for a in accounts_repo.list_all(conn, include_deleted=True)}
     out: list[dict[str, Any]] = []

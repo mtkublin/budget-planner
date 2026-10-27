@@ -1465,3 +1465,72 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
   align-items: center;
 }
 .budget-year-picker input[name="year"] { width: 6rem; }
+
+/* Kebab (⋮) row-action menu. */
+.kebab {
+  position: relative;
+  display: inline-block;
+}
+
+.kebab__trigger {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 2px 8px;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--muted);
+  border-radius: 4px;
+}
+
+.kebab__trigger:hover,
+.kebab__trigger:focus-visible,
+.kebab.is-open .kebab__trigger {
+  background: var(--surface-sunken, rgba(0, 0, 0, 0.04));
+  color: var(--text);
+  outline: none;
+}
+
+.kebab__menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 50;
+  min-width: 12rem;
+  margin: 0;
+  padding: var(--space-1) 0;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  text-align: left;
+}
+
+.kebab__menu li { margin: 0; padding: 0; }
+
+.kebab__menu button,
+.kebab__menu a {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: none;
+  text-align: left;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.kebab__menu button:hover,
+.kebab__menu button:focus-visible,
+.kebab__menu a:hover,
+.kebab__menu a:focus-visible {
+  background: var(--surface-sunken, rgba(0, 0, 0, 0.04));
+  outline: none;
+}
+
+.kebab__menu button[data-destructive] {
+  color: var(--danger, #b00020);
+}

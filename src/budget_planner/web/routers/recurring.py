@@ -290,13 +290,10 @@ def new_override_form(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
 ) -> Response:
-    """T-122 — thin GET wrapper around `partials/recurring/_override_form.html`.
-
-    The POST endpoint `/recurring/{id}/overrides` already handles writes;
-    this route only renders the slide-over form prefilled with
-    ``occurrence_date`` (defaults to the rule's current ``next_due``) and
-    the existing override on that date (if any) so re-entering the form
-    on an already-overridden occurrence shows the current values.
+    """Generic override form. Picks (year, month, amount); server resolves
+    the exact ``occurrence_date`` on submit via
+    ``services.recurring.occurrence_in_month``. Defaults year + month to the
+    rule's current ``next_due``.
     """
     rule = recurring_repo.find_rule(conn, rule_id)
     if rule is None:
@@ -305,67 +302,65 @@ def new_override_form(
             "partials/recurring/_override_form.html",
             rule=None,
             account=None,
-            occurrence_date=None,
-            existing=None,
+            default_year=None,
+            default_month=None,
+            default_amount_str=None,
             errors={"rule": "not found"},
             status_code=404,
         )
-    occ_raw = request.query_params.get("occurrence_date")
-    occ = _parse_date(occ_raw) if occ_raw else rule.next_due
-    if occ is None:
-        occ = rule.next_due
-    existing = _override_on_next_due(conn, rule_id, occ)
     account = accounts_repo.find_by_id(conn, rule.account_id, include_deleted=True)
+    default_amount_str = f"{Decimal(rule.default_amount) / Decimal(100):.2f}" if account else ""
     return render(
         request,
         "partials/recurring/_override_form.html",
         rule=rule,
         account=account,
-        occurrence_date=occ,
-        existing=existing,
+        default_year=rule.next_due.year,
+        default_month=rule.next_due.month,
+        default_amount_str=default_amount_str,
         errors={},
     )
 
 
 @router.post("/{rule_id}/overrides")
-def add_override(  # noqa: PLR0917
+def add_override(  # noqa: PLR0917, PLR0911
     rule_id: int,
     request: Request,
-    occurrence_date: str = Form(...),
-    state: str = Form(...),
-    amount_override: str = Form(""),
-    description_override: str = Form(""),
-    date_override: str = Form(""),
+    year: int = Form(...),
+    month: int = Form(...),
+    amount: str = Form(...),
     conn: sqlite3.Connection = Depends(get_db),
 ) -> Response:
     rule = recurring_repo.find_rule(conn, rule_id)
     if rule is None:
         return Response(status_code=404, content="not found")
-    occ = _parse_date(occurrence_date)
-    try:
-        st = OverrideState(state)
-    except ValueError:
-        return Response(status_code=422, content="invalid state")
+    if not (1900 <= year <= 9999 and 1 <= month <= 12):  # noqa: PLR2004
+        return Response(status_code=422, content="invalid year or month")
+    occ = recurring_svc.occurrence_in_month(rule, year, month)
     if occ is None:
-        return Response(status_code=422, content="invalid occurrence_date")
-    amount_minor: int | None = None
-    if amount_override:
-        acc = accounts_repo.find_by_id(conn, rule.account_id, include_deleted=True)
-        if acc is not None:
-            try:
-                dec = Decimal(amount_override)
-                amount_minor = to_minor_units(dec, acc.currency)
-            except InvalidOperation:
-                return Response(status_code=422, content="invalid amount")
+        return Response(
+            status_code=422,
+            content=f"rule has no occurrence in {year:04d}-{month:02d}",
+        )
+    acc = accounts_repo.find_by_id(conn, rule.account_id, include_deleted=True)
+    if acc is None:
+        return Response(status_code=422, content="rule has no live account")
+    try:
+        dec = Decimal(amount.replace(",", "."))
+    except InvalidOperation:
+        return Response(status_code=422, content="invalid amount")
+    if dec <= 0:
+        return Response(status_code=422, content="amount must be positive")
+    amount_minor = to_minor_units(dec, acc.currency)
     recurring_repo.upsert_override(
         conn,
         NewRecurringOverride(
             rule_id=rule_id,
             occurrence_date=occ,
-            state=st,
+            state=OverrideState.OVERRIDDEN,
             amount_override=amount_minor,
-            description_override=description_override or None,
-            date_override=_parse_date(date_override),
+            description_override=None,
+            date_override=None,
         ),
     )
     overrides = recurring_repo.list_overrides(conn, rule_id)
