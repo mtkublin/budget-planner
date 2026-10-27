@@ -480,20 +480,20 @@ Metric `remaining ÷ days-until-next-income` surfaced on `/budget`; first per-us
 
 Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-0027 decisions 1–5 in order.
 
-### T-102 [M] Local Tailwind build + CDN removal → ADR-0027 §1
+### ✅ T-102 [M] Local Tailwind build + CDN removal → ADR-0027 §1
 - Add `package.json` with `tailwindcss` pinned; `tailwind.config.js` with content globs per ADR-0027.
 - `just css` and `just css-watch` recipes.
 - Build `src/budget_planner/web/static/tailwind.css`; wire into `base.html` with the existing `?v=<hash>` pattern.
 - Remove the `cdn.tailwindcss.com` `<script>` from `base.html`.
 - Pre-commit hook `tailwind-check` fails if generated CSS is stale vs. content globs.
-- `just install` runs `pnpm install --frozen-lockfile` alongside `uv sync`.
+- `just install` runs `npm ci` alongside `uv sync`.
 - `frontend-visual-audit` sweep on `/`, `/ledger`, `/accounts`, `/budget` at 1440/1024/375 before marking done.
 
-### T-103 [S] Stylelint pre-commit hook → ADR-0027 §2
+### ✅ T-103 [S] Stylelint pre-commit hook → ADR-0027 §2
 - Add `stylelint` + `stylelint-config-standard` to `package.json`.
 - Project override file for allowed custom-property patterns.
 - Scope to `src/budget_planner/web/static/*.css`, exclude generated `tailwind.css`.
-- Pre-commit hook wired; CI step runs via `pnpm exec stylelint`.
+- Pre-commit hook wired; CI step runs via `npx --no-install stylelint`.
 
 ### T-104 [M] Jinja partial extraction → ADR-0027 §3
 - Create `src/budget_planner/web/templates/_partials/` with macros: `card`, `segmented`, `chip`, `slide_over_header`, `overdue_row`.
@@ -509,8 +509,8 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 - CI: opt-in behind `CI_VISUAL=1`. Default CI unchanged.
 
 ### T-106 [S] CI Node toolchain + docs sync → ADR-0027 §5–§6
-- GitHub Actions workflow adds `actions/setup-node@v4` + `pnpm/action-setup@v4` + `pnpm install --frozen-lockfile` before `just ci`.
-- README setup instructions updated with the Node + pnpm step.
+- GitHub Actions workflow adds `actions/setup-node@v4` + `npm ci` before `just ci`.
+- README setup instructions updated with the Node + npm step.
 - Cross-link ADR-0027 from the "Frontend validation" section of `CLAUDE.md`.
 
 ---

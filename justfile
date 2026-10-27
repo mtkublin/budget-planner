@@ -6,10 +6,11 @@ set dotenv-load := true
 
 # --- environment -----------------------------------------------------------
 
-# Install runtime + dev deps, sync lockfile, install pre-commit hooks.
+# Install runtime + dev deps, sync lockfile, install pre-commit hooks + Node dev toolchain.
 install:
     uv sync --group dev
     uv run pre-commit install --install-hooks
+    npm ci
 
 # Install only the pre-commit hooks (no dependency sync).
 install-hooks:
@@ -22,6 +23,22 @@ dev:
     uv run uvicorn budget_planner.web.app:app \
       --reload --host 127.0.0.1 --port 8000
 
+# Build Tailwind CSS once (purged + minified) → static/tailwind.css. See ADR-0027.
+css:
+    npm run css
+
+# Rebuild Tailwind on save; run alongside `just dev`.
+css-watch:
+    npm run css:watch
+
+# Run Playwright visual-regression snapshot suite. Opt-in; not part of `just ci`.
+test-visual:
+    uv run pytest tests/visual -m visual
+
+# Refresh visual-regression baselines after an intentional design change.
+test-visual-update:
+    VISUAL_UPDATE=1 uv run pytest tests/visual -m visual
+
 # --- quality gates ---------------------------------------------------------
 
 # Run all linters: ruff, sqlfluff, djlint.
@@ -32,6 +49,7 @@ lint:
     uv run ruff check src tests
     uv run sqlfluff lint migrations
     out=$(uv run djlint src/budget_planner/web/templates --check 2>&1); status=$?; if [ $status -ne 0 ] && ! echo "$out" | grep -q "No files to check"; then echo "$out" >&2; exit $status; fi; echo "$out"
+    npm run stylelint --silent
 
 # Auto-fix formatting + simple lint issues.
 format:

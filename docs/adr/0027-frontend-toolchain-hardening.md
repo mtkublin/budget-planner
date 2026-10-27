@@ -1,6 +1,6 @@
 # ADR-0027: Frontend Toolchain Hardening — Local Tailwind Build, Stylelint, Partial Extraction, Visual Regression
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-10-27
 - **Related**: ADR-0002 (web stack), ADR-0017 (pre-commit stack), ADR-0018 (CI matrix), ADR-0023 (UX redesign)
 - **Supersedes**: nothing. **Amends**: ADR-0002 (adds a local build step for CSS; the "JS build step can be added later" clause in ADR-0002 is now exercised for CSS only).
@@ -62,11 +62,11 @@ The alternative — rewriting the UI in a mature JS framework (Next.js / SvelteK
 
 ### 5. Node toolchain is minimal, pinned, and dev-only
 
-- `package.json` committed at repo root with exactly: `tailwindcss`, `stylelint`, `stylelint-config-standard`, `@playwright/test` (if not already installed by `pytest-playwright`), and `pixelmatch` + `pngjs` for the diff helper.
-- `pnpm` is the package manager (fast, lockfile is deterministic, no `node_modules` sprawl via content-addressed store). `npm` works as a fallback — the pre-commit hooks call the binaries directly, not through `pnpm run`.
-- Pinned versions in `package.json`; `pnpm-lock.yaml` committed.
-- `just install` runs `uv sync` **and** `pnpm install --frozen-lockfile`.
-- CI gets `actions/setup-node@v4` + a `pnpm install --frozen-lockfile` step before `just ci`.
+- `package.json` committed at repo root with exactly: `tailwindcss`, `stylelint`, `stylelint-config-standard`, `pixelmatch`, and `pngjs` for the diff helper. Playwright is pulled through the Python `pytest-playwright` package rather than through npm.
+- `npm` is the package manager. Node + npm already ship on macOS via Homebrew and on `ubuntu-latest` via `actions/setup-node@v4`; corepack-based `pnpm` enablement needs root on Homebrew's prefix, so the extra hop is not worth it for a five-dependency dev-only toolchain. The pre-commit hooks call the binaries directly out of `node_modules/.bin`, not through `npm run`.
+- Pinned versions in `package.json`; `package-lock.json` committed.
+- `just install` runs `uv sync` **and** `npm ci` (equivalent to `--frozen-lockfile`).
+- CI gets `actions/setup-node@v4` + an `npm ci` step before `just ci`.
 
 ### 6. `frontend-visual-audit` skill status
 

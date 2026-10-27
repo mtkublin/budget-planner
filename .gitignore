@@ -54,3 +54,9 @@ build/
 
 # Claude Code local-only settings (keep .claude/skills/** tracked)
 .claude/settings.local.json
+
+# Node toolchain (dev-only, see ADR-0027)
+node_modules/
+
+# Visual-audit artifacts
+/tmp-fe-audit/

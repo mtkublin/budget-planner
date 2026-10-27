@@ -88,7 +88,7 @@ A locally-hosted web application for personal budget planning and fortune (net-w
 - FastAPI + HTMX + Jinja2 (templates) + Tailwind CSS (compiled via local Tailwind CLI, output to `static/tailwind.css`; see [ADR-0027](adr/0027-frontend-toolchain-hardening.md)).
 - Plotly for charts.
 - `uv` for Python dependency and virtual-environment management.
-- `pnpm` for the small dev-only Node toolchain (`tailwindcss`, `stylelint`, `pixelmatch`, Playwright). See [ADR-0027](adr/0027-frontend-toolchain-hardening.md).
+- `npm` for the small dev-only Node toolchain (`tailwindcss`, `stylelint`, `pixelmatch`, Playwright). See [ADR-0027](adr/0027-frontend-toolchain-hardening.md).
 - `just` as the task runner.
 
 ### 3.2 Testing
@@ -126,13 +126,13 @@ Hooks: `ruff`, `ruff-format`, `mypy`, `pytest` (fast subset), `sqlfluff`, `djlin
 - `just db-reset` — recreate the dev database.
 - `just seed` — seed default categories, demo accounts.
 
-Local setup runs both `uv sync` (Python) and `pnpm install --frozen-lockfile` (Node dev toolchain) through `just install`.
+Local setup runs both `uv sync` (Python) and `npm ci` (Node dev toolchain) through `just install`.
 
 ### 3.6 CI
 
 - GitHub Actions.
 - Single matrix row: `ubuntu-latest` + Python 3.12 + Node 20 (dev-only, for the Tailwind + stylelint + Playwright toolchain).
-- Setup steps: `actions/setup-python@v5` + `actions/setup-node@v4` + `pnpm/action-setup@v4` + `pnpm install --frozen-lockfile`.
+- Setup steps: `actions/setup-python@v5` + `actions/setup-node@v4` + `npm ci`.
 - Runs `just ci` on push/PR.
 - Coverage uploaded as artifact.
 - Visual-regression suite (`just test-visual`) is **not** run in default CI; it is opt-in via `CI_VISUAL=1` on manual workflow dispatch. See [ADR-0027](adr/0027-frontend-toolchain-hardening.md).

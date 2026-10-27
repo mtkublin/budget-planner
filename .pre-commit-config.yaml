@@ -7,7 +7,9 @@ repos:
     rev: v4.6.0
     hooks:
       - id: trailing-whitespace
+        exclude: ^(src/budget_planner/web/static/tailwind\.css|package-lock\.json)$
       - id: end-of-file-fixer
+        exclude: ^(src/budget_planner/web/static/tailwind\.css|package-lock\.json)$
       - id: check-yaml
       - id: check-toml
       - id: check-added-large-files
@@ -15,6 +17,7 @@ repos:
       - id: check-merge-conflict
       - id: mixed-line-ending
         args: [--fix=lf]
+        exclude: ^src/budget_planner/web/static/tailwind\.css$
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.17.2
@@ -79,3 +82,17 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-commit]
+
+      - id: stylelint
+        name: stylelint (hand-authored CSS)
+        entry: npx --no-install stylelint
+        language: system
+        files: ^src/budget_planner/web/static/[^/]+\.css$
+        exclude: ^src/budget_planner/web/static/tailwind\.css$
+
+      - id: tailwind-check
+        name: tailwind-check (regenerated CSS matches source)
+        entry: scripts/pre-commit/tailwind_check.sh
+        language: system
+        pass_filenames: false
+        files: ^(src/budget_planner/web/templates/.*\.html|src/budget_planner/web/static/js/.*\.js|src/budget_planner/web/static/tailwind\.(src\.)?css|tailwind\.config\.js|package(-lock)?\.json)$
