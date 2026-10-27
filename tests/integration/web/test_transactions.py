@@ -154,6 +154,7 @@ def test_edit_and_update(client: TestClient, seeded: dict[str, int], _migrated: 
     r = client.get(f"/transactions/{txn_id}/edit")
     assert r.status_code == 200
     assert f'hx-post="/transactions/{txn_id}"' in r.text
+    assert 'name="amount"' in r.text and 'value="50.00"' in r.text
     r2 = client.post(
         f"/transactions/{txn_id}",
         data={

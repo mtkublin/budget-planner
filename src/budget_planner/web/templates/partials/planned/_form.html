@@ -1,4 +1,5 @@
 {% from "_partials/combobox.html" import combobox %}
+{% set planned_account = (accounts|selectattr('id', 'equalto', planned.account_id)|first) if planned else none %}
 <form hx-post="{{ action }}"
       hx-target="{% if planned %}#planned-p-{{ planned.id }}{% else %}#planned-table tbody{% endif %}"
       hx-swap="{% if planned %}outerHTML{% else %}afterbegin{% endif %}"
@@ -16,7 +17,7 @@
     Amount
     <input type="text"
            name="amount"
-           value="{{ planned.amount if planned else '' }}"
+           value="{{ planned.amount|money_major(planned_account.currency if planned_account else 'PLN') if planned else '' }}"
            inputmode="decimal"
            data-numeric
            required>

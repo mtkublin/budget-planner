@@ -11,17 +11,21 @@ import httpx
 import pytest
 
 from budget_planner.domain.accounts import NewAccount
+from budget_planner.domain.budgets import NewBudgetDefault, NewBudgetOneOffOverride
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Cadence, Direction, OverrideState
 from budget_planner.domain.fx import NewFxRate
 from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.domain.recurring import NewRecurringOverride, NewRecurringRule
+from budget_planner.domain.transactions import NewTransaction
 from budget_planner.repositories import (
     accounts,
+    budgets as budgets_repo,
     categories,
     fx as fx_repo,
     planned,
     recurring,
+    transactions as transactions_repo,
 )
 from budget_planner.services import forecast as forecast_svc
 
@@ -469,3 +473,201 @@ def test_adjustment_planned_row_ignored(conn: sqlite3.Connection, world: dict[st
     curr = _point_for(_day_for(series, date(2026, 10, 26)), world["a1"]).native_minor
     # Only the Oct 25 groceries drop applied; adjustment ignored, so Oct 26 == Oct 25.
     assert prev == curr
+
+
+# ---------------------------------------------------------------------------
+# budget overlay (ADR-0042 / T-126)
+# ---------------------------------------------------------------------------
+def _primary_account_id(world_ids: dict[str, int]) -> int:
+    return min(world_ids["a1"], world_ids["a2"], world_ids["a3"])
+
+
+def test_overlay_off_matches_pre_overlay_projection(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    """Explicit opt-out reproduces the legacy planned+recurring projection."""
+    _ = world
+    # Even with a budget set, overlay disabled must leave the series unchanged.
+    dining = categories.create(conn, NewCategory(name="Dining", direction=Direction.EXPENSE)).id
+    budgets_repo.set_default(conn, NewBudgetDefault(category_id=dining, amount=60_000))
+    with _dead_client() as http:
+        off_a = forecast_svc.forecast(conn, http, TODAY, 30, "PLN", include_budget_overlay=False)
+        off_b = forecast_svc.forecast(conn, http, TODAY, 30, "PLN", include_budget_overlay=False)
+    assert off_a == off_b
+    # Day-0 anchor + Oct 25 drop must match the pre-overlay invariants.
+    day25 = _day_for(off_a, date(2026, 10, 25))
+    day24 = _day_for(off_a, date(2026, 10, 24))
+    a1 = world["a1"]
+    assert _point_for(day24, a1).native_minor - _point_for(day25, a1).native_minor == 10_000
+
+
+def test_overlay_spreads_unaccounted_budget_evenly_over_future_month(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    """Nov one-off budget with no spend/plans spreads 2_000/day on primary account."""
+    dining = categories.create(conn, NewCategory(name="Dining", direction=Direction.EXPENSE)).id
+    # Nov only; Oct + Dec resolve to None → zero overlay outside Nov.
+    budgets_repo.set_one_off(
+        conn,
+        NewBudgetOneOffOverride(category_id=dining, year=2026, month=11, amount=60_000),
+    )
+    a1 = world["a1"]
+    assert _primary_account_id(world) == a1
+
+    with _dead_client() as http:
+        baseline = forecast_svc.forecast(conn, http, TODAY, 60, "PLN", include_budget_overlay=False)
+        with_overlay = forecast_svc.forecast(
+            conn, http, TODAY, 60, "PLN", include_budget_overlay=True
+        )
+
+    # Oct 23..31: no Nov overlay yet, no Oct budget → zero diff on A1.
+    for d in (date(2026, 10, 23), date(2026, 10, 27), date(2026, 10, 31)):
+        base = _point_for(_day_for(baseline, d), a1).native_minor
+        over = _point_for(_day_for(with_overlay, d), a1).native_minor
+        assert over == base, f"unexpected overlay drift on {d}"
+
+    # Nov cumulative drop = 2_000 * day_of_month.
+    for day_of_month in (1, 15, 30):
+        d = date(2026, 11, day_of_month)
+        base = _point_for(_day_for(baseline, d), a1).native_minor
+        over = _point_for(_day_for(with_overlay, d), a1).native_minor
+        assert base - over == 2_000 * day_of_month
+
+    # Dec: no Dec budget → cumulative drop frozen at full 60_000 Nov overlay.
+    for d in (date(2026, 12, 1), date(2026, 12, 22)):
+        base = _point_for(_day_for(baseline, d), a1).native_minor
+        over = _point_for(_day_for(with_overlay, d), a1).native_minor
+        assert base - over == 60_000
+
+
+def test_overlay_clamps_when_planned_exceeds_budget(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    """Planned+recurring >= budget ⇒ overlay contributes nothing (no income flip)."""
+    dining = categories.create(conn, NewCategory(name="Dining", direction=Direction.EXPENSE)).id
+    # Budget 50_000; planned 60_000 in Nov on A2 (so overlay target A1 not pre-impacted).
+    budgets_repo.set_one_off(
+        conn,
+        NewBudgetOneOffOverride(category_id=dining, year=2026, month=11, amount=50_000),
+    )
+    planned.create(
+        conn,
+        NewPlannedTransaction(
+            operation_date=date(2026, 11, 10),
+            category_id=dining,
+            account_id=world["a2"],
+            amount=60_000,
+            description="restaurants",
+        ),
+    )
+    a1 = world["a1"]
+
+    with _dead_client() as http:
+        baseline = forecast_svc.forecast(conn, http, TODAY, 45, "PLN", include_budget_overlay=False)
+        with_overlay = forecast_svc.forecast(
+            conn, http, TODAY, 45, "PLN", include_budget_overlay=True
+        )
+
+    for d in (date(2026, 11, 1), date(2026, 11, 15), date(2026, 11, 30)):
+        base = _point_for(_day_for(baseline, d), a1).native_minor
+        over = _point_for(_day_for(with_overlay, d), a1).native_minor
+        assert base == over, f"overlay should be zero when committed>=budget ({d})"
+
+
+def test_overlay_subtracts_spent_so_far_in_current_month(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    """Actual spend already in balance anchor must not be double-counted."""
+    dining = categories.create(conn, NewCategory(name="Dining", direction=Direction.EXPENSE)).id
+    budgets_repo.set_one_off(
+        conn,
+        NewBudgetOneOffOverride(category_id=dining, year=2026, month=10, amount=40_000),
+    )
+    # Actual Oct spend of 32_000 happened on Oct 15 (before TODAY=Oct 23). The
+    # overlay should spread the residual 8_000 across the Oct 24..31 window.
+    transactions_repo.create(
+        conn,
+        NewTransaction(
+            operation_date=date(2026, 10, 15),
+            category_id=dining,
+            account_id=world["a1"],
+            amount=32_000,
+            description="dining to-date",
+        ),
+    )
+    a1 = world["a1"]
+    with _dead_client() as http:
+        baseline = forecast_svc.forecast(conn, http, TODAY, 20, "PLN", include_budget_overlay=False)
+        with_overlay = forecast_svc.forecast(
+            conn, http, TODAY, 20, "PLN", include_budget_overlay=True
+        )
+    # Oct 24..31 is 8 days; residual 8_000 → 1_000/day.
+    for i, day_of_month in enumerate(range(24, 32), start=1):
+        d = date(2026, 10, day_of_month)
+        base = _point_for(_day_for(baseline, d), a1).native_minor
+        over = _point_for(_day_for(with_overlay, d), a1).native_minor
+        assert base - over == 1_000 * i, f"day {d} unexpected diff"
+
+
+def test_overlay_rounding_residual_absorbed_by_last_day(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    """Non-divisible unaccounted amount keeps the window sum exact."""
+    dining = categories.create(conn, NewCategory(name="Dining", direction=Direction.EXPENSE)).id
+    # 100 cents over 30 Nov days → ~3.33/day. ROUND_HALF_EVEN(3.33) = 3;
+    # last-day residual = 100 - 3*29 = 100 - 87 = 13.
+    budgets_repo.set_one_off(
+        conn,
+        NewBudgetOneOffOverride(category_id=dining, year=2026, month=11, amount=100),
+    )
+    a1 = world["a1"]
+    with _dead_client() as http:
+        baseline = forecast_svc.forecast(conn, http, TODAY, 50, "PLN", include_budget_overlay=False)
+        with_overlay = forecast_svc.forecast(
+            conn, http, TODAY, 50, "PLN", include_budget_overlay=True
+        )
+    end_of_nov_baseline = _point_for(_day_for(baseline, date(2026, 11, 30)), a1).native_minor
+    end_of_nov_overlay = _point_for(_day_for(with_overlay, date(2026, 11, 30)), a1).native_minor
+    assert end_of_nov_baseline - end_of_nov_overlay == 100  # exact
+    # Last Nov step applies the residual (13 cents vs 3 cents per prior day).
+    nov29_overlay = _point_for(_day_for(with_overlay, date(2026, 11, 29)), a1).native_minor
+    nov30_overlay = _point_for(_day_for(with_overlay, date(2026, 11, 30)), a1).native_minor
+    assert nov29_overlay - nov30_overlay == 13
+
+
+def test_overlay_deterministic_across_runs(conn: sqlite3.Connection, world: dict[str, int]) -> None:
+    dining = categories.create(conn, NewCategory(name="Dining", direction=Direction.EXPENSE)).id
+    budgets_repo.set_default(conn, NewBudgetDefault(category_id=dining, amount=90_000))
+    with _dead_client() as http:
+        a = forecast_svc.forecast(conn, http, TODAY, 60, "PLN")
+        b = forecast_svc.forecast(conn, http, TODAY, 60, "PLN")
+    assert a == b
+
+
+def test_overlay_skipped_when_today_is_last_day_of_month(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    """Month-end ``today`` → event_start > month_end, overlay window empty for that month."""
+    today = date(2026, 10, 31)
+    # Cache FX for the new today so the EUR account converts.
+    fx_repo.upsert_rate(
+        conn,
+        NewFxRate(date=today, from_ccy="EUR", to_ccy="PLN", rate=Decimal("4.30")),
+    )
+    dining = categories.create(conn, NewCategory(name="Dining", direction=Direction.EXPENSE)).id
+    # Oct one-off would otherwise want to spread, but window is empty.
+    budgets_repo.set_one_off(
+        conn,
+        NewBudgetOneOffOverride(category_id=dining, year=2026, month=10, amount=99_000),
+    )
+    a1 = world["a1"]
+    with _dead_client() as http:
+        baseline = forecast_svc.forecast(conn, http, today, 15, "PLN", include_budget_overlay=False)
+        with_overlay = forecast_svc.forecast(
+            conn, http, today, 15, "PLN", include_budget_overlay=True
+        )
+    # Nov 1..15 falls into horizon; Nov has no budget → no overlay anywhere.
+    for d in (today, date(2026, 11, 1), date(2026, 11, 15)):
+        base = _point_for(_day_for(baseline, d), a1).native_minor
+        over = _point_for(_day_for(with_overlay, d), a1).native_minor
+        assert base == over, f"unexpected overlay on {d}"

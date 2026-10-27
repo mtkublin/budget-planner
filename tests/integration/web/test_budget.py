@@ -194,6 +194,29 @@ def test_rules_section_renders_override_button(client: TestClient, cat_id: int) 
     assert f"/budget/rules/{cat_id}/overrides/new" in r.text
 
 
+def test_rules_default_input_renders_major_decimal(client: TestClient, cat_id: int) -> None:
+    """Default budget inline input renders stored minor units as major-unit
+    decimal with trailing zeros (e.g. 1550 minor → "15.50"), not the raw int."""
+    client.post(f"/budget/defaults/{cat_id}", data={"amount": "15.50"})
+    r = client.get("/budget")
+    assert r.status_code == 200
+    soup = BeautifulSoup(r.text, "html.parser")
+    inp = soup.find("input", {"id": f"rule-default-{cat_id}"})
+    assert isinstance(inp, Tag)
+    assert inp.get("value") == "15.50"
+
+
+def test_yearly_cell_renders_major_decimal(client: TestClient, cat_id: int) -> None:
+    """Yearly grid cells render stored minor units as major-unit decimals."""
+    client.post(f"/budget/one-off/{cat_id}/2026/7", data={"amount": "22.33"})
+    r = client.get("/budget/yearly?year=2026")
+    assert r.status_code == 200
+    soup = BeautifulSoup(r.text, "html.parser")
+    inp = soup.find("input", {"id": f"y-{cat_id}-7"})
+    assert isinstance(inp, Tag)
+    assert inp.get("value") == "22.33"
+
+
 def test_new_override_form_404_for_unknown_category(client: TestClient) -> None:
     r = client.get("/budget/rules/9999/overrides/new")
     assert r.status_code == 404
