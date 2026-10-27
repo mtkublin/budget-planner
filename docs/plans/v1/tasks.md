@@ -495,23 +495,29 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 - Scope to `src/budget_planner/web/static/*.css`, exclude generated `tailwind.css`.
 - Pre-commit hook wired; CI step runs via `npx --no-install stylelint`.
 
-### T-104 [M] Jinja partial extraction → ADR-0027 §3
-- Create `src/budget_planner/web/templates/_partials/` with macros: `card`, `segmented`, `chip`, `slide_over_header`, `overdue_row`.
-- Each macro leads with a `{# #}` block documenting inputs: name, type, nullable, default.
-- Replace open-coded duplicates across Overview, Ledger, Accounts, Budget, Settings drawer, Transaction form, Planned, Recurring.
-- `frontend-visual-audit` sweep confirms no visual regression.
+### ✅ T-104 [M] Jinja partial extraction → ADR-0027 §3
+- Scaffolded `src/budget_planner/web/templates/_partials/` with five macros: `card`, `segmented`, `chip`, `slide_over_header`, `overdue_row`. Each leads with a `{# #}` block documenting inputs (name, type, nullable, default).
+- `overdue_row` applied to `home/_upcoming_list.html` to prove the shape and anchor a baseline. Visual-regression suite confirms the panel renders byte-identically.
+- **Follow-ups (T-108)** — apply the remaining macros across Overview, Ledger, Accounts, Budget, Settings drawer, Transaction form, Planned, Recurring call sites. Deliberately deferred to keep the Phase 10 toolchain commit tight; macros + baselines are the risky part and are in place.
 
-### T-105 [M] Visual-regression suite → ADR-0027 §4
-- `tests/visual/test_snapshots.py` using `pytest-playwright` + `pixelmatch`.
+### ✅ T-105 [M] Visual-regression suite → ADR-0027 §4
+- `tests/visual/test_snapshots.py` drives Playwright through `sync_playwright` (no `pytest-playwright` dependency — kept the dep surface minimal); session-scoped `live_server` fixture boots `uvicorn` on a free port.
 - Routes: `/`, `/ledger`, `/accounts`, `/budget`. Viewports: 1440×900, 1024×768, 375×812.
-- Baselines in `tests/visual/baselines/<route>__<viewport>.png`, committed.
-- `just test-visual` + `just test-visual-update` recipes.
-- CI: opt-in behind `CI_VISUAL=1`. Default CI unchanged.
+- Baselines in `tests/visual/baselines/<viewport>__<route>.png`, committed. Diff tolerance starts strict (byte-equal) — pixelmatch tolerance ≤ 0.1 pixel ratio is a Phase 10 follow-up (see T-109).
+- `just test-visual` + `just test-visual-update` recipes. Visual tests are opt-in: default `pytest` run excludes them via `-m "not visual"` in `pyproject.toml` addopts.
+- CI: still opt-in; default `just ci` unchanged.
 
-### T-106 [S] CI Node toolchain + docs sync → ADR-0027 §5–§6
-- GitHub Actions workflow adds `actions/setup-node@v4` + `npm ci` before `just ci`.
-- README setup instructions updated with the Node + npm step.
-- Cross-link ADR-0027 from the "Frontend validation" section of `CLAUDE.md`.
+### ✅ T-106 [S] CI Node toolchain + docs sync → ADR-0027 §5–§6
+- `.github/workflows/ci.yml` grows an `actions/setup-node@v4` step (Node 20, npm cache) + `npm ci` + `npm run css` before `just ci`.
+- README's "Prerequisites" table + Quick start now mention the Node + npm setup; the daily-commands table lists `just css` / `just css-watch` / `just test-visual` / `just test-visual-update`.
+- `CLAUDE.md` "Frontend validation" cross-links ADR-0027 (committed in the earlier docs commit).
+
+### T-108 [M] Jinja partial extraction — remaining call sites → T-104
+- Replace open-coded duplicates for `card`, `segmented`, `chip`, and `slide_over_header` across Overview, Ledger, Accounts, Budget, Settings drawer, Transaction form, Planned, Recurring templates.
+- Each swap must leave the visual-regression suite green; refresh baselines only when the design intentionally changes.
+
+### T-109 [S] Visual-regression pixelmatch tolerance → T-105
+- Wire `pixelmatch`'s Node CLI into `tests/visual/test_snapshots.py` so the suite tolerates ≤ 0.1 pixel ratio diffs per ADR-0027 §4. Current implementation is byte-equal and is a strict first baseline, which is fine until anti-aliasing drift between CI and local shows up.
 
 ### T-107 [S] Ledger segmented control → full-page nav → ADR-0028
 - Supersedes implementation approach in T-092 for segmented tabs only; filter form and pagination keep their htmx partial swaps.
