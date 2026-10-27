@@ -33,6 +33,6 @@ No background worker, no WebSocket, no client-side recompute.
 ## Alternatives Considered
 
 - **ML / trend-based (ARIMA, Prophet)**: wrong signal — predicts past habits, not planned events; needs years of data.
-- **Hybrid (deterministic + trend overlay for unplanned categories)**: interesting v2; adds complexity.
+- **Hybrid (deterministic + trend overlay for unplanned categories)**: interesting v2; adds complexity. *(The budget-driven variant of this overlay was promoted into v1 by [ADR-0041](0041-forecast-budget-overlay.md); the trend-driven variant remains deferred.)*
 - **WebSocket push**: overbuilt for single-user local app.
 - **Client-side JS recompute**: duplicates logic in Python and JS; DRY violation.

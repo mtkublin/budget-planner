@@ -660,9 +660,11 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 - Tests: `tests/integration/web/test_forms.py` pins slide-over markup, side-effect preview isolation, handler bytes (presence of `HTMLFormElement` + `data-reset-on-submit` + `requestConfig` + `"post"`), form-submit response shape (no slide-over), and both decimal separators landing on `1234` minor units with `12.345` → 422; four new unit tests in `tests/unit/domain/test_money.py` pin the `parse_amount_str` accept / reject matrix.
 - Test shape per `phase-12/T-124-modal-dismissal-scope.md`.
 
----
-
-## Phase 7 — Deferred to v2
+### T-125 [S] Forecast budget overlay → ADR-0041, T-025, T-120
+- `services/forecast.budget_overlay_events(...)` computes per-category per-month unaccounted budget (`resolved_budget − spent_so_far − committed_future`, clamped ≥ 0) and emits `_CashEvent`s distributed evenly across the month window `[max(today+1, month_start), min(month_end, horizon_end)]` on the first active account (lowest id).
+- `services/forecast.forecast(...)` gains `include_budget_overlay: bool = True` and merges overlay events into `_collect_events` output ahead of day-walk accumulation. Existing dedup for persisted ↔ virtual recurring preserved.
+- Pre-overlay projection remains reachable via `include_budget_overlay=False` for the pure planned+recurring regression tests. `forecast` router + home mini-chart adopt the default (`True`) with no API change.
+- Tests pin: single-category unaccounted spread, zero-residual skip when planned+recurring ≥ budget, cross-month boundary distribution, zero-length-window skip (last-day-of-month `today`), overlay-off parity with pre-overlay series, deterministic re-run equivalence.
 
 - CSV import with pluggable parsers.
 - Auth and multi-user.

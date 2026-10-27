@@ -1,10 +1,16 @@
-"""Forecast service (T-025).
+"""Forecast service (T-025, T-125).
 
 Deterministic forward-looking balance projection (ADR-0015). For each day
 in ``[today, today + horizon_days]`` the service applies planned-cash
 events in operation-date order on top of each account's current derived
 balance, then aggregates to ``base_currency`` using TODAY's FX rate held
 constant across the horizon (ADR-0006).
+
+T-125 (ADR-0041) introduces a **budget overlay**: synthetic expense cash
+events for the per-category per-month residual budget not already covered
+by planned transactions or recurring occurrences. The overlay is on by
+default; callers may disable it via ``include_budget_overlay=False`` to
+exercise the pre-overlay projection in regression tests.
 
 Pure w.r.t. the DB snapshot + FX cache + injected clock. The caller owns
 ``today`` (routers compute it in the display timezone, ADR-0007) so unit
@@ -13,6 +19,7 @@ tests remain tz-independent.
 
 from __future__ import annotations
 
+import calendar
 import datetime as dt
 import logging
 import sqlite3
@@ -26,13 +33,19 @@ from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import currency_decimals
 from budget_planner.domain.planned import PlannedFilter, PlannedTransaction
 from budget_planner.domain.recurring import Occurrence, RecurringRule
+from budget_planner.domain.transactions import TransactionFilter
 from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
     planned as planned_repo,
     recurring as recurring_repo,
+    transactions as transactions_repo,
 )
-from budget_planner.services import fx as fx_svc, recurring as recurring_svc
+from budget_planner.services import (
+    budget as budget_svc,
+    fx as fx_svc,
+    recurring as recurring_svc,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -252,6 +265,189 @@ def _rule_outside_window(
 
 
 # ---------------------------------------------------------------------------
+# budget overlay (ADR-0041)
+# ---------------------------------------------------------------------------
+_MONTHS_IN_YEAR = 12
+
+
+def _iter_months(start: dt.date, end: dt.date) -> list[tuple[int, int]]:
+    """Return ``(year, month)`` tuples whose month overlaps ``[start, end]``."""
+    out: list[tuple[int, int]] = []
+    year, month = start.year, start.month
+    end_year, end_month = end.year, end.month
+    while (year, month) <= (end_year, end_month):
+        out.append((year, month))
+        month += 1
+        if month > _MONTHS_IN_YEAR:
+            month = 1
+            year += 1
+    return out
+
+
+def _month_bounds(year: int, month: int) -> tuple[dt.date, dt.date]:
+    last = calendar.monthrange(year, month)[1]
+    return dt.date(year, month, 1), dt.date(year, month, last)
+
+
+def _spent_so_far(
+    conn: sqlite3.Connection,
+    category_id: int,
+    month_start: dt.date,
+    cutoff: dt.date,
+) -> int:
+    """Return actual expense-direction amount for ``category`` in ``[month_start, cutoff]``.
+
+    Returns 0 when ``cutoff < month_start`` (fully future month).
+    """
+    if cutoff < month_start:
+        return 0
+    rows = transactions_repo.list_filtered(
+        conn,
+        TransactionFilter(
+            date_from=month_start,
+            date_to=cutoff,
+            category_ids=(category_id,),
+            directions=(Direction.EXPENSE,),
+        ),
+    )
+    return sum(r.amount for r in rows)
+
+
+def _committed_future_for_category(
+    conn: sqlite3.Connection,
+    category_id: int,
+    window_start: dt.date,
+    window_end_inclusive: dt.date,
+) -> int:
+    """Sum unpromoted planned + active recurring expense amounts for one category.
+
+    Window is ``[window_start, window_end_inclusive]`` (both inclusive).
+    Mirrors ``services.budget.committed_in_window`` but filtered to a single
+    category and inclusive on the right — matches "events on days > today
+    through month_end" semantics the overlay needs.
+    """
+    if window_end_inclusive < window_start:
+        return 0
+
+    total = 0
+
+    planned_rows = planned_repo.list_filtered(
+        conn,
+        PlannedFilter(
+            date_from=window_start,
+            date_to=window_end_inclusive,
+            category_ids=(category_id,),
+            directions=(Direction.EXPENSE,),
+            promoted=False,
+        ),
+    )
+    total += sum(r.amount for r in planned_rows)
+
+    for rule in recurring_repo.list_rules(conn, active_only=True):
+        if rule.category_id != category_id:
+            continue
+        rule_start = max(rule.next_due, window_start)
+        if rule_start > window_end_inclusive:
+            continue
+        overrides = recurring_repo.list_overrides(conn, rule.id)
+        for occ in recurring_svc.expand(rule, overrides, rule_start, window_end_inclusive):
+            total += occ.amount
+
+    return total
+
+
+def _distribute_overlay(
+    *,
+    unaccounted_minor: int,
+    window_start: dt.date,
+    window_end_inclusive: dt.date,
+    account_id: int,
+) -> list[_CashEvent]:
+    """Spread ``unaccounted_minor`` evenly as expense events, residual on last day.
+
+    Per-day amount via ``ROUND_HALF_EVEN``; the final day absorbs any
+    rounding delta so the window sum equals ``unaccounted_minor`` exactly.
+    Zero-amount days are omitted. Caller guarantees ``unaccounted_minor > 0``
+    and ``window_end_inclusive >= window_start``.
+    """
+    day_count = (window_end_inclusive - window_start).days + 1
+    per_day_minor = int(
+        (Decimal(unaccounted_minor) / Decimal(day_count)).quantize(
+            Decimal("1"), rounding=ROUND_HALF_EVEN
+        )
+    )
+    distributed_before_last = per_day_minor * (day_count - 1)
+    last_day_minor = unaccounted_minor - distributed_before_last
+
+    events: list[_CashEvent] = []
+    for i in range(day_count):
+        amt = last_day_minor if i == day_count - 1 else per_day_minor
+        if amt == 0:
+            continue
+        events.append(
+            _CashEvent(
+                on_date=window_start + dt.timedelta(days=i),
+                account_id=account_id,
+                amount_minor=-amt,
+            )
+        )
+    return events
+
+
+def _collect_budget_overlay(
+    conn: sqlite3.Connection,
+    today: dt.date,
+    end_date: dt.date,
+    directions_by_cat: dict[int, Direction],
+    primary_account_id: int,
+) -> list[_CashEvent]:
+    """Return synthetic expense events for per-category per-month unaccounted budget.
+
+    See ADR-0041 for the formula + distribution contract. Returns ``[]``
+    when the event window is empty or no budget-eligible residual exists.
+    """
+    event_start = today + dt.timedelta(days=1)
+    if event_start > end_date:
+        return []
+
+    expense_cat_ids = [
+        cat_id for cat_id, direction in directions_by_cat.items() if direction is Direction.EXPENSE
+    ]
+    if not expense_cat_ids:
+        return []
+
+    events: list[_CashEvent] = []
+    for year, month in _iter_months(event_start, end_date):
+        month_start, month_end = _month_bounds(year, month)
+        window_start = max(event_start, month_start)
+        window_end = min(end_date, month_end)
+        if window_start > window_end:
+            continue
+
+        for cat_id in expense_cat_ids:
+            budget = budget_svc.resolve_budget(conn, cat_id, year, month)
+            if budget is None:
+                continue
+
+            spent = _spent_so_far(conn, cat_id, month_start, min(today, month_end))
+            committed = _committed_future_for_category(conn, cat_id, window_start, month_end)
+            unaccounted = budget - spent - committed
+            if unaccounted <= 0:
+                continue
+
+            events.extend(
+                _distribute_overlay(
+                    unaccounted_minor=unaccounted,
+                    window_start=window_start,
+                    window_end_inclusive=window_end,
+                    account_id=primary_account_id,
+                )
+            )
+
+    return events
+
+
+# ---------------------------------------------------------------------------
 # anchor
 # ---------------------------------------------------------------------------
 def _anchor_balances(
@@ -304,6 +500,8 @@ def forecast(
     today: dt.date,
     horizon_days: int,
     base_currency: str,
+    *,
+    include_budget_overlay: bool = True,
 ) -> ForecastSeries:
     """Project per-account balances forward ``horizon_days`` days.
 
@@ -314,6 +512,10 @@ def forecast(
             timezone so the forecast is tz-independent and deterministic.
         horizon_days: Non-negative count of additional days to project.
         base_currency: ISO 4217 code to aggregate ``totals_base_minor`` into.
+        include_budget_overlay: When ``True`` (default), inject synthetic
+            expense events for the per-category per-month residual budget
+            (ADR-0041). Pass ``False`` for the pre-overlay projection used
+            by targeted regression tests.
 
     Returns:
         ``ForecastSeries`` with ``len(days) == horizon_days + 1``.
@@ -346,6 +548,15 @@ def forecast(
         c.id: c.direction for c in categories_repo.list_all(conn, include_deleted=True)
     }
     events = _collect_events(conn, today, end_date, directions_by_cat)
+
+    if include_budget_overlay:
+        primary_account_id = min(a.id for a in active_accounts)
+        overlay_events = _collect_budget_overlay(
+            conn, today, end_date, directions_by_cat, primary_account_id
+        )
+        for ev in overlay_events:
+            events.setdefault(ev.on_date, []).append(ev)
+
     fx_rates = _collect_fx_rates(
         conn,
         http,
