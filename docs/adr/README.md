@@ -31,3 +31,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0025 | [User Preferences and Income Anchor](0025-user-preferences-and-income-anchor.md) |
 | 0026 | [Quick-add FAB Visibility Scope](0026-fab-visibility-scope.md) |
 | 0027 | [Frontend Toolchain Hardening — Local Tailwind, Stylelint, Partials, Visual Regression](0027-frontend-toolchain-hardening.md) |
+| 0029 | [SQLite Connection Threading — `check_same_thread=False`, Per-Request Connection](0029-sqlite-connection-threading.md) |

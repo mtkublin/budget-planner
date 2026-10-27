@@ -6,6 +6,10 @@ Every connection returned here has:
 - `synchronous = NORMAL`.
 - `row_factory = sqlite3.Row` for column-name access.
 - `isolation_level = None` so transactions are managed explicitly.
+- `check_same_thread = False` so a request-scoped connection can cross the
+  anyio worker-thread boundary between a sync FastAPI dependency and the
+  sync endpoint it feeds (see ADR-0029). Connections remain request-scoped
+  and are never shared concurrently across threads.
 """
 
 from __future__ import annotations
@@ -36,7 +40,7 @@ def get_connection(settings: Settings) -> sqlite3.Connection:
     # the repository hydrators; sqlite3's built-in `convert_timestamp` is
     # deprecated in Python 3.12 (and emits warnings under `filterwarnings
     # = ["error"]`).
-    conn = sqlite3.connect(db_path, isolation_level=None)
+    conn = sqlite3.connect(db_path, isolation_level=None, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
     conn.execute("PRAGMA journal_mode = WAL;")

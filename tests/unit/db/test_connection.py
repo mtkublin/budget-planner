@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+import threading
 from pathlib import Path
 
 import pytest
@@ -56,3 +57,28 @@ def test_isolation_level_none(tmp_path: Path) -> None:
         assert conn.isolation_level is None
     finally:
         conn.close()
+
+
+def test_connection_usable_from_other_thread(tmp_path: Path) -> None:
+    """ADR-0029: sync FastAPI dep (one anyio worker) + sync endpoint (potentially
+    another worker) must be able to share one request-scoped connection without
+    tripping sqlite3's thread check."""
+    settings = _settings(tmp_path)
+    conn = get_connection(settings)
+    results: list[int | Exception] = []
+
+    def _use_conn() -> None:
+        try:
+            row = conn.execute("SELECT 1 AS n").fetchone()
+            results.append(int(row["n"]))
+        except Exception as exc:
+            results.append(exc)
+
+    try:
+        t = threading.Thread(target=_use_conn)
+        t.start()
+        t.join()
+    finally:
+        conn.close()
+
+    assert results == [1], results
