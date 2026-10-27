@@ -1,4 +1,4 @@
-"""Integration tests for formula-derived recurring amount (ADR-0041).
+"""Integration tests for formula-derived recurring amount (ADR-0043).
 
 Covers:
 - Formula sum uses other recurring rules' amounts in the same month.
@@ -83,7 +83,7 @@ class TestComputeFormulaAmount:
         income_category_a: int,
     ) -> None:
         # A formula rule in the source category: should be skipped at compute
-        # time (ADR-0041 cycle guard). The compute still returns 0 instead of
+        # time (ADR-0043 cycle guard). The compute still returns 0 instead of
         # recursing or raising.
         make_rule(
             account_id=account_id,

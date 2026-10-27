@@ -401,7 +401,7 @@ def promote_recurring(
     match = _resolve_override_for_next_due(overrides, due_date)
 
     # Defaults start from the rule. Formula rules recompute from the
-    # live source-rule state for the next_due month (ADR-0041).
+    # live source-rule state for the next_due month (ADR-0043).
     from budget_planner.services.recurring_formula import (  # noqa: PLC0415
         resolve_rule_amount,
     )

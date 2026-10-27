@@ -1,5 +1,5 @@
 -- migrations/0008_recurring_amount_formula.sql
--- ADR-0041: formula-derived recurring amount.
+-- ADR-0043: formula-derived recurring amount.
 -- Adds a nullable `amount_formula TEXT` column storing a JSON blob of
 -- `{coefficient_bps, source_category_ids}` and relaxes the `default_amount`
 -- CHECK so formula rules may snapshot `default_amount = 0` when their

@@ -1,5 +1,5 @@
 {% from "_partials/combobox.html" import combobox %}
-{# ADR-0041 — Recurring rule form with fixed-vs-formula amount source.
+{# ADR-0043 — Recurring rule form with fixed-vs-formula amount source.
 
    `amount_source` ∈ {fixed, formula}. The two sub-sections are mutually
    visible; the inactive one carries `hidden` + `aria-hidden="true"` so form
@@ -7,6 +7,7 @@
    active variant. A small JS block flips the toggle inline — no HTMX round
    trip, no slide-over disruption (ADR-0040). #}
 {% set is_formula = amount_source == "formula" %}
+{% set rule_account = (accounts|selectattr('id', 'equalto', rule.account_id)|first) if rule else none %}
 <form hx-post="{{ action }}"
       hx-target="{% if rule %}#recurring-{{ rule.id }}{% else %}table.ledger tbody{% endif %}"
       hx-swap="{% if rule %}outerHTML{% else %}beforeend{% endif %}"
@@ -70,7 +71,7 @@
         Amount
         <input type="text"
                name="default_amount"
-               value="{{ rule.default_amount if rule and not is_formula else '' }}"
+               value="{{ rule.default_amount|money_major(rule_account.currency if rule_account else 'PLN') if rule and not is_formula else '' }}"
                inputmode="decimal"
                data-numeric>
       </label>

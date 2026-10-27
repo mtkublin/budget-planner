@@ -17,7 +17,10 @@
       </label>
       <label class="block">
         Amount
-        <input type="text" name="amount" value="{{ planned.amount }}" required>
+        <input type="text"
+               name="amount"
+               value="{{ planned.amount|money_major(account.currency if account else 'PLN') }}"
+               required>
       </label>
       <label class="block">
         Description

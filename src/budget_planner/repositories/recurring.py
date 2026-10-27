@@ -1,4 +1,4 @@
-"""Recurring rules + sparse overrides repository (ADR-0013 / ADR-0038 / ADR-0041)."""
+"""Recurring rules + sparse overrides repository (ADR-0013 / ADR-0038 / ADR-0043)."""
 
 from __future__ import annotations
 

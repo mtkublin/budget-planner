@@ -143,7 +143,7 @@ def _hydrate_recurring_rows(conn: sqlite3.Connection) -> list[dict[str, Any]]:
         )
         # Formula-aware default: fixed rules use `rule.default_amount`;
         # formula rules recompute from the current source-rule state for
-        # the `next_due` calendar month (ADR-0041). Overrides win per the
+        # the `next_due` calendar month (ADR-0043). Overrides win per the
         # unchanged ADR-0038 override precedence.
         formula_amount = formula_svc.resolve_rule_amount(conn, rule, rule.next_due)
         effective_amount_minor = (

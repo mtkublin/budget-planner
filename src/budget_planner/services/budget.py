@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import ROUND_HALF_EVEN, Decimal
 
+from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.planned import PlannedFilter
 from budget_planner.domain.transactions import Transaction, TransactionFilter
@@ -251,6 +252,40 @@ def _resolve_anchor(
     return anchor.name, hit
 
 
+def _resolve_period_start(
+    conn: sqlite3.Connection,
+    today: date,
+    year: int,
+    month: int,
+    anchor_category: Category | None,
+) -> date:
+    """Return the start of the paycheck window for per-category ``spent_minor``.
+
+    ADR-0041: the budget "period" is ``[last_anchor_date, today]`` where
+    ``last_anchor_date`` is the operation date of the most recent **promoted**
+    (actual) transaction in the anchor category with ``operation_date <= today``.
+    Falls back to ``date(year, month, 1)`` when the anchor is unset or has no
+    prior landed row. Planned/virtual recurring rows deliberately do not count —
+    only money that has actually landed resets the window.
+    """
+    month_start = date(year, month, 1)
+    if anchor_category is None:
+        return month_start
+    rows = transactions_repo.list_filtered(
+        conn,
+        TransactionFilter(
+            date_to=today,
+            category_ids=(anchor_category.id,),
+            directions=(Direction.INCOME,),
+        ),
+    )
+    if not rows:
+        return month_start
+    # Repo defaults to ASC on operation_date; take max() for clarity rather
+    # than relying on the sort direction.
+    return max(row.operation_date for row in rows)
+
+
 def month_summary(
     conn: sqlite3.Connection,
     year: int,
@@ -266,13 +301,29 @@ def month_summary(
     """
     cats = [c for c in categories_repo.list_all(conn) if c.direction is Direction.EXPENSE]
 
-    this_start, this_end = _month_range(year, month)
     prev_y, prev_m = prev_year_month(year, month)
     prev_start, prev_end = _month_range(prev_y, prev_m)
     year_start = date(year, 1, 1)
     year_end = _month_range(year, 12)[1]
 
-    this_txns = _expense_txns_in_range(conn, this_start, this_end)
+    # Resolve budgets up front so zero-budget months can short-circuit the
+    # paycheck-window shift (ADR-0041 keeps those on month-start to preserve
+    # the pre-ADR-0041 per-category view).
+    budgets_by_cat: dict[int, int | None] = {
+        cat.id: resolve_budget(conn, cat.id, year, month) for cat in cats
+    }
+    budgeted_total = sum(amount or 0 for amount in budgets_by_cat.values())
+
+    # ADR-0041: per-category ``spent_minor`` sums over the paycheck window
+    # ``[last_anchor_date, today]``; analytics windows (prev / year / all)
+    # stay on calendar-month windows as backward-looking references.
+    month_start = date(year, month, 1)
+    if budgeted_total == 0:
+        period_start = month_start
+    else:
+        anchor_category = preferences_svc.resolve_income_anchor_category(conn)
+        period_start = _resolve_period_start(conn, today, year, month, anchor_category)
+    this_txns = _expense_txns_in_range(conn, period_start, today)
     prev_txns = _expense_txns_in_range(conn, prev_start, prev_end)
     year_txns = _expense_txns_in_range(conn, year_start, year_end)
     all_txns = _all_expense_txns(conn)
@@ -287,7 +338,7 @@ def month_summary(
 
     lines: list[CategoryBudgetLine] = []
     for cat in cats:
-        budgeted = resolve_budget(conn, cat.id, year, month)
+        budgeted = budgets_by_cat[cat.id]
         spent = spent_this.get(cat.id, 0)
         remaining = (budgeted - spent) if budgeted is not None else None
         avg_overall = _mean_minor(overall_sum.get(cat.id, 0), overall_mo.get(cat.id, 0))
@@ -309,7 +360,6 @@ def month_summary(
     # Budgeted first (False sorts before True), then alphabetical.
     lines.sort(key=lambda line: (line.budgeted_minor is None, line.category_name))
 
-    budgeted_total = sum(line.budgeted_minor or 0 for line in lines)
     spent_total = sum(line.spent_minor for line in lines if line.budgeted_minor is not None)
     pre_commit_remaining = sum(line.remaining_minor or 0 for line in lines)
 

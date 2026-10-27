@@ -543,7 +543,7 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
   gap: var(--space-2);
 }
 
-/* ADR-0041 — formula source toggle + category checklist. */
+/* ADR-0043 — formula source toggle + category checklist. */
 .form-stack__group {
   display: flex;
   flex-direction: column;

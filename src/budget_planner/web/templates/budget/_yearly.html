@@ -59,7 +59,7 @@
                   <input id="y-{{ row.category_id }}-{{ m }}"
                          type="text"
                          name="amount"
-                         value="{{ cell.amount_minor if cell.amount_minor is not none else '' }}"
+                         value="{{ cell.amount_minor|money_major(base_ccy) if cell.amount_minor is not none else '' }}"
                          placeholder="—"
                          inputmode="decimal"
                          data-numeric

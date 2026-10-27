@@ -1,4 +1,4 @@
-"""Formula-derived recurring amount (ADR-0041).
+"""Formula-derived recurring amount (ADR-0043).
 
 Pure parsing + validation helpers plus a DB-backed compute function.
 Imported indirectly by ``services.recurring`` (which re-exports ``rt_expand``
@@ -230,7 +230,7 @@ def validate_formula_sources(
 ) -> None:
     """Raise :class:`FormulaError` if any source category contains a formula rule.
 
-    Enforces the ADR-0041 structural cycle guard at the save boundary: the
+    Enforces the ADR-0043 structural cycle guard at the save boundary: the
     dependency graph must be a 2-level tree (formula → fixed only). Compute
     time silently skips formula sources with a WARNING log; this call makes
     the rejection visible to the user before they save.

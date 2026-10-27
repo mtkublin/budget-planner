@@ -1,4 +1,4 @@
-"""Recurring rules + overrides + virtual occurrence shape (ADR-0013 / ADR-0038 / ADR-0041)."""
+"""Recurring rules + overrides + virtual occurrence shape (ADR-0013 / ADR-0038 / ADR-0043)."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ _UNCHANGED: Final[object] = object()
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class AmountFormula:
-    """Formula spec for a recurring rule's amount (ADR-0041).
+    """Formula spec for a recurring rule's amount (ADR-0043).
 
     Stored as JSON in `recurring_rules.amount_formula`. The amount is derived
     as `coefficient_bps / 10_000 * Σ(occurrence amounts of other recurring
@@ -38,7 +38,7 @@ class RecurringRule:
     (ADR-0038). Every mutation that could shift it must keep it in sync.
     `last_promoted_date` is informational (nullable; untouched by overrides).
     `amount_formula`, when present, overrides `default_amount` at every
-    expand / promote / render site (ADR-0041).
+    expand / promote / render site (ADR-0043).
     """
 
     id: int
@@ -59,7 +59,7 @@ class RecurringRule:
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None
-    # ADR-0041 — optional with default so pre-formula callers / tests
+    # ADR-0043 — optional with default so pre-formula callers / tests
     # that construct `RecurringRule` directly keep working.
     amount_formula: AmountFormula | None = None
 
