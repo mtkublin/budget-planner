@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 
 import pytest
@@ -78,3 +79,112 @@ def test_soft_delete_frees_name(conn: sqlite3.Connection) -> None:
     accounts.soft_delete(conn, first.id)
     second = accounts.create(conn, NewAccount(name="ING", currency="PLN"))
     assert second.id != first.id
+
+
+def test_create_asset_account_defaults(conn: sqlite3.Connection) -> None:
+    acc = accounts.create(conn, NewAccount(name="A", currency="PLN"))
+    assert acc.is_liability is False
+    assert acc.credit_limit_minor is None
+
+
+def test_create_liability_account_with_limit(conn: sqlite3.Connection) -> None:
+    acc = accounts.create(
+        conn,
+        NewAccount(
+            name="Visa",
+            currency="PLN",
+            type="credit_card",
+            is_liability=True,
+            credit_limit_minor=1_000_000,
+        ),
+    )
+    assert acc.is_liability is True
+    assert acc.credit_limit_minor == 1_000_000
+    fetched = accounts.find_by_id(conn, acc.id)
+    assert fetched is not None
+    assert fetched.is_liability is True
+    assert fetched.credit_limit_minor == 1_000_000
+
+
+def test_patch_set_credit_limit(conn: sqlite3.Connection) -> None:
+    acc = accounts.create(
+        conn,
+        NewAccount(name="V", currency="PLN", is_liability=True, credit_limit_minor=500_000),
+    )
+    updated = accounts.update(conn, acc.id, PatchAccount(credit_limit_minor=2_000_000))
+    assert updated.credit_limit_minor == 2_000_000
+    entries = audit.list_entries(conn, "account", acc.id)
+    new_json = json.loads(entries[-1].new_json or "{}")
+    assert new_json["credit_limit_minor"] == 2_000_000
+
+
+def test_patch_clear_credit_limit(conn: sqlite3.Connection) -> None:
+    acc = accounts.create(
+        conn,
+        NewAccount(name="V", currency="PLN", is_liability=True, credit_limit_minor=500_000),
+    )
+    updated = accounts.update(
+        conn,
+        acc.id,
+        PatchAccount(is_liability=False, clear_credit_limit=True),
+    )
+    assert updated.is_liability is False
+    assert updated.credit_limit_minor is None
+    entries = audit.list_entries(conn, "account", acc.id)
+    new_json = json.loads(entries[-1].new_json or "{}")
+    assert new_json["credit_limit_minor"] is None
+    assert new_json["is_liability"] is False
+
+
+def test_patch_flip_asset_to_liability_without_limit_allowed(conn: sqlite3.Connection) -> None:
+    acc = accounts.create(conn, NewAccount(name="A", currency="PLN"))
+    updated = accounts.update(conn, acc.id, PatchAccount(is_liability=True))
+    assert updated.is_liability is True
+    assert updated.credit_limit_minor is None
+
+
+def test_hydrate_is_liability_zero_as_false(conn: sqlite3.Connection) -> None:
+    conn.execute("INSERT OR IGNORE INTO users(id, name) VALUES (1, 'default')")
+    conn.execute(
+        "INSERT INTO accounts(name, currency, is_liability, credit_limit_minor) "
+        "VALUES ('F', 'PLN', 0, NULL)"
+    )
+    conn.execute(
+        "INSERT INTO accounts(name, currency, is_liability, credit_limit_minor) "
+        "VALUES ('T', 'PLN', 1, 500000)"
+    )
+    f = accounts.find_by_name(conn, "F")
+    t = accounts.find_by_name(conn, "T")
+    assert f is not None and f.is_liability is False
+    assert t is not None and t.is_liability is True
+    assert t.credit_limit_minor == 500_000
+
+
+def test_list_all_includes_new_fields(conn: sqlite3.Connection) -> None:
+    accounts.create(conn, NewAccount(name="Bank", currency="PLN"))
+    accounts.create(
+        conn,
+        NewAccount(name="Visa", currency="PLN", is_liability=True, credit_limit_minor=100_000),
+    )
+    rows = accounts.list_all(conn)
+    by_name = {a.name: a for a in rows}
+    assert by_name["Bank"].is_liability is False
+    assert by_name["Bank"].credit_limit_minor is None
+    assert by_name["Visa"].is_liability is True
+    assert by_name["Visa"].credit_limit_minor == 100_000
+
+
+def test_audit_log_captures_both_new_fields_on_create_and_update(
+    conn: sqlite3.Connection,
+) -> None:
+    acc = accounts.create(
+        conn,
+        NewAccount(name="V", currency="PLN", is_liability=True, credit_limit_minor=1_000_000),
+    )
+    accounts.update(conn, acc.id, PatchAccount(credit_limit_minor=2_000_000))
+    entries = audit.list_entries(conn, "account", acc.id)
+    create_new = json.loads(entries[0].new_json or "{}")
+    update_new = json.loads(entries[1].new_json or "{}")
+    assert create_new["is_liability"] is True
+    assert create_new["credit_limit_minor"] == 1_000_000
+    assert update_new["credit_limit_minor"] == 2_000_000

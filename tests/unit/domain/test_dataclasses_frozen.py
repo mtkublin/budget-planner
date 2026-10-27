@@ -56,6 +56,8 @@ def test_account_is_frozen() -> None:
         type=None,
         currency="PLN",
         opening_balance=0,
+        is_liability=False,
+        credit_limit_minor=None,
         created_at=_UTC_NOW,
         updated_at=_UTC_NOW,
         deleted_at=None,

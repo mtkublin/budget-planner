@@ -7,7 +7,10 @@ import sqlite3
 from budget_planner.domain.accounts import Account, NewAccount, PatchAccount
 from budget_planner.repositories._shared import mutate, parse_dt, parse_dt_required
 
-_COLUMNS = "id, user_id, name, type, currency, opening_balance, created_at, updated_at, deleted_at"
+_COLUMNS = (
+    "id, user_id, name, type, currency, opening_balance, "
+    "is_liability, credit_limit_minor, created_at, updated_at, deleted_at"
+)
 
 
 def _row_to_account(row: sqlite3.Row) -> Account:
@@ -18,6 +21,8 @@ def _row_to_account(row: sqlite3.Row) -> Account:
         type=row["type"],
         currency=row["currency"],
         opening_balance=row["opening_balance"],
+        is_liability=bool(row["is_liability"]),
+        credit_limit_minor=row["credit_limit_minor"],
         created_at=parse_dt_required(row["created_at"]),
         updated_at=parse_dt_required(row["updated_at"]),
         deleted_at=parse_dt(row["deleted_at"]),
@@ -65,9 +70,19 @@ def list_all(
 def create(conn: sqlite3.Connection, data: NewAccount) -> Account:
     def _action(c: sqlite3.Connection) -> tuple[int, Account]:
         cursor = c.execute(
-            "INSERT INTO accounts(user_id, name, type, currency, opening_balance) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (data.user_id, data.name, data.type, data.currency, data.opening_balance),
+            "INSERT INTO accounts("
+            "user_id, name, type, currency, opening_balance, "
+            "is_liability, credit_limit_minor) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                data.user_id,
+                data.name,
+                data.type,
+                data.currency,
+                data.opening_balance,
+                1 if data.is_liability else 0,
+                data.credit_limit_minor,
+            ),
         )
         new_id = int(cursor.lastrowid or 0)
         created = find_by_id(c, new_id)
@@ -87,6 +102,8 @@ def update(
         raise LookupError(f"account {account_id} not found")
 
     changes = data.as_dict()
+    if "is_liability" in changes:
+        changes["is_liability"] = 1 if changes["is_liability"] else 0
 
     def _action(c: sqlite3.Connection) -> tuple[int, Account]:
         if changes:
