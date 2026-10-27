@@ -1534,3 +1534,9 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
 .kebab__menu button[data-destructive] {
   color: var(--danger, #b00020);
 }
+
+/* ADR-0043 forecast monthly breakdown table — allow horizontal scroll on narrow
+   viewports instead of overflowing the surface. */
+.forecast-table-wrap {
+  overflow-x: auto;
+}
