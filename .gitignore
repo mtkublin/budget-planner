@@ -51,3 +51,6 @@ build/
 
 # Secrets baseline (keep .secrets.baseline tracked)
 .secrets.baseline.local
+
+# Claude Code local-only settings (keep .claude/skills/** tracked)
+.claude/settings.local.json
