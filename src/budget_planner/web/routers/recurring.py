@@ -284,6 +284,49 @@ def deactivate_rule(
     return html
 
 
+@router.get("/{rule_id}/overrides/new", response_class=HTMLResponse)
+def new_override_form(
+    rule_id: int,
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+) -> Response:
+    """T-122 — thin GET wrapper around `partials/recurring/_override_form.html`.
+
+    The POST endpoint `/recurring/{id}/overrides` already handles writes;
+    this route only renders the slide-over form prefilled with
+    ``occurrence_date`` (defaults to the rule's current ``next_due``) and
+    the existing override on that date (if any) so re-entering the form
+    on an already-overridden occurrence shows the current values.
+    """
+    rule = recurring_repo.find_rule(conn, rule_id)
+    if rule is None:
+        return render(
+            request,
+            "partials/recurring/_override_form.html",
+            rule=None,
+            account=None,
+            occurrence_date=None,
+            existing=None,
+            errors={"rule": "not found"},
+            status_code=404,
+        )
+    occ_raw = request.query_params.get("occurrence_date")
+    occ = _parse_date(occ_raw) if occ_raw else rule.next_due
+    if occ is None:
+        occ = rule.next_due
+    existing = _override_on_next_due(conn, rule_id, occ)
+    account = accounts_repo.find_by_id(conn, rule.account_id, include_deleted=True)
+    return render(
+        request,
+        "partials/recurring/_override_form.html",
+        rule=rule,
+        account=account,
+        occurrence_date=occ,
+        existing=existing,
+        errors={},
+    )
+
+
 @router.post("/{rule_id}/overrides")
 def add_override(  # noqa: PLR0917
     rule_id: int,

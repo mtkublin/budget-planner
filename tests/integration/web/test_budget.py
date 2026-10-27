@@ -263,3 +263,48 @@ def test_create_override_one_off_rejects_bad_year(client: TestClient, cat_id: in
         data={"tier": "one-off", "month": "7", "year": "bogus", "amount": "1"},
     )
     assert r.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# T-120 / ADR-0039 — committed sub-line beneath left-daily-spend hero.
+# ---------------------------------------------------------------------------
+def test_budget_hero_renders_committed_subline(client: TestClient, cat_id: int) -> None:
+    """Hero carries the 'X committed (recurring + planned)' sub-line."""
+    # Set a default so the LDS hero actually surfaces (zero-budget hides it).
+    client.post(f"/budget/defaults/{cat_id}", data={"amount": "100"})
+    r = client.get("/budget")
+    assert r.status_code == 200
+    soup = BeautifulSoup(r.text, "html.parser")
+    hero = soup.find(id="left-daily-spend")
+    assert isinstance(hero, Tag)
+    committed = hero.select_one(".budget-lds__committed")
+    assert isinstance(committed, Tag)
+    assert "committed" in committed.get_text(" ", strip=True)
+    assert "recurring + planned" in committed.get_text(" ", strip=True)
+
+
+def test_budget_hero_committed_zero_renders_flat_zero(client: TestClient, cat_id: int) -> None:
+    """With no recurring + no planned, committed sub-line still renders a zero."""
+    client.post(f"/budget/defaults/{cat_id}", data={"amount": "100"})
+    r = client.get("/budget")
+    assert r.status_code == 200
+    soup = BeautifulSoup(r.text, "html.parser")
+    hero = soup.find(id="left-daily-spend")
+    assert isinstance(hero, Tag)
+    committed = hero.select_one(".budget-lds__committed")
+    assert isinstance(committed, Tag)
+    assert committed.get("data-committed") == "0"
+
+
+def test_budget_hero_committed_subline_survives_budget_stale_rerender(
+    client: TestClient, cat_id: int
+) -> None:
+    """After mutating a budget (which emits budget-stale) and reloading, the
+    sub-line is still present — HTMX-driven re-renders don't drop it."""
+    client.post(f"/budget/defaults/{cat_id}", data={"amount": "100"})
+    r1 = client.post(f"/budget/defaults/{cat_id}", data={"amount": "200"})
+    assert "budget-stale" in r1.headers.get("HX-Trigger", "")
+    r2 = client.get("/budget")
+    assert r2.status_code == 200
+    soup = BeautifulSoup(r2.text, "html.parser")
+    assert soup.select_one(".budget-lds__committed") is not None

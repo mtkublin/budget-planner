@@ -25,6 +25,11 @@
         {{ summary.left_daily_spend_minor|money(base_ccy) }}
       {% endif %}
     </p>
+    <p class="budget-lds__committed tabular-nums text-muted text-sm"
+       data-committed="{{ summary.totals.committed_minor }}">
+      {{ summary.totals.committed_minor|money(base_ccy) }} committed
+      <span class="budget-lds__committed-tag text-faint">(recurring + planned)</span>
+    </p>
     <p class="budget-lds__caption text-muted">
       {% if summary.left_daily_spend_minor is none %}
         No budgets set for this month yet.

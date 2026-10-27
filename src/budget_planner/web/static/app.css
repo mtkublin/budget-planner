@@ -833,6 +833,17 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
 }
 .panel__add { margin-left: auto; }
 
+/* T-121 — paired "+ Planned" / "+ Recurring" cluster so they stay grouped
+   as the panel header wraps on narrow viewports. The group is the right-
+   anchored flex child; the two inner buttons sit side-by-side with the
+   same gap token used elsewhere in the panel header. */
+.panel__add-group {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+.panel__add-group .panel__add { margin-left: 0; }
+
 .upcoming-rows {
   list-style: none;
   padding: 0;
@@ -868,6 +879,38 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
 .upcoming-row--overdue .upcoming-row__date { font-style: italic; }
 .upcoming-row--overdue .upcoming-row__description { font-style: italic; }
 .upcoming-empty { margin: 0; padding: var(--space-3) 0; }
+
+/* T-121 — recurring rows swap the chip column for an inline actions
+   cluster. Grid is: date | description | amount | actions. Actions wrap
+   below the amount on narrow viewports (handled by flex-wrap on the span). */
+.upcoming-row--recurring {
+  grid-template-columns: auto 1fr auto auto;
+}
+
+.upcoming-row__actions {
+  display: inline-flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.upcoming-row__action {
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
+}
+.upcoming-row__description--overridden { font-style: italic; }
+
+@media (width <= 540px) {
+  /* On the smallest viewport fold actions underneath the amount so the
+     row still breathes; the grid becomes 3-col with actions spanning. */
+  .upcoming-row--recurring { grid-template-columns: auto 1fr auto; }
+
+  .upcoming-row--recurring .upcoming-row__actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    padding-top: var(--space-1);
+  }
+}
 
 /* ---- Budget page (T-066) — three stacked sections ------------------------
    Composition only: hairline dividers between sections, remainder bar reuses
@@ -961,6 +1004,19 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
   margin: 0;
   padding-top: var(--space-2);
   border-top: 1px solid var(--rule);
+}
+
+/* ADR-0039 committed sub-line beneath the headline. Dim; no border. */
+.budget-lds__committed {
+  margin: 0 0 var(--space-2);
+}
+
+.budget-lds__committed-tag {
+  margin-left: var(--space-1);
+}
+
+.panel__hero-sub--committed {
+  margin: 0;
 }
 
 .budget-breakdown-grid {

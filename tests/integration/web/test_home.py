@@ -169,6 +169,107 @@ def test_overview_upcoming_fragment(client: TestClient, seeded: None) -> None:
     assert "Bread" in r.text
 
 
+def test_overview_upcoming_recurring_row_actions(client: TestClient, _migrated: Settings) -> None:
+    """T-121: a recurring rule whose ``next_due`` falls in the 30-day window
+    renders a `[data-kind="recurring"]` row with Promote / Skip / Override
+    action buttons wired to the ADR-0038 endpoints."""
+    conn = get_connection(_migrated)
+    try:
+        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
+        cat = categories_repo.create(conn, NewCategory(name="Rent", direction=Direction.EXPENSE))
+        rule = recurring_repo.create_rule(
+            conn,
+            NewRecurringRule(
+                cadence=Cadence.MONTHLY,
+                start_date=date(2026, 1, 1),
+                category_id=cat.id,
+                account_id=acc.id,
+                default_amount=12_000,
+                default_description="Recurring rent",
+            ),
+        )
+        next_due = date.today() + timedelta(days=5)  # noqa: DTZ011
+        recurring_repo.update_rule(
+            conn,
+            rule.id,
+            PatchRecurringRule(next_due=next_due),
+        )
+    finally:
+        conn.close()
+
+    r = client.get("/")
+    assert r.status_code == 200
+    soup = BeautifulSoup(r.text, "html.parser")
+    rec_row = soup.select_one('.upcoming-row[data-kind="recurring"]')
+    assert rec_row is not None and isinstance(rec_row, Tag)
+    # Row should NOT render the overdue chip even if next_due is close.
+    assert "upcoming-row--overdue" not in (rec_row.get("class") or [])
+    actions = rec_row.select(".upcoming-row__action")
+    hx_targets: set[str] = {str(btn.get("hx-get") or btn.get("hx-post") or "") for btn in actions}
+    assert f"/recurring/{rule.id}/promote" in hx_targets
+    assert f"/recurring/{rule.id}/skip-next" in hx_targets
+    assert any(
+        val.startswith(f"/recurring/{rule.id}/overrides/new?occurrence_date=") for val in hx_targets
+    )
+    skip_btn = rec_row.select_one('[hx-post$="/skip-next"]')
+    assert skip_btn is not None and isinstance(skip_btn, Tag)
+    assert skip_btn.get("hx-confirm") == "Skip the next occurrence?"
+
+
+def test_overview_overdue_planned_row_persists_italic(
+    client: TestClient, _migrated: Settings
+) -> None:
+    """T-121: a persisted planned row whose operation_date is in the past
+    still renders inside the upcoming list with the overdue chip + italic
+    styling (recurring rows never render overdue; planned rows always do)."""
+    conn = get_connection(_migrated)
+    try:
+        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
+        cat = categories_repo.create(conn, NewCategory(name="Rent", direction=Direction.EXPENSE))
+        past = date.today() - timedelta(days=4)  # noqa: DTZ011
+        planned_repo.create(
+            conn,
+            NewPlannedTransaction(
+                operation_date=past,
+                category_id=cat.id,
+                account_id=acc.id,
+                amount=4200,
+                description="Late bill",
+            ),
+        )
+    finally:
+        conn.close()
+
+    r = client.get("/")
+    soup = BeautifulSoup(r.text, "html.parser")
+    row = soup.select_one('.upcoming-row[data-kind="planned"]')
+    assert row is not None and isinstance(row, Tag)
+    classes: list[str] = list(row.get("class") or [])
+    assert "upcoming-row--overdue" in classes
+    assert "overdue" in row.get_text().lower()
+
+
+def test_overview_upcoming_add_recurring_wired(client: TestClient) -> None:
+    """T-121: `+ Recurring` button opens the slide-over at `/recurring/new`."""
+    r = client.get("/")
+    soup = BeautifulSoup(r.text, "html.parser")
+    btn = soup.select_one('.panel--upcoming button[aria-label="Add recurring rule"]')
+    assert btn is not None and isinstance(btn, Tag)
+    assert btn.get("hx-get") == "/recurring/new"
+    assert btn.get("hx-target") == "#modal-root"
+
+
+def test_overview_upcoming_add_buttons_grouped(client: TestClient) -> None:
+    """T-121: `+ Planned` + `+ Recurring` live inside `.panel__add-group`."""
+    r = client.get("/")
+    soup = BeautifulSoup(r.text, "html.parser")
+    group = soup.select_one(".panel--upcoming .panel__add-group")
+    assert group is not None and isinstance(group, Tag)
+    labels = {btn.get("aria-label") for btn in group.select("button")}
+    assert "Add planned payment" in labels
+    assert "Add recurring rule" in labels
+
+
 def test_overview_upcoming_fragment_oob_segmented(client: TestClient, seeded: None) -> None:
     """T-093 — fragment returns an out-of-band swap of the segmented range so
     active state follows the chosen window without any JS."""
@@ -358,3 +459,32 @@ def test_home_renders_assets_liabilities_net(client: TestClient, _migrated: Sett
     assert "Assets" in text
     assert "Liabilities" in text
     assert "Net worth" in text
+
+
+# ---------------------------------------------------------------------------
+# T-120 / ADR-0039 — committed sub-line on the Overview Month panel.
+# ---------------------------------------------------------------------------
+
+
+def test_month_panel_renders_committed_subline(client: TestClient, _migrated: Settings) -> None:
+    """Overview Month panel carries the 'X committed (recurring + planned)' sub-line."""
+    conn = get_connection(_migrated)
+    try:
+        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
+        cat = categories_repo.create(
+            conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+        )
+        budgets_repo.set_default(conn, NewBudgetDefault(category_id=cat.id, amount=100_000))
+        assert acc.id  # keep ref alive
+    finally:
+        conn.close()
+    r = client.get("/")
+    assert r.status_code == 200
+    soup = BeautifulSoup(r.text, "html.parser")
+    panel = soup.find(id="budget-card")
+    assert isinstance(panel, Tag)
+    committed = panel.select_one(".panel__hero-sub--committed")
+    assert isinstance(committed, Tag)
+    assert "committed" in committed.get_text(" ", strip=True)
+    # Zero-committed renders as data-committed="0".
+    assert committed.get("data-committed") == "0"

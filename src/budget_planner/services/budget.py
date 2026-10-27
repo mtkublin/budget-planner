@@ -1,10 +1,16 @@
-"""Budget service (T-024).
+"""Budget service (T-024 / T-120).
 
 Resolve monthly budgets via the three-tier null-coalesce (one-off →
 recurring → default) and build a month summary with per-category
 budgeted / spent / remaining plus analytics (avg monthly overall,
 avg this year, delta vs previous month). Flat categories, no rollover
 (ADR-0014).
+
+T-120 (ADR-0039) introduces :func:`committed_in_window` + grows
+``MonthTotals`` with ``committed_minor``. ``remaining_minor`` becomes
+``budgeted - spent - committed`` so the "Left per day" headline is
+honest about recurring / planned commitments that have not yet
+promoted into actual transactions.
 
 The service does its own aggregation over ``transactions.list_filtered``
 rather than extending the repository with aggregate SQL — keeps the repo
@@ -14,6 +20,7 @@ a thin SQL wrapper (ADR-0022) and bounded loops are fine for v1 volumes.
 from __future__ import annotations
 
 import calendar
+import datetime as dt
 import sqlite3
 from collections import defaultdict
 from dataclasses import dataclass
@@ -21,13 +28,20 @@ from datetime import date
 from decimal import ROUND_HALF_EVEN, Decimal
 
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.planned import PlannedFilter
 from budget_planner.domain.transactions import Transaction, TransactionFilter
 from budget_planner.repositories import (
     budgets as budgets_repo,
     categories as categories_repo,
+    planned as planned_repo,
+    recurring as recurring_repo,
     transactions as transactions_repo,
 )
-from budget_planner.services import income as income_svc, preferences as preferences_svc
+from budget_planner.services import (
+    income as income_svc,
+    preferences as preferences_svc,
+    recurring as recurring_svc,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +60,7 @@ class CategoryBudgetLine:
 class MonthTotals:
     budgeted_minor: int
     spent_minor: int
+    committed_minor: int
     remaining_minor: int
 
 
@@ -147,6 +162,95 @@ def _all_expense_txns(conn: sqlite3.Connection) -> list[Transaction]:
     return transactions_repo.list_filtered(conn, TransactionFilter(directions=(Direction.EXPENSE,)))
 
 
+def committed_in_window(
+    conn: sqlite3.Connection,
+    *,
+    start: dt.date,
+    end: dt.date,
+) -> int:
+    """Return the committed-minor sum for ``[start, end)`` (ADR-0039).
+
+    Composes two independent sources, both filtered to expense-direction
+    categories only (transit + adjustment + income excluded):
+
+    - **Planned**: ``planned_repo.list_filtered(promoted=False)`` with
+      ``operation_date`` in ``[start, end - 1 day]`` (inclusive date_to on
+      the repo).
+    - **Recurring**: ``services.recurring.expand`` enumerated across
+      every active rule within ``[start, end - 1 day]`` (inclusive upper
+      bound in the generator). Overrides apply - ``state=skipped``
+      drops the occurrence; ``state=overridden`` merges amount / date.
+
+    Returns ``0`` when ``end <= start`` (defensive — callers that pin
+    ``days_until_next_income`` to ``>= 1`` will never trip this branch).
+    """
+    if end <= start:
+        return 0
+
+    # Expense-direction category ids (cheap in-memory lookup).
+    expense_ids = {
+        cat.id
+        for cat in categories_repo.list_all(conn, include_deleted=True)
+        if cat.direction is Direction.EXPENSE
+    }
+
+    inclusive_end = end - dt.timedelta(days=1)
+
+    total = 0
+
+    # --- Planned branch ---------------------------------------------------
+    planned_rows = planned_repo.list_filtered(
+        conn,
+        PlannedFilter(
+            date_from=start,
+            date_to=inclusive_end,
+            directions=(Direction.EXPENSE,),
+            promoted=False,
+        ),
+    )
+    total += sum(row.amount for row in planned_rows)
+
+    # --- Recurring branch -------------------------------------------------
+    # Clamp the generator window to [max(rule.next_due, start), end). Rules
+    # advance ``next_due`` on promote; occurrences on-or-before the previous
+    # ``next_due`` have either been promoted (counted in ``spent``) or are
+    # historical no-ops — either way they are not committed future money.
+    for rule in recurring_repo.list_rules(conn, active_only=True):
+        if rule.category_id not in expense_ids:
+            continue
+        rule_start = max(rule.next_due, start)
+        if rule_start > inclusive_end:
+            continue
+        overrides = recurring_repo.list_overrides(conn, rule.id)
+        occurrences = recurring_svc.expand(rule, overrides, rule_start, inclusive_end)
+        total += sum(occ.amount for occ in occurrences)
+
+    return total
+
+
+def _resolve_anchor(
+    conn: sqlite3.Connection,
+    today: date,
+    budgeted_total: int,
+    end_of_month: date,
+) -> tuple[str | None, date]:
+    """Return (anchor_name, next_income_date) for the daily-spend math.
+
+    Zero-budget months and missing/stale anchors fall back to end-of-month
+    per F4.6. Pulled out of ``month_summary`` to keep its statement count
+    under PLR0915.
+    """
+    if budgeted_total == 0:
+        return None, end_of_month
+    anchor = preferences_svc.resolve_income_anchor_category(conn)
+    if anchor is None:
+        return None, end_of_month
+    hit = income_svc.next_anchor_date(conn, anchor.id, after=today)
+    if hit is None:
+        return None, end_of_month
+    return anchor.name, hit
+
+
 def month_summary(
     conn: sqlite3.Connection,
     year: int,
@@ -205,32 +309,36 @@ def month_summary(
     # Budgeted first (False sorts before True), then alphabetical.
     lines.sort(key=lambda line: (line.budgeted_minor is None, line.category_name))
 
-    totals = MonthTotals(
-        budgeted_minor=sum(line.budgeted_minor or 0 for line in lines),
-        spent_minor=sum(line.spent_minor for line in lines if line.budgeted_minor is not None),
-        remaining_minor=sum(line.remaining_minor or 0 for line in lines),
-    )
+    budgeted_total = sum(line.budgeted_minor or 0 for line in lines)
+    spent_total = sum(line.spent_minor for line in lines if line.budgeted_minor is not None)
+    pre_commit_remaining = sum(line.remaining_minor or 0 for line in lines)
 
     end_of_month = _month_range(year, month)[1]
-    if totals.budgeted_minor == 0:
-        anchor_category_name: str | None = None
-        next_income_date = end_of_month
-        left_daily_spend_minor: int | None = None
-    else:
-        anchor = preferences_svc.resolve_income_anchor_category(conn)
-        if anchor is None:
-            anchor_category_name = None
-            next_income_date = end_of_month
-        else:
-            hit = income_svc.next_anchor_date(conn, anchor.id, after=today)
-            if hit is None:
-                anchor_category_name = None
-                next_income_date = end_of_month
-            else:
-                anchor_category_name = anchor.name
-                next_income_date = hit
+    anchor_category_name, next_income_date = _resolve_anchor(
+        conn, today, budgeted_total, end_of_month
+    )
+    left_daily_spend_minor: int | None = None
     days_until_next_income = max((next_income_date - today).days, 1)
-    if totals.budgeted_minor != 0:
+
+    # ADR-0039: committed = unpromoted planned + active-recurring expense
+    # amounts due in [today, next_income_date). Zero-budget months keep
+    # committed_minor=0 so the dim sub-line renders a flat zero (clearer
+    # than hiding).
+    if budgeted_total == 0:
+        committed_total = 0
+    else:
+        committed_total = committed_in_window(conn, start=today, end=next_income_date)
+
+    remaining_total = pre_commit_remaining - committed_total
+
+    totals = MonthTotals(
+        budgeted_minor=budgeted_total,
+        spent_minor=spent_total,
+        committed_minor=committed_total,
+        remaining_minor=remaining_total,
+    )
+
+    if budgeted_total != 0:
         left_daily_spend_minor = int(
             (Decimal(totals.remaining_minor) / Decimal(days_until_next_income)).quantize(
                 Decimal("1"), rounding=ROUND_HALF_EVEN
@@ -306,6 +414,7 @@ __all__ = [
     "MonthTotals",
     "YearlyCell",
     "YearlyRow",
+    "committed_in_window",
     "month_summary",
     "prev_year_month",
     "resolve_budget",

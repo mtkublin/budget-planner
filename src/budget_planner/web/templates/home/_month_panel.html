@@ -13,6 +13,12 @@
         <span class="tabular-nums">{{ summary.left_daily_spend_minor|money(base_ccy) }}</span> / day
       {% endif %}
     </p>
+    <p class="panel__hero-sub panel__hero-sub--committed text-muted text-sm"
+       data-committed="{{ summary.totals.committed_minor }}">
+      <span class="tabular-nums">{{ summary.totals.committed_minor|money(base_ccy) }}</span>
+      committed
+      <span class="text-faint">(recurring + planned)</span>
+    </p>
     <p class="panel__hero-sub text-muted text-sm">
       spent <span class="tabular-nums">{{ summary.totals.spent_minor|money(base_ccy) }}</span>
       of <span class="tabular-nums">{{ summary.totals.budgeted_minor|money(base_ccy) }}</span>

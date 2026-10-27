@@ -12,9 +12,10 @@ from __future__ import annotations
 import calendar
 import sqlite3
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Final, Literal
+from zoneinfo import ZoneInfo
 
 import httpx
 from fastapi import APIRouter, Depends, Request
@@ -77,13 +78,21 @@ class PaceTag:
 
 @dataclass(frozen=True, slots=True)
 class UpcomingRow:
-    """Normalised row for Panel C."""
+    """Normalised row for Panel C (T-121 — planned + recurring).
+
+    ``planned_id`` / ``rule_id`` are mutually exclusive (one is always
+    ``None``), set according to ``kind``. ``override_present`` is only
+    meaningful for recurring rows (planned rows always set it to False).
+    """
 
     operation_date: date
     description: str
     amount_minor: int
     is_overdue: bool
     kind: str  # "planned" | "recurring" — drives the row's data-kind attribute.
+    planned_id: int | None
+    rule_id: int | None
+    override_present: bool
 
 
 def _convert_minor(
@@ -194,6 +203,9 @@ def _list_upcoming(
             amount_minor=item.amount_minor,
             is_overdue=item.is_overdue,
             kind=item.kind,
+            planned_id=item.planned_id,
+            rule_id=item.rule_id,
+            override_present=item.override_present,
         )
         for item in items
     )
@@ -205,7 +217,7 @@ def home(
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
 ) -> HTMLResponse:
-    today = date.today()  # noqa: DTZ011 — ADR-0007: naive dates
+    today = datetime.now(ZoneInfo(settings.display_timezone)).date()  # ADR-0007
     year, month = today.year, today.month
     base_ccy = settings.base_currency
 
@@ -246,6 +258,7 @@ def home(
 def upcoming_fragment(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
 ) -> HTMLResponse:
     """HTMX fragment for Panel C — swapped on window change or live events.
 
@@ -253,7 +266,7 @@ def upcoming_fragment(
     range so active state stays in sync with ``window_label`` without any
     new client JS.
     """
-    today = date.today()  # noqa: DTZ011
+    today = datetime.now(ZoneInfo(settings.display_timezone)).date()  # ADR-0007
     window_label, window_days = _window_from(request)
     upcoming = _list_upcoming(conn, today, window_days)
     return render(

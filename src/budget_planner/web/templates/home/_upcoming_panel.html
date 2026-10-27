@@ -9,18 +9,22 @@
   <header class="panel__header panel__header--row">
     <p id="upcoming-heading" class="eyebrow">Upcoming</p>
     {% include "home/_upcoming_range.html" %}
-    <button type="button"
-            class="btn-ghost panel__add"
-            hx-get="/planned/new"
-            hx-target="#modal-root"
-            hx-swap="innerHTML"
-            aria-label="Add planned payment">+ Planned</button>
-    <button type="button"
-            class="btn-ghost panel__add"
-            hx-get="/recurring/new"
-            hx-target="#modal-root"
-            hx-swap="innerHTML"
-            aria-label="Add recurring rule">+ Recurring</button>
+    {# T-121 — paired "add" buttons kept inside a dedicated flex cluster so
+       they stay visually grouped on mobile where the panel header wraps. #}
+    <div class="panel__add-group">
+      <button type="button"
+              class="btn-ghost panel__add"
+              hx-get="/planned/new"
+              hx-target="#modal-root"
+              hx-swap="innerHTML"
+              aria-label="Add planned payment">+ Planned</button>
+      <button type="button"
+              class="btn-ghost panel__add panel__add--secondary"
+              hx-get="/recurring/new"
+              hx-target="#modal-root"
+              hx-swap="innerHTML"
+              aria-label="Add recurring rule">+ Recurring</button>
+    </div>
   </header>
   <div id="upcoming-list"
        class="upcoming-list"

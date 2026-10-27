@@ -385,6 +385,166 @@ def test_skip_next_404(client: TestClient) -> None:
     assert r.status_code == 404
 
 
+# ---------------------------------------------------------------------------
+# T-122 — Ledger Recurring row actions (ADR-0038)
+# ---------------------------------------------------------------------------
+def test_recurring_row_renders_next_due_column(
+    client: TestClient, ctx: dict[str, int], _migrated: Settings
+) -> None:
+    """T-122: the Ledger Recurring tab shows the rule's `next_due` column
+    (not `start_date`) with the five row actions in place."""
+    r = client.get("/ledger?view=recurring")
+    assert r.status_code == 200
+    # Table headers include the new column set.
+    for header in ("Cadence", "Next due", "Account", "Category", "Amount", "Active"):
+        assert f'<th scope="col">{header}</th>' in r.text or '<th scope="col" ' in r.text
+    # Row carries data-next-due with the rule's next_due date (not start_date).
+    expected_next = _get_rule_next_due(_migrated, ctx["rule"]).isoformat()
+    assert expected_next in r.text
+    # Five action buttons (promote / override-next / skip-next / edit / delete).
+    row_fragment_markers = [
+        f"/recurring/{ctx['rule']}/promote",
+        f"/recurring/{ctx['rule']}/overrides/new",
+        f"/recurring/{ctx['rule']}/skip-next",
+        f"/recurring/{ctx['rule']}/edit",
+        f"/recurring/{ctx['rule']}/deactivate",
+    ]
+    for marker in row_fragment_markers:
+        assert marker in r.text, marker
+
+
+def test_recurring_promote_modal_shows_override_banner(
+    client: TestClient, ctx: dict[str, int], _migrated: Settings
+) -> None:
+    """T-122: GET /recurring/{id}/promote renders the Override-applied
+    banner iff an override exists for the current next_due."""
+    next_due = _get_rule_next_due(_migrated, ctx["rule"])
+    # Baseline: no override yet, no banner.
+    r_before = client.get(f"/recurring/{ctx['rule']}/promote")
+    assert r_before.status_code == 200
+    assert "Override applied" not in r_before.text
+    # Install an override on next_due.
+    client.post(
+        f"/recurring/{ctx['rule']}/overrides",
+        data={
+            "occurrence_date": next_due.isoformat(),
+            "state": "overridden",
+            "amount_override": "123.45",
+        },
+    )
+    r_after = client.get(f"/recurring/{ctx['rule']}/promote")
+    assert r_after.status_code == 200
+    assert "Override applied" in r_after.text
+
+
+def test_recurring_promote_submit_advances_and_fires_triggers(
+    client: TestClient, ctx: dict[str, int], _migrated: Settings
+) -> None:
+    """T-122: POST /recurring/{id}/promote creates a txn, advances the row,
+    and emits the three HX-Trigger events."""
+    before = _get_rule_next_due(_migrated, ctx["rule"])
+    r = client.post(f"/recurring/{ctx['rule']}/promote", data={})
+    assert r.status_code == 200
+    payload = json.loads(r.headers["HX-Trigger"])
+    assert payload == {"ledger-stale": True, "forecast-stale": True, "budget-stale": True}
+    after = _get_rule_next_due(_migrated, ctx["rule"])
+    assert after > before
+    # One transaction created.
+    conn = get_connection(_migrated)
+    try:
+        rows = transactions_repo.list_filtered(conn, TransactionFilter())
+        assert len(rows) == 1
+    finally:
+        conn.close()
+
+
+def test_recurring_skip_next_advances_without_txn(
+    client: TestClient, ctx: dict[str, int], _migrated: Settings
+) -> None:
+    """T-122: Skip next advances next_due but does not create a transaction."""
+    before = _get_rule_next_due(_migrated, ctx["rule"])
+    r = client.post(f"/recurring/{ctx['rule']}/skip-next")
+    assert r.status_code == 200
+    after = _get_rule_next_due(_migrated, ctx["rule"])
+    assert after > before
+    conn = get_connection(_migrated)
+    try:
+        rows = transactions_repo.list_filtered(conn, TransactionFilter())
+        assert len(rows) == 0
+    finally:
+        conn.close()
+
+
+def test_recurring_delete_soft_deactivates(
+    client: TestClient, ctx: dict[str, int], _migrated: Settings
+) -> None:
+    """T-122: the Delete action (behavioural = deactivate soft delete) sets
+    active=0; the rule row stays in the DB so historical promotions can
+    still reference it."""
+    r = client.post(f"/recurring/{ctx['rule']}/deactivate")
+    assert r.status_code == 200
+    conn = get_connection(_migrated)
+    try:
+        rule = recurring_repo.find_rule(conn, ctx["rule"], include_deleted=True)
+        assert rule is not None
+        assert rule.active is False
+    finally:
+        conn.close()
+
+
+def test_recurring_overrides_new_form_renders(
+    client: TestClient, ctx: dict[str, int], _migrated: Settings
+) -> None:
+    """T-122: GET /recurring/{id}/overrides/new returns the slide-over
+    form pre-filled with the given occurrence_date."""
+    next_due = _get_rule_next_due(_migrated, ctx["rule"])
+    r = client.get(
+        f"/recurring/{ctx['rule']}/overrides/new",
+        params={"occurrence_date": next_due.isoformat()},
+    )
+    assert r.status_code == 200
+    assert f"/recurring/{ctx['rule']}/overrides" in r.text
+    # The occurrence_date hidden field is pre-filled.
+    assert f'value="{next_due.isoformat()}"' in r.text
+    assert "Override next occurrence" in r.text
+
+
+def test_recurring_overrides_new_form_404(client: TestClient) -> None:
+    r = client.get("/recurring/9999/overrides/new")
+    assert r.status_code == 404
+
+
+def test_recurring_overrides_new_form_defaults_to_next_due(
+    client: TestClient, ctx: dict[str, int], _migrated: Settings
+) -> None:
+    """When no `occurrence_date` is passed, the form defaults to the rule's
+    current `next_due` so the Ledger-row link stays usable."""
+    next_due = _get_rule_next_due(_migrated, ctx["rule"])
+    r = client.get(f"/recurring/{ctx['rule']}/overrides/new")
+    assert r.status_code == 200
+    assert f'value="{next_due.isoformat()}"' in r.text
+
+
+def test_recurring_row_amount_italic_when_override_amount_set(
+    client: TestClient, ctx: dict[str, int], _migrated: Settings
+) -> None:
+    """T-122: amount cell gains `<em data-amount-overridden>` when the
+    override on `next_due` carries an amount_override."""
+    next_due = _get_rule_next_due(_migrated, ctx["rule"])
+    client.post(
+        f"/recurring/{ctx['rule']}/overrides",
+        data={
+            "occurrence_date": next_due.isoformat(),
+            "state": "overridden",
+            "amount_override": "99.00",
+        },
+    )
+    r = client.get("/ledger?view=recurring")
+    assert r.status_code == 200
+    assert "data-amount-overridden" in r.text
+    assert "data-override-present" in r.text
+
+
 def test_promote_submit_backfilled_next_due(client: TestClient, _migrated: Settings) -> None:
     """Fresh-DB regression: a rule whose next_due was computed on insert
     (equivalent to the T-117 backfill path) promotes a transaction dated at

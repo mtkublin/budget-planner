@@ -1,0 +1,85 @@
+{# T-122 — Recurring per-occurrence override form (ADR-0038).
+
+   Rendered from `GET /recurring/{id}/overrides/new?occurrence_date=…` and
+   wrapped by `partials/_slideover.html` so it inherits the shared close
+   affordance + Esc + backdrop click. Posts to the existing
+   `POST /recurring/{id}/overrides` endpoint which emits
+   `HX-Trigger: ledger-stale, forecast-stale`.
+
+   `occurrence_date` is pre-filled read-only to `rule.next_due` so the row
+   partial that re-renders on success flags the override on the current
+   next due. State defaults to "overridden" (the common case for a tweak);
+   switching the radio to "skipped" nulls out the amount/description/date
+   overrides server-side. #}
+<div class="slide-over-root"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="recurring-override-title"
+     data-slideover
+     onclick="if(event.target===this){this.parentElement.innerHTML='';}">
+  <aside class="slide-over" tabindex="-1">
+    <header class="slide-over__header">
+      <h2 id="recurring-override-title" class="slide-over__title">Override next occurrence</h2>
+      <button type="button"
+              class="slide-over__close"
+              aria-label="Close"
+              onclick="this.closest('.slide-over-root').parentElement.innerHTML='';">×</button>
+    </header>
+    <div class="slide-over__body">
+      {% if rule %}
+        <form hx-post="/recurring/{{ rule.id }}/overrides"
+              hx-target="#recurring-{{ rule.id }}"
+              hx-swap="outerHTML"
+              class="form-stack"
+              data-reset-on-submit>
+          <p class="form-note" role="status">
+            Occurrence: <strong>{{ occurrence_date|date_fmt }}</strong>
+          </p>
+          <input type="hidden"
+                 name="occurrence_date"
+                 value="{{ occurrence_date|date_fmt }}">
+          <fieldset>
+            <legend>State</legend>
+            <label>
+              <input type="radio" name="state" value="overridden" checked>
+              Overridden (change amount / date / description)
+            </label>
+            <label>
+              <input type="radio" name="state" value="skipped">
+              Skipped (do not promote this occurrence)
+            </label>
+          </fieldset>
+          <label>
+            Amount override
+            <input type="text"
+                   name="amount_override"
+                   value="{{ existing.amount_override|money_major(account.currency if account else 'PLN') if existing and existing.amount_override else '' }}"
+                   inputmode="decimal"
+                   data-numeric
+                   placeholder="Leave blank to inherit">
+          </label>
+          <label>
+            Description override
+            <input type="text"
+                   name="description_override"
+                   value="{{ existing.description_override if existing and existing.description_override else '' }}"
+                   placeholder="Leave blank to inherit">
+          </label>
+          <label>
+            Date override
+            <input type="date"
+                   name="date_override"
+                   value="{{ existing.date_override|date_fmt if existing and existing.date_override else '' }}"
+                   placeholder="Leave blank to keep occurrence date">
+          </label>
+          {% include "partials/_form_errors.html" %}
+          <div class="form-stack__actions">
+            <button type="submit" class="btn-accent">Save override</button>
+          </div>
+        </form>
+      {% else %}
+        {% include "partials/_form_errors.html" %}
+      {% endif %}
+    </div>
+  </aside>
+</div>

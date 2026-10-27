@@ -631,23 +631,23 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 - `services/budget.month_summary` wires the new income-anchor service.
 - Test shape per `phase-12/T-119-decouple-planned-from-recurring.md`.
 
-### T-120 [S] Budget `committed_in_window` + `MonthTotals.committed_minor` + template surfaces → T-117, T-118, T-119, ADR-0039
+### ✅ T-120 [S] Budget `committed_in_window` + `MonthTotals.committed_minor` + template surfaces → T-117, T-118, T-119, ADR-0039
 - `MonthTotals` gains `committed_minor` field; `remaining_minor = budgeted − spent − committed`.
-- New `services/budget.committed_in_window(start, end)` summing unpromoted planned-expense + recurring-expense amounts in window (overrides applied; skipped excluded; transit/adjustment excluded).
-- `templates/budget/_hero.html` + `templates/home/_month_panel.html` render dim sub-line `"X committed (recurring + planned)"`.
-- Test shape per `phase-12/T-120-budget-committed-minor.md`; `frontend-visual-audit` on `/` + `/budget`.
+- New `services/budget.committed_in_window(start, end)` sums unpromoted planned-expense + active-recurring-expense amounts in window (overrides applied; skipped excluded; transit/adjustment excluded).
+- `templates/budget/index.html` + `templates/home/_month_panel.html` render dim sub-line `"X committed (recurring + planned)"`.
+- Tests pin `committed_in_window` + `month_summary` arithmetic + budget/home template rendering.
 
-### T-121 [P] Overview Upcoming unions planned + recurring; group `+ Planned` + `+ Recurring` buttons → T-119
-- `web/routers/home.py` Upcoming hydrator consumes `UpcomingItem.kind`.
+### ✅ T-121 [P] Overview Upcoming unions planned + recurring; group `+ Planned` + `+ Recurring` buttons → T-119
+- `web/routers/home.py` Upcoming hydrator consumes `UpcomingItem.kind` and surfaces `planned_id` / `rule_id` / `override_present` + per-kind affordances.
 - `templates/home/_upcoming_list.html` branches on `kind`: planned → promote-planned modal; recurring → Promote / Skip / Override buttons.
 - `templates/home/_upcoming_panel.html` wraps `+ Planned` + `+ Recurring` in `.panel__add-group` cluster + stylesheet.
-- Test shape per `phase-12/T-121-overview-upcoming-union.md`; `frontend-visual-audit` on `/`.
+- `tests/integration/web/test_home.py` pins planned + recurring union, overdue chip semantics, `+ Recurring` wiring, grouped-cluster markup.
 
-### T-122 [P] Ledger Recurring row: Promote / Override-next / Skip-next / Delete + `next_due` column → T-118
-- `partials/recurring/_row.html` renders `next_due` column (bold if override on `next_due`); amount italic if override overrides amount.
-- Actions: Promote (opens `_promote_modal.html`), Override-next (reuses existing override form prefilled with `occurrence_date=next_due`), Skip-next (`POST .../skip-next` with `hx-confirm`), Edit (unchanged), Delete (renames Deactivate → Delete).
-- New `partials/recurring/_promote_modal.html` slide-over with editable fields + "Override applied" banner.
-- Test shape per `phase-12/T-122-ledger-recurring-actions.md`; `frontend-visual-audit` on `/ledger?view=recurring`.
+### ✅ T-122 [P] Ledger Recurring row: Promote / Override-next / Skip-next / Delete + `next_due` column → T-118
+- `partials/recurring/_row.html` renders `next_due` column + Promote / Override-next / Skip-next / Edit / Delete actions.
+- `partials/recurring/_override_form.html` new slide-over wrapper for the Override-next affordance; reuses existing `POST /recurring/{id}/overrides` endpoint.
+- `_hydrate_recurring_rows` surfaces `override_present` + effective-amount for the current `next_due`.
+- `tests/integration/web/test_recurring.py` pins the five actions + `next_due` column population.
 
 ### ✅ T-123 [P] Account form credit-limit initial-render bug → T-116
 - `partials/accounts/_form.html`: rewrote the sync `<script>` to find the form via `[data-account-form]` attribute (position-independent, HTMX-swap-safe), run on initial parse + scoped `htmx:afterSwap`, idempotent via `form.dataset.limitWired`; also toggles inline `style.display` so `.form-stack label { display: flex }` no longer outweighs UA `[hidden]{display:none}`.

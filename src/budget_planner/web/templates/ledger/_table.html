@@ -27,22 +27,28 @@
         <caption class="sr-only">Ledger — {{ view }}</caption>
         <thead>
           <tr>
-            <th scope="col">Date</th>
-            <th scope="col">Direction</th>
-            <th scope="col" class="text-right">Amount</th>
-            <th scope="col">Category</th>
-            <th scope="col">Account</th>
-            <th scope="col">Description</th>
-            {% if view == "planned" %}
-              <th scope="col">Promoted?</th>
-              <th scope="col" class="text-right">Actions</th>
-            {% elif view == "recurring" %}
+            {% if view == "recurring" %}
               <th scope="col">Cadence</th>
               <th scope="col">Next due</th>
+              <th scope="col">Account</th>
+              <th scope="col">Category</th>
+              <th scope="col" class="text-right">Amount</th>
+              <th scope="col">Active</th>
               <th scope="col">Overrides</th>
               <th scope="col" class="text-right">Actions</th>
             {% else %}
-              <th scope="col" class="text-right">Actions</th>
+              <th scope="col">Date</th>
+              <th scope="col">Direction</th>
+              <th scope="col" class="text-right">Amount</th>
+              <th scope="col">Category</th>
+              <th scope="col">Account</th>
+              <th scope="col">Description</th>
+              {% if view == "planned" %}
+                <th scope="col">Promoted?</th>
+                <th scope="col" class="text-right">Actions</th>
+              {% else %}
+                <th scope="col" class="text-right">Actions</th>
+              {% endif %}
             {% endif %}
           </tr>
         </thead>
@@ -113,14 +119,24 @@
               </tr>
             {% elif view == "recurring" %}
               <tr id="recurring-{{ row.id }}" class="row">
-                <td class="whitespace-nowrap font-semibold">{{ row.start_date|date_fmt }}</td>
-                <td>{% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}</td>
-                <td class="text-right"><span class="tabular-nums">{{ row.default_amount|money(row.currency) }}</span></td>
-                <td>{{ row.category.name if row.category else '' }}</td>
-                <td>{{ row.account.name if row.account else '' }}</td>
-                <td class="text-muted">{{ row.default_description }}</td>
                 <td data-cadence>{{ row.cadence.value|capitalize }}</td>
-                <td class="whitespace-nowrap tabular-nums" data-next-due>{{ row.next_due|date_fmt }}</td>
+                <td class="whitespace-nowrap tabular-nums" data-next-due>
+                  {% if row.override_present %}
+                    <strong data-override-present>{{ row.next_due|date_fmt }}</strong>
+                  {% else %}
+                    {{ row.next_due|date_fmt }}
+                  {% endif %}
+                </td>
+                <td>{{ row.account.name if row.account else '' }}</td>
+                <td>{{ row.category.name if row.category else '' }}</td>
+                <td class="text-right">
+                  {% if row.amount_overridden %}
+                    <em data-amount-overridden class="tabular-nums">{{ row.default_amount|money(row.currency) }}</em>
+                  {% else %}
+                    <span class="tabular-nums">{{ row.default_amount|money(row.currency) }}</span>
+                  {% endif %}
+                </td>
+                <td>{{ 'Yes' if row.active else 'No' }}</td>
                 <td>
                   <details class="overrides-accordion">
                     <summary>{{ row.overrides|length }} override{{ '' if row.overrides|length == 1 else 's' }}</summary>
@@ -140,6 +156,22 @@
                 </td>
                 <td class="text-right space-x-2 text-sm">
                   <button type="button"
+                          hx-get="/recurring/{{ row.id }}/promote"
+                          hx-target="#modal-root"
+                          hx-swap="innerHTML"
+                          aria-label="Promote rule {{ row.id }}">Promote</button>
+                  <button type="button"
+                          hx-get="/recurring/{{ row.id }}/overrides/new?occurrence_date={{ row.next_due }}"
+                          hx-target="#modal-root"
+                          hx-swap="innerHTML"
+                          aria-label="Override next occurrence of rule {{ row.id }}">Override next…</button>
+                  <button type="button"
+                          hx-post="/recurring/{{ row.id }}/skip-next"
+                          hx-target="#recurring-{{ row.id }}"
+                          hx-swap="outerHTML"
+                          hx-confirm="Skip {{ row.next_due }}?"
+                          aria-label="Skip next occurrence of rule {{ row.id }}">Skip next</button>
+                  <button type="button"
                           hx-get="/recurring/{{ row.id }}/edit"
                           hx-target="#modal-root"
                           hx-swap="innerHTML"
@@ -149,8 +181,8 @@
                             hx-post="/recurring/{{ row.id }}/deactivate"
                             hx-target="#recurring-{{ row.id }}"
                             hx-swap="outerHTML"
-                            hx-confirm="Deactivate this rule?"
-                            aria-label="Deactivate rule {{ row.id }}">Delete</button>
+                            hx-confirm="Delete this recurring rule? Past promotions are kept."
+                            aria-label="Delete rule {{ row.id }}">Delete</button>
                   {% endif %}
                 </td>
               </tr>

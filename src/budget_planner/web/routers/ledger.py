@@ -135,6 +135,17 @@ def _hydrate_recurring_rows(conn: sqlite3.Connection) -> list[dict[str, Any]]:
         acc = accts.get(rule.account_id)
         cat = cats.get(rule.category_id)
         overrides = recurring_repo.list_overrides(conn, rule.id)
+        # T-122: locate the override (if any) on the current `next_due` so the
+        # row can bold / italicise the appropriate cells.
+        override_on_next_due = next(
+            (ov for ov in overrides if ov.occurrence_date == rule.next_due),
+            None,
+        )
+        effective_amount_minor = (
+            override_on_next_due.amount_override
+            if override_on_next_due is not None and override_on_next_due.amount_override is not None
+            else rule.default_amount
+        )
         out.append(
             {
                 "id": rule.id,
@@ -147,6 +158,13 @@ def _hydrate_recurring_rows(conn: sqlite3.Connection) -> list[dict[str, Any]]:
                 "account": acc,
                 "category": cat,
                 "overrides": overrides,
+                "override_on_next_due": override_on_next_due,
+                "override_present": override_on_next_due is not None,
+                "amount_overridden": (
+                    override_on_next_due is not None
+                    and override_on_next_due.amount_override is not None
+                ),
+                "effective_amount_minor": effective_amount_minor,
                 "currency": acc.currency if acc else "",
             }
         )

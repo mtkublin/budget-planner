@@ -1,4 +1,4 @@
-"""Tests for the budget service (T-024)."""
+"""Tests for the budget service (T-024 / T-120)."""
 
 from __future__ import annotations
 
@@ -14,10 +14,25 @@ from budget_planner.domain.budgets import (
     NewBudgetRecurringOverride,
 )
 from budget_planner.domain.categories import NewCategory
-from budget_planner.domain.enums import Direction
+from budget_planner.domain.enums import Cadence, Direction, OverrideState
+from budget_planner.domain.planned import NewPlannedTransaction, PlannedFilter
+from budget_planner.domain.preferences import PREF_INCOME_ANCHOR_CATEGORY_ID
+from budget_planner.domain.recurring import (
+    NewRecurringOverride,
+    NewRecurringRule,
+    PatchRecurringRule,
+)
 from budget_planner.domain.transactions import NewTransaction, TransactionFilter
-from budget_planner.repositories import accounts, budgets, categories, transactions
-from budget_planner.services import budget as bs
+from budget_planner.repositories import (
+    accounts,
+    budgets,
+    categories,
+    planned,
+    preferences as preferences_repo,
+    recurring,
+    transactions,
+)
+from budget_planner.services import budget as bs, recurring as recurring_svc
 
 
 @pytest.fixture
@@ -228,3 +243,295 @@ def test_sort_order_budgeted_first_then_alpha(
 def test_prev_year_month_rollover_december() -> None:
     assert bs.prev_year_month(2026, 1) == (2025, 12)
     assert bs.prev_year_month(2026, 7) == (2026, 6)
+
+
+# ---------------------------------------------------------------------------
+# T-120 — committed_in_window + MonthTotals.committed_minor
+# ---------------------------------------------------------------------------
+def test_committed_defaults_to_zero_without_recurring_or_planned(
+    conn: sqlite3.Connection, seed: dict[str, int]
+) -> None:
+    """Phase 9 budget fixtures have no planned/recurring rows → committed=0."""
+    s = bs.month_summary(conn, 2026, 1, today=date(2026, 1, 15))
+    assert s.totals.committed_minor == 0
+    # Regression: remaining is still budgeted - spent when committed is zero.
+    assert s.totals.remaining_minor == 470_000 - (310_000 + 70_000)
+
+
+@pytest.fixture
+def committed_world(conn: sqlite3.Connection) -> dict[str, int]:
+    """A minimal expense + anchor world for exercising committed logic."""
+    checking = accounts.create(
+        conn, NewAccount(name="Checking", currency="PLN", opening_balance=0)
+    ).id
+    groceries = categories.create(
+        conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+    ).id
+    rent = categories.create(conn, NewCategory(name="Rent", direction=Direction.EXPENSE)).id
+    salary = categories.create(conn, NewCategory(name="Salary", direction=Direction.INCOME)).id
+    # Baseline budgets so budgeted_total != 0 (otherwise committed is forced to 0).
+    budgets.set_default(conn, NewBudgetDefault(category_id=groceries, amount=100_000))
+    budgets.set_default(conn, NewBudgetDefault(category_id=rent, amount=300_000))
+    return {
+        "checking": checking,
+        "groceries": groceries,
+        "rent": rent,
+        "salary": salary,
+    }
+
+
+def test_committed_in_window_planned_only(
+    conn: sqlite3.Connection, committed_world: dict[str, int]
+) -> None:
+    planned.create(
+        conn,
+        NewPlannedTransaction(
+            operation_date=date(2026, 2, 10),
+            category_id=committed_world["groceries"],
+            account_id=committed_world["checking"],
+            amount=12_000,
+            description="Market",
+        ),
+    )
+    # Unpromoted planned expense inside [Feb 1, Feb 15).
+    total = bs.committed_in_window(conn, start=date(2026, 2, 1), end=date(2026, 2, 15))
+    assert total == 12_000
+    # Promoted-row counterpart must NOT be counted.
+    planned.create(
+        conn,
+        NewPlannedTransaction(
+            operation_date=date(2026, 2, 12),
+            category_id=committed_world["groceries"],
+            account_id=committed_world["checking"],
+            amount=99_000,
+        ),
+    )
+    # Flip the second row to promoted — it has to be excluded.
+    rows = planned.list_filtered(
+        conn,
+        PlannedFilter(promoted=False, category_ids=(committed_world["groceries"],)),
+    )
+    assert rows
+    # Reuse the real stamp-promotion path so repo invariants fire.
+    txn = transactions.create(
+        conn,
+        NewTransaction(
+            operation_date=date(2026, 2, 12),
+            category_id=committed_world["groceries"],
+            account_id=committed_world["checking"],
+            amount=99_000,
+        ),
+    )
+    planned.stamp_promotion(conn, rows[-1].id, txn.id)
+    total_after = bs.committed_in_window(conn, start=date(2026, 2, 1), end=date(2026, 2, 15))
+    # Only the first (unpromoted) planned row survives.
+    assert total_after == 12_000
+
+
+def test_committed_in_window_recurring_monthly_inside_window(
+    conn: sqlite3.Connection, committed_world: dict[str, int]
+) -> None:
+    rule = recurring.create_rule(
+        conn,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=date(2026, 2, 5),
+            category_id=committed_world["rent"],
+            account_id=committed_world["checking"],
+            default_amount=300_000,
+            default_description="Rent",
+        ),
+    )
+    # Pin next_due into the test window.
+    recurring.update_rule(conn, rule.id, PatchRecurringRule(next_due=date(2026, 2, 5)))
+    total = bs.committed_in_window(conn, start=date(2026, 2, 1), end=date(2026, 2, 28))
+    assert total == 300_000
+
+
+def test_committed_in_window_recurring_end_date_cuts_mid_window(
+    conn: sqlite3.Connection, committed_world: dict[str, int]
+) -> None:
+    """A recurring rule whose end_date falls inside the window excludes
+    occurrences after end_date."""
+    recurring.create_rule(
+        conn,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=date(2026, 2, 5),
+            end_date=date(2026, 2, 20),
+            category_id=committed_world["rent"],
+            account_id=committed_world["checking"],
+            default_amount=300_000,
+            default_description="Rent",
+        ),
+    )
+    # end_date = Feb 20; window extends to Mar 10 — the single Feb occurrence
+    # is in; the hypothetical Mar occurrence is cut by end_date.
+    total = bs.committed_in_window(conn, start=date(2026, 2, 1), end=date(2026, 3, 10))
+    assert total == 300_000
+
+
+def test_committed_in_window_override_adjusts_amount(
+    conn: sqlite3.Connection, committed_world: dict[str, int]
+) -> None:
+    rule = recurring.create_rule(
+        conn,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=date(2026, 2, 5),
+            category_id=committed_world["rent"],
+            account_id=committed_world["checking"],
+            default_amount=300_000,
+            default_description="Rent",
+        ),
+    )
+    recurring.update_rule(conn, rule.id, PatchRecurringRule(next_due=date(2026, 2, 5)))
+    recurring.upsert_override(
+        conn,
+        NewRecurringOverride(
+            rule_id=rule.id,
+            occurrence_date=date(2026, 2, 5),
+            state=OverrideState.OVERRIDDEN,
+            amount_override=250_000,
+        ),
+    )
+    total = bs.committed_in_window(conn, start=date(2026, 2, 1), end=date(2026, 2, 28))
+    assert total == 250_000
+
+
+def test_committed_in_window_skipped_override_excluded(
+    conn: sqlite3.Connection, committed_world: dict[str, int]
+) -> None:
+    rule = recurring.create_rule(
+        conn,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=date(2026, 2, 5),
+            category_id=committed_world["rent"],
+            account_id=committed_world["checking"],
+            default_amount=300_000,
+        ),
+    )
+    recurring.update_rule(conn, rule.id, PatchRecurringRule(next_due=date(2026, 2, 5)))
+    recurring.upsert_override(
+        conn,
+        NewRecurringOverride(
+            rule_id=rule.id,
+            occurrence_date=date(2026, 2, 5),
+            state=OverrideState.SKIPPED,
+        ),
+    )
+    total = bs.committed_in_window(conn, start=date(2026, 2, 1), end=date(2026, 2, 28))
+    assert total == 0
+
+
+def test_committed_in_window_excludes_non_expense_directions(
+    conn: sqlite3.Connection, committed_world: dict[str, int]
+) -> None:
+    """Income + transit + adjustment recurring/planned must not be counted."""
+    # Planned income row — must be excluded.
+    planned.create(
+        conn,
+        NewPlannedTransaction(
+            operation_date=date(2026, 2, 10),
+            category_id=committed_world["salary"],
+            account_id=committed_world["checking"],
+            amount=500_000,
+        ),
+    )
+    # Recurring income rule — must be excluded.
+    rule = recurring.create_rule(
+        conn,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=date(2026, 2, 1),
+            category_id=committed_world["salary"],
+            account_id=committed_world["checking"],
+            default_amount=500_000,
+        ),
+    )
+    recurring.update_rule(conn, rule.id, PatchRecurringRule(next_due=date(2026, 2, 1)))
+    total = bs.committed_in_window(conn, start=date(2026, 2, 1), end=date(2026, 2, 28))
+    assert total == 0
+
+
+def test_committed_in_window_empty_range_short_circuits(
+    conn: sqlite3.Connection, committed_world: dict[str, int]
+) -> None:
+    total = bs.committed_in_window(conn, start=date(2026, 2, 15), end=date(2026, 2, 15))
+    assert total == 0
+
+
+def test_month_summary_recurring_reduces_remaining_and_daily_spend(
+    conn: sqlite3.Connection, committed_world: dict[str, int]
+) -> None:
+    """One recurring expense due inside window shaves remaining + daily spend."""
+    preferences_repo.upsert(conn, 1, PREF_INCOME_ANCHOR_CATEGORY_ID, str(committed_world["salary"]))
+    planned.create(
+        conn,
+        NewPlannedTransaction(
+            operation_date=date(2026, 2, 25),
+            category_id=committed_world["salary"],
+            account_id=committed_world["checking"],
+            amount=500_000,
+        ),
+    )
+    rule = recurring.create_rule(
+        conn,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=date(2026, 2, 20),
+            category_id=committed_world["rent"],
+            account_id=committed_world["checking"],
+            default_amount=300_000,
+        ),
+    )
+    recurring.update_rule(conn, rule.id, PatchRecurringRule(next_due=date(2026, 2, 20)))
+
+    s = bs.month_summary(conn, 2026, 2, today=date(2026, 2, 15))
+    # Window = [Feb 15, Feb 25). Recurring Feb 20 is in; rent 300_000.
+    assert s.totals.committed_minor == 300_000
+    # Baseline budgeted = 100k + 300k = 400k; spent_this_month = 0.
+    assert s.totals.budgeted_minor == 400_000
+    assert s.totals.spent_minor == 0
+    assert s.totals.remaining_minor == 400_000 - 300_000
+    assert s.days_until_next_income == 10
+    # 100_000 / 10 = 10_000 banker's-round.
+    assert s.left_daily_spend_minor == 10_000
+
+
+def test_month_summary_promote_moves_committed_into_spent_zero_net(
+    conn: sqlite3.Connection, committed_world: dict[str, int]
+) -> None:
+    """Promoting a recurring row flips committed → spent; remaining unchanged."""
+    preferences_repo.upsert(conn, 1, PREF_INCOME_ANCHOR_CATEGORY_ID, str(committed_world["salary"]))
+    planned.create(
+        conn,
+        NewPlannedTransaction(
+            operation_date=date(2026, 2, 25),
+            category_id=committed_world["salary"],
+            account_id=committed_world["checking"],
+            amount=500_000,
+        ),
+    )
+    rule = recurring.create_rule(
+        conn,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=date(2026, 2, 20),
+            category_id=committed_world["rent"],
+            account_id=committed_world["checking"],
+            default_amount=300_000,
+        ),
+    )
+    recurring.update_rule(conn, rule.id, PatchRecurringRule(next_due=date(2026, 2, 20)))
+
+    before = bs.month_summary(conn, 2026, 2, today=date(2026, 2, 15))
+    recurring_svc.promote_recurring(conn, rule.id, recurring_svc.PromotionEdits())
+    after = bs.month_summary(conn, 2026, 2, today=date(2026, 2, 15))
+
+    # Committed drops by the promoted amount; spent rises by the same.
+    assert after.totals.committed_minor == before.totals.committed_minor - 300_000
+    assert after.totals.spent_minor == before.totals.spent_minor + 300_000
+    # Net effect on remaining is zero (budgeted - spent - committed invariant).
+    assert after.totals.remaining_minor == before.totals.remaining_minor
