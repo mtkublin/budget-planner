@@ -83,14 +83,16 @@ def test_ledger_index_renders(client: TestClient, seeded: dict[str, int]) -> Non
     soup = BeautifulSoup(r.text, "html.parser")
     seg = soup.select_one("[data-ledger-views]")
     assert seg is not None and isinstance(seg, Tag)
-    buttons = seg.select("button[data-view]")
-    assert len(buttons) == _SEG_COUNT
-    views = [b.get("data-view") for b in buttons]
+    # ADR-0028 — segmented is anchor-based full-page nav, not htmx buttons.
+    items = seg.select("a[data-view]")
+    assert len(items) == _SEG_COUNT
+    views = [a.get("data-view") for a in items]
     assert views == ["actual", "planned", "recurring"]
-    # Default active view is actual.
-    actual_btn = seg.select_one('button[data-view="actual"]')
-    assert actual_btn is not None and isinstance(actual_btn, Tag)
-    assert actual_btn.get("aria-pressed") == "true"
+    # Default active view is actual; active tab carries aria-current="page".
+    actual_a = seg.select_one('a[data-view="actual"]')
+    assert actual_a is not None and isinstance(actual_a, Tag)
+    assert actual_a.get("aria-current") == "page"
+    assert actual_a.get("href") == "/ledger?view=actual"
 
 
 def test_ledger_view_actual(client: TestClient, seeded: dict[str, int]) -> None:

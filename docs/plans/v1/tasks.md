@@ -518,7 +518,7 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 - `card` + `chip` scaffolds deleted. Both inventions required new CSS tokens / classes not present in `app.css`; introducing them is a design decision outside the Phase 10 toolchain scope. A follow-up ADR (likely ADR-0029) is needed before those two macros reappear — call site inventory for both lives in ADR-0023 context and the Phase 6 design-direction note in `app.css`.
 - Visual-regression suite green across the full 12 snapshots; fast suite (`upcoming`, `slideover`, `fab`, `home`) 28 passed.
 
-### T-107 [S] Ledger segmented control → full-page nav → ADR-0028
+### ✅ T-107 [S] Ledger segmented control → full-page nav → ADR-0028
 - Supersedes implementation approach in T-092 for segmented tabs only; filter form and pagination keep their htmx partial swaps.
 - `src/budget_planner/web/templates/ledger/index.html`: replace segmented `<button>` elements with `<a class="segmented__btn" href="/ledger?view={{ v }}">`; set `aria-current="page"` on the active tab; drop `hx-get`, `hx-target`, `hx-swap`, `hx-push-url`, `aria-pressed`, `data-view` from the segmented control.
 - `src/budget_planner/web/static/js/shortcuts.js` (or wherever the `[` / `]` listener lives): switch from clicking the segmented button to `location.assign(nextHref)` so the full-document render path runs through the same code as the click.

@@ -60,3 +60,9 @@ node_modules/
 
 # Visual-audit artifacts
 /tmp-fe-audit/
+
+# Local-only scratch dir (research, drafts, non-tracked artifacts)
+/local/
+
+# Claude Code worktrees (ephemeral per-agent working copies)
+.claude/worktrees/
