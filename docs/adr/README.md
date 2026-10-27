@@ -33,3 +33,5 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0027 | [Frontend Toolchain Hardening — Local Tailwind, Stylelint, Partials, Visual Regression](0027-frontend-toolchain-hardening.md) |
 | 0028 | [Ledger Segmented Control — Full Navigation, Not Partial Swap](0028-ledger-segmented-full-nav.md) |
 | 0029 | [SQLite Connection Threading — `check_same_thread=False`, Per-Request Connection](0029-sqlite-connection-threading.md) |
+| 0030 | [Shared Form Interaction Primitives](0030-shared-form-interaction-primitives.md) |
+| 0031 | [Budget Page Composition v2: Income Anchor to Settings, Explicit "+ Rule" Create Affordance](0031-budget-page-composition-v2.md) |

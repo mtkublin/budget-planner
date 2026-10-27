@@ -534,6 +534,65 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 
 ---
 
+## Phase 11 — Shared Form Primitives + Overview Enhancements + Budget Page v2 + Fixes
+
+> Driven by field-use report 2026-10-27. Consolidated workstream: Budget + Account + Overview changes compose from the same shared primitives (ADR-0030); two surgical fixes (ledger row actions + transit lock) ride on the same phase. No data-model change; web-layer only. Decisions: [ADR-0030](../../adr/0030-shared-form-interaction-primitives.md), [ADR-0031](../../adr/0031-budget-page-composition-v2.md). Detailed plan: [`phase-11/README.md`](phase-11/README.md).
+
+### T-110 [S] ADR-0030 + ADR-0031 + requirements + Phase 11 docs scaffolding
+- Write [`docs/adr/0030-shared-form-interaction-primitives.md`](../../adr/0030-shared-form-interaction-primitives.md), [`docs/adr/0031-budget-page-composition-v2.md`](../../adr/0031-budget-page-composition-v2.md), update [`docs/adr/README.md`](../../adr/README.md).
+- Update `docs/requirements.md`: F1.1 (shared primitives), F2.1 (slide-over + currency combobox + conditional credit limit + clear-on-save + "Credit (liability)" relabel), F2.5 (reconcile close affordance), F4.5 (+ Rule affordance), F4.6/F4.7 (anchor placement), §3.9 (Settings Preferences tab + Overview +Recurring + form primitives).
+- Add Phase 11 directory with task stubs (`phase-11/README.md`, `phase-11/T-111-*.md`, `phase-11/T-112-*.md`, `phase-11/T-113-*.md`).
+- Append dated line to `docs/CHANGELOG.md`.
+- Docs only; no code.
+
+### T-111 [S] Shared form primitives (combobox / digit-only amount / default date / clear-on-save / close affordance / conditional field) → T-110, ADR-0030
+- New `src/budget_planner/web/templates/_partials/combobox.html` macro + `src/budget_planner/web/static/js/combobox.js` (~80 lines).
+- New `src/budget_planner/web/static/js/numeric-input.js` (~30 lines) + `data-numeric` opt-in on every amount input across transactions / planned / recurring / reconcile / account opening & credit-limit / budget rule.
+- Jinja global `today_local()` wired from `settings.display_timezone` (ADR-0007); every create partial sets `value="{{ today_local()|date_fmt }}"` on its date input.
+- `data-reset-on-submit` attribute + `htmx:afterRequest` listener in `base.html` scripts block clears create forms on 2xx response and re-fires the default-date assignment.
+- `partials/accounts/_reconcile_modal.html` migrated to the shared `partials/_slideover.html` wrapper so it inherits the `.slide-over__close` button + Esc + backdrop click + overlay-stack cooperation.
+- `partials/accounts/_form.html` renames label `"Credit card (liability)"` → `"Credit (liability)"`; the credit-limit field renders with `hidden` + `aria-hidden="true"` + `disabled` when the toggle is off; the inline script flips all three in lockstep.
+- `domain/money.py` gains `ISO_4217_CURRENCIES: tuple[str, ...]` (~180 codes); the Account form currency field becomes a combobox over it.
+- Transaction, planned, recurring form `<select>`s for category / account / dest become comboboxes composed from the shared macro.
+- `frontend-visual-audit` sweep on `/accounts`, `/ledger?view=actual|planned|recurring`, `/budget` at 1440/1024/375.
+- Visual-regression baselines refreshed only on affected routes.
+
+### T-112 [S] Overview enhancements (left-per-day + Upcoming unions planned+recurring + "+ Recurring" button) → T-110
+- `templates/home/_month_panel.html` adds a `panel__hero-sub` line with `summary.left_daily_spend_minor` (rendered as `"— / day"` when `None`), feeding from the same `MonthSummary` the Budget hero already consumes.
+- `routers/home.py` injects `today` into `services.budget.month_summary(..., today=…)` using `ZoneInfo(settings.display_timezone)` per ADR-0007; already true per T-100 but asserted by a new regression test.
+- `templates/home/_upcoming_panel.html` keeps `+ Planned`; adds `+ Recurring` button (`hx-get="/recurring/new" hx-target="#modal-root" hx-swap="innerHTML"`, mirrored markup + a11y attrs).
+- No change to `services.planned.list_planned` — the union already covers persisted + virtual (ADR-0013); the fragment response is unchanged.
+- Visual-regression baseline refreshed on `/`.
+
+### T-113 [S] Budget page v2 (Income anchor → Settings · Preferences; Rules redesign; Yearly table) → T-110, T-111, ADR-0031
+- Delete `templates/budget/index.html` Section 2b ("Income anchor"); keep the "Left to spend per day" caption and append an inline `"Change anchor →"` link to `/settings?tab=prefs#income-anchor`.
+- `templates/settings/_prefs.html` gains the income anchor `<section>` (anchor id `income-anchor`), reusing the existing form markup verbatim. `POST /budget/preferences/income-anchor` URL unchanged.
+- Rewrite `templates/budget/index.html` Rules section: scrap the three-column table; new row = `category + default amount input (inline, submits to existing POST /budget/defaults/{category_id}) + Override… button`.
+- `Override…` button is `<button hx-get="/budget/rules/{category_id}/overrides/new" hx-target="#modal-root" hx-swap="innerHTML">`; new partial `partials/budget/_override_form.html` wrapped by `partials/_slideover.html` carries tier radio (recurring / one-off), `<select>` month 1-12 (visible when either tier chosen), year input (visible when `tier=one-off` per ADR-0030 §6 conditional pattern), digit-only amount, hidden `category_id`.
+- New `POST /budget/rules/{category_id}/overrides` router handler acts as a thin tier-dispatcher that calls the existing `budgets.set_recurring_override` or `budgets.set_one_off_override` repository functions. Emits `HX-Trigger: budget-stale`. 422 re-renders the form fragment, keeping the slide-over open.
+- New Yearly budget table section (`#budget-yearly`) under Rules: rows = live expense categories, 12 month columns + year selector header, cells render F4.2-resolved values with typography encoding tier dominance (bold = one-off, italic = recurring, plain = default, em-dash = unset). Row + column totals in footers.
+- Cell edit: click swaps the readout to an inline amount input (digit-only); Enter / blur submits to the existing `POST /budget/one-off/{category_id}/{year}/{month}`; empty value clears the one-off override.
+- New HTMX fragment `GET /budget/yearly?year=…` returns the yearly table partial for year switches without full-page reload. Year defaults to current year in `display_timezone` (ADR-0007).
+- Service helper (`services.budget.yearly_grid(conn, year) -> list[YearlyRow]`) returns per-category Jan..Dec resolved values + per-tier origin tag; pure projection over existing `budget_defaults` / `budget_recurring_overrides` / `budget_one_off_overrides` repositories. No new persistence.
+- Existing integration tests covering the three-column Rules table + the on-/budget anchor selector move / rewrite against the new row shape + `tests/integration/web/test_settings.py`. New tests cover: Override dispatcher (recurring + one-off branches + 422), yearly grid resolution (default-only / recurring-wins / one-off-wins / all-unset), yearly cell edit path, year switch fragment.
+- `frontend-visual-audit` sweep on `/budget` + `/settings?tab=prefs` at 1440/1024/375 before marking done.
+
+### T-114 [P] Ledger row actions: fix edit regression + add Delete affordance → T-110
+- **Bug.** Clicking **Edit** on a ledger row removes the row from the DOM instead of swapping it with its edit form. Root cause (to confirm): the current `_row.html` edit button HTMX wiring targets the row with `hx-swap="outerHTML"` against an endpoint response that is intended as a form fragment but currently renders as the empty-body create partial (post Phase 7/8 refactor fallout). Investigation + fix in the ledger row partial(s): `partials/transactions/_row.html`, `partials/planned/_row.html`, `partials/recurring/_row.html`.
+- **Add Delete.** Every ledger row gains a `<button>` Delete affordance next to Edit — `hx-post="/transactions/{id}/delete"` (resp. `/planned/{id}/delete`, `/recurring/{id}/deactivate`) with `hx-confirm="Delete this row?"` and `hx-target` + `hx-swap="outerHTML swap:200ms"` so the row visually drops on success. The soft-delete endpoints already exist (T-031 / T-034 / T-035); this task is affordance-only.
+- Regression test on each ledger view: click Edit → row swaps to form fragment carrying hydrated values; click Delete → row disappears, server records a soft-delete + audit entry.
+- Visual-regression baselines on `/ledger?view=actual|planned|recurring` refreshed to pick up the new Delete button.
+- `frontend-visual-audit` sweep on the three ledger views at 1440/1024/375.
+
+### T-115 [P] Lock `transit` direction out of user category creation → T-110
+- `src/budget_planner/web/templates/settings/_categories.html` + `partials/categories/_form.html`: narrow the direction `<select>` to `income` and `expense` only (today it still exposes `transit`).
+- `routers/categories.py` + `services/categories.py` (or equivalent create path): reject `direction ∈ {transit, adjustment}` on the create / update path with 422 (today only `adjustment` is explicitly blocked). Message: `"transit and adjustment directions are reserved for system categories"`.
+- Regression test: `POST /categories` with `direction=transit` returns 422 and no row is inserted; audit log untouched.
+- Requirement reference: §2.1 F1.6 (narrowed in T-110).
+- Seeded `Transit` system category remains the only transit-direction row in the database.
+
+---
+
 ## Phase 7 — Deferred to v2
 
 - CSV import with pluggable parsers.
