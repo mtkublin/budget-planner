@@ -15,12 +15,15 @@ from budget_planner.domain.recurring import (
     NewRecurringOverride,
     NewRecurringRule,
     PatchRecurringRule,
+    RecurringOverride,
 )
 from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
     recurring as recurring_repo,
 )
+from budget_planner.services import recurring as recurring_svc
+from budget_planner.services._promotion import UnsupportedDirectionError, ValidationError
 from budget_planner.web.deps import get_db
 from budget_planner.web.htmx import trigger
 from budget_planner.web.rendering import render
@@ -363,4 +366,183 @@ def delete_override(
         category=cat,
     )
     trigger(html, "forecast-stale", "ledger-stale")
+    return html
+
+
+# ---------------------------------------------------------------------------
+# T-118 — Promote / Skip-next (ADR-0038)
+# ---------------------------------------------------------------------------
+def _override_on_next_due(
+    conn: sqlite3.Connection,
+    rule_id: int,
+    next_due: date,
+) -> RecurringOverride | None:
+    """Return the override whose canonical ``occurrence_date == next_due``."""
+    for override in recurring_repo.list_overrides(conn, rule_id):
+        if override.occurrence_date == next_due:
+            return override
+    return None
+
+
+def _render_promote_modal(
+    request: Request,
+    conn: sqlite3.Connection,
+    rule_id: int,
+    *,
+    errors: dict[str, str] | None = None,
+    status_code: int = 200,
+) -> Response:
+    rule = recurring_repo.find_rule(conn, rule_id)
+    if rule is None:
+        return render(
+            request,
+            "partials/recurring/_promote_modal.html",
+            rule=None,
+            account=None,
+            override=None,
+            prefill_date=None,
+            prefill_amount_minor=None,
+            prefill_description="",
+            errors={"rule": "not found"},
+            status_code=404,
+        )
+    override = _override_on_next_due(conn, rule_id, rule.next_due)
+    account = accounts_repo.find_by_id(conn, rule.account_id, include_deleted=True)
+    prefill_date = rule.next_due
+    prefill_amount = rule.default_amount
+    prefill_description = rule.default_description
+    if override is not None:
+        if override.date_override is not None:
+            prefill_date = override.date_override
+        if override.amount_override is not None:
+            prefill_amount = override.amount_override
+        if override.description_override is not None:
+            prefill_description = override.description_override
+    return render(
+        request,
+        "partials/recurring/_promote_modal.html",
+        rule=rule,
+        account=account,
+        override=override,
+        prefill_date=prefill_date,
+        prefill_amount_minor=prefill_amount,
+        prefill_description=prefill_description,
+        errors=errors or {},
+        status_code=status_code,
+    )
+
+
+@router.get("/{rule_id}/promote", response_class=HTMLResponse)
+def promote_form(
+    rule_id: int,
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+) -> Response:
+    return _render_promote_modal(request, conn, rule_id)
+
+
+@router.post("/{rule_id}/promote")
+def promote_submit(  # noqa: PLR0912, PLR0917
+    rule_id: int,
+    request: Request,
+    operation_date: str = Form(""),
+    amount: str = Form(""),
+    description: str = Form(""),
+    conn: sqlite3.Connection = Depends(get_db),
+) -> Response:
+    rule = recurring_repo.find_rule(conn, rule_id)
+    if rule is None:
+        return Response(status_code=404, content="not found")
+    account = accounts_repo.find_by_id(conn, rule.account_id, include_deleted=True)
+    errors: dict[str, str] = {}
+
+    op_date: date | None = None
+    if operation_date:
+        op_date = _parse_date(operation_date)
+        if op_date is None:
+            errors["operation_date"] = "invalid date"
+
+    amount_minor: int | None = None
+    if amount:
+        if account is None:
+            errors["amount"] = "unknown account currency"
+        else:
+            try:
+                dec = Decimal(amount)
+            except (InvalidOperation, TypeError):
+                errors["amount"] = "amount must be a decimal number"
+            else:
+                if dec <= 0:
+                    errors["amount"] = "amount must be positive"
+                else:
+                    amount_minor = to_minor_units(dec, account.currency)
+
+    if errors:
+        return _render_promote_modal(request, conn, rule_id, errors=errors, status_code=422)
+
+    edits = recurring_svc.PromotionEdits(
+        operation_date=op_date,
+        amount_minor=amount_minor,
+        description=description or None,
+    )
+    try:
+        recurring_svc.promote_recurring(conn, rule_id, edits)
+    except recurring_svc.RecurringNotFoundError:
+        return Response(status_code=404, content="not found")
+    except (
+        recurring_svc.InactiveRecurringError,
+        recurring_svc.CannotPromoteSkippedError,
+        UnsupportedDirectionError,
+        ValidationError,
+    ) as exc:
+        return _render_promote_modal(
+            request,
+            conn,
+            rule_id,
+            errors={"promotion": str(exc)},
+            status_code=422,
+        )
+
+    updated = recurring_repo.find_rule(conn, rule_id, include_deleted=True)
+    assert updated is not None
+    acc = accounts_repo.find_by_id(conn, updated.account_id, include_deleted=True)
+    cat = categories_repo.find_by_id(conn, updated.category_id, include_deleted=True)
+    html = render(
+        request,
+        "partials/recurring/_row.html",
+        rule=updated,
+        overrides=recurring_repo.list_overrides(conn, rule_id),
+        account=acc,
+        category=cat,
+    )
+    trigger(html, "ledger-stale", "forecast-stale", "budget-stale")
+    return html
+
+
+@router.post("/{rule_id}/skip-next")
+def skip_next(
+    rule_id: int,
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+) -> Response:
+    rule = recurring_repo.find_rule(conn, rule_id)
+    if rule is None:
+        return Response(status_code=404, content="not found")
+    try:
+        recurring_svc.skip_and_advance(conn, rule_id)
+    except recurring_svc.InactiveRecurringError:
+        return Response(status_code=422, content="rule is inactive")
+    updated = recurring_repo.find_rule(conn, rule_id, include_deleted=True)
+    assert updated is not None
+    acc = accounts_repo.find_by_id(conn, updated.account_id, include_deleted=True)
+    cat = categories_repo.find_by_id(conn, updated.category_id, include_deleted=True)
+    html = render(
+        request,
+        "partials/recurring/_row.html",
+        rule=updated,
+        overrides=recurring_repo.list_overrides(conn, rule_id),
+        account=acc,
+        category=cat,
+    )
+    trigger(html, "ledger-stale", "forecast-stale", "budget-stale")
     return html

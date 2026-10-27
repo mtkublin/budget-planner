@@ -16,7 +16,7 @@ from budget_planner.domain.recurring import (
     RecurringRule,
 )
 from budget_planner.repositories._shared import mutate, parse_dt, parse_dt_required
-from budget_planner.services.recurring import generate_occurrences
+from budget_planner.services.recurring import first_due_on_or_after
 
 _RULE_COLUMNS = (
     "id, user_id, cadence, start_date, end_date, category_id, account_id, "
@@ -61,14 +61,10 @@ def _row_to_rule(row: sqlite3.Row) -> RecurringRule:
 def _compute_initial_next_due(data: NewRecurringRule, today: date) -> date:
     """Return the earliest canonical occurrence on-or-after ``max(start, today)``.
 
-    Inline port of the generator arithmetic from
-    ``services.recurring.generate_occurrences`` — T-118 will refactor to a
-    shared pure helper (``first_due_on_or_after``). The duplication is
-    deliberate so T-117 lands self-contained without reaching into the
-    service module. End-date guard: if the rule's ``end_date`` has already
-    passed we still return ``start_date`` as a sentinel; the caller (and
-    the migration backfill) is responsible for toggling ``active=False``
-    in that terminal case.
+    Delegates to the pure helper ``services.recurring.first_due_on_or_after``
+    (T-118). End-date guard: if the rule's ``end_date`` has already passed
+    the helper still returns ``start_date`` as a sentinel; the caller is
+    responsible for toggling ``active=False`` in that terminal case.
     """
     stub = RecurringRule(
         id=0,
@@ -84,27 +80,13 @@ def _compute_initial_next_due(data: NewRecurringRule, today: date) -> date:
         day_of_month=data.day_of_month,
         month_of_year=data.month_of_year,
         active=True,
-        next_due=data.start_date,  # placeholder; generator doesn't read it
+        next_due=data.start_date,  # placeholder; helper doesn't read it
         last_promoted_date=None,
         created_at=dt.datetime.now(dt.UTC),
         updated_at=dt.datetime.now(dt.UTC),
         deleted_at=None,
     )
-    range_start = max(data.start_date, today)
-    # The first canonical occurrence on-or-after `range_start` is at most
-    # one cadence period away. Pick a tight horizon so the generator does
-    # not iterate from `start_date` to year-9999 (would hit the 10 000-
-    # iteration safety guard on monthly rules whose start is far in the
-    # past). 400 days covers monthly / quarterly / yearly in one shot.
-    horizon_days = 400
-    range_end = range_start + dt.timedelta(days=horizon_days)
-    occs = generate_occurrences(stub, range_start, range_end)
-    if occs:
-        return occs[0].occurrence_date
-    # Terminal rule (end_date in the past). Sentinel kept intentionally
-    # equal to start_date — the service layer short-circuits inactive
-    # rules so this value never surfaces in the UI.
-    return data.start_date
+    return first_due_on_or_after(stub, today)
 
 
 def _row_to_override(row: sqlite3.Row) -> RecurringOverride:

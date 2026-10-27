@@ -615,10 +615,10 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 - `repositories/transactions.create` round-trips the recurring provenance fields.
 - Test shape per `phase-12/T-117-migration-and-domain.md`.
 
-### T-118 [S] Recurring promotion service + routes → T-117
+### ✅ T-118 [S] Recurring promotion service + routes → T-117
 - `services/recurring.advance_next_due` (pure), `services/recurring.first_due_on_or_after` (pure), `services/recurring.promote_recurring`, `services/recurring.skip_and_advance`.
-- Shared `services/_promotion.py` validator consumed by both planned and recurring promotion paths.
-- `POST /recurring/{id}/promote` + `GET /recurring/{id}/promote` (modal partial) + `POST /recurring/{id}/skip-next`.
+- Shared `services/_promotion.py` validator consumed by both planned and recurring promotion paths; `services.planned.{ValidationError,UnsupportedDirectionError}` re-export the shared classes so callers keep working.
+- `POST /recurring/{id}/promote` + `GET /recurring/{id}/promote` (modal partial `partials/recurring/_promote_modal.html`) + `POST /recurring/{id}/skip-next`.
 - Audit entries on all mutations; HX-Trigger emits `ledger-stale`, `forecast-stale`, `budget-stale`.
 - Test shape per `phase-12/T-118-recurring-promote-service.md`.
 
