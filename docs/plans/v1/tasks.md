@@ -519,13 +519,13 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 ### T-109 [S] Visual-regression pixelmatch tolerance → T-105
 - Wire `pixelmatch`'s Node CLI into `tests/visual/test_snapshots.py` so the suite tolerates ≤ 0.1 pixel ratio diffs per ADR-0027 §4. Current implementation is byte-equal and is a strict first baseline, which is fine until anti-aliasing drift between CI and local shows up.
 
-### T-107 [S] Ledger segmented control → full-page nav → ADR-0028
+### ✅ T-107 [S] Ledger segmented control → full-page nav → ADR-0028
 - Supersedes implementation approach in T-092 for segmented tabs only; filter form and pagination keep their htmx partial swaps.
-- `src/budget_planner/web/templates/ledger/index.html`: replace segmented `<button>` elements with `<a class="segmented__btn" href="/ledger?view={{ v }}">`; set `aria-current="page"` on the active tab; drop `hx-get`, `hx-target`, `hx-swap`, `hx-push-url`, `aria-pressed`, `data-view` from the segmented control.
-- `src/budget_planner/web/static/js/shortcuts.js` (or wherever the `[` / `]` listener lives): switch from clicking the segmented button to `location.assign(nextHref)` so the full-document render path runs through the same code as the click.
+- `src/budget_planner/web/templates/ledger/index.html`: replace segmented `<button>` elements with `<a class="segmented__btn" href="/ledger?view={{ v }}">`; set `aria-current="page"` on the active tab; drop `hx-get`, `hx-target`, `hx-swap`, `hx-push-url`, `aria-pressed` from the segmented control. Keep `data-view` for the keyboard-shortcut discovery path.
+- `src/budget_planner/web/static/js/shortcuts.js`: switch the `[` / `]` listener from clicking the segmented button to `location.assign(nextHref)`, and find the active tab via `aria-current="page"` instead of `aria-pressed`.
 - Resolves the FAB staleness defect: `base.html` re-renders `fab_target_for(request)` on every tab switch, so the FAB opens the correct create form on Actual / Planned / Recurring.
 - Tests:
-  - `tests/integration/web/test_ledger.py` — segmented control renders anchors with correct `href`; `aria-current` moves with `view` param; filter form + pagination htmx wiring unchanged.
+  - `tests/integration/web/test_ledger.py` — segmented control renders anchors with correct `href`; `aria-current` moves with `view` param; filter form + pagination htmx wiring unchanged; `[data-ledger-table]` wrapper still ships from fragment endpoint.
   - `tests/integration/web/test_fab.py` — FAB `hx-get` matches `view` on each `/ledger?view=…` response (Actual → `/transactions/new`, Planned → `/planned/new`, Recurring → `/recurring/new`).
 - `frontend-visual-audit` sweep on `/ledger?view=actual|planned|recurring` at 1440/1024/375 before marking done; confirm FAB opens the right slide-over on each view.
 - Docs:

@@ -7,25 +7,22 @@
       <h1 class="leading-none">Ledger</h1>
     </div>
   </header>
-
-  {# Segmented control — Actual · Planned · Recurring. [ and ] cycle via
+  {# Segmented control — Actual · Planned · Recurring (ADR-0028).
+     Full-page navigation, not htmx partial swap: tabs are plain anchors so
+     `base.html` re-renders every `view`-dependent chrome element (FAB,
+     per-view hints) from a single server render. `[` / `]` cycle via
      data-shortcut-prev / data-shortcut-next (T-068 listener). #}
   <nav class="segmented ledger-segmented"
        aria-label="Ledger view"
        data-ledger-views>
     {% for v in views %}
       {% set is_active = v == view %}
-      <button type="button"
-              class="segmented__btn{% if is_active %} segmented__btn--active{% endif %}"
-              data-view="{{ v }}"
-              aria-pressed="{% if is_active %}true{% else %}false{% endif %}"
-              hx-get="/ledger/table?view={{ v }}"
-              hx-target="#ledger-table"
-              hx-swap="outerHTML"
-              hx-push-url="/ledger?view={{ v }}">{{ v|capitalize }}</button>
+      <a href="/ledger?view={{ v }}"
+         class="segmented__btn{% if is_active %} segmented__btn--active{% endif %}"
+         data-view="{{ v }}"
+         {% if is_active %}aria-current="page"{% endif %}>{{ v|capitalize }}</a>
     {% endfor %}
   </nav>
-
   <form class="filter-chips mt-5"
         hx-get="/ledger/table?view={{ view }}"
         hx-target="#ledger-table"
@@ -33,12 +30,14 @@
         hx-trigger="change, submit">
     <label>
       <span class="sr-only">From</span>
-      <input type="date" name="date_from"
+      <input type="date"
+             name="date_from"
              value="{{ filters.date_from.isoformat() if filters.date_from else '' }}">
     </label>
     <label>
       <span class="sr-only">To</span>
-      <input type="date" name="date_to"
+      <input type="date"
+             name="date_to"
              value="{{ filters.date_to.isoformat() if filters.date_to else '' }}">
     </label>
     <label>
@@ -59,9 +58,7 @@
         <option value="">All accounts</option>
         {% for a in accounts %}
           <option value="{{ a.id }}"
-                  {% if filters.account_ids and a.id in filters.account_ids %}selected{% endif %}>
-            {{ a.name }}
-          </option>
+                  {% if filters.account_ids and a.id in filters.account_ids %}selected{% endif %}>{{ a.name }}</option>
         {% endfor %}
       </select>
     </label>
@@ -80,7 +77,6 @@
              hx-push-url="false">
     </label>
   </form>
-
   <section class="mt-5">
     {% include "ledger/_table.html" %}
   </section>

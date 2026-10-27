@@ -4,11 +4,11 @@
   <ul class="upcoming-rows" role="list">
     {% for row in upcoming %}
       {{ overdue_row(
-           date_label=row.operation_date|date_fmt,
-           amount_html=row.amount_minor|money(base_ccy),
-           description=row.description,
-           is_overdue=row.is_overdue,
-         ) }}
+        date_label=row.operation_date|date_fmt,
+        amount_html=row.amount_minor|money(base_ccy),
+        description=row.description,
+        is_overdue=row.is_overdue,
+      ) }}
     {% endfor %}
   </ul>
 {% else %}

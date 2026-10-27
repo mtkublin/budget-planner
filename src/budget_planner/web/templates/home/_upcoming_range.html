@@ -1,18 +1,15 @@
 {# T-093 — Upcoming range segmented (shared between panel + /overview/upcoming
    fragment). Keeps aria-pressed + active class in sync with the server-chosen
-   ``window_label``. #}
-<div id="upcoming-range"
-     class="segmented"
-     role="group"
-     aria-label="Range"
-     {% if oob is defined and oob %}hx-swap-oob="outerHTML"{% endif %}>
-  {% for opt in [('7', '7 days'), ('30', '30 days'), ('all', 'all')] %}
-    <button type="button"
-            class="segmented__btn{% if window_label == opt[0] %} segmented__btn--active{% endif %}"
-            aria-pressed="{% if window_label == opt[0] %}true{% else %}false{% endif %}"
-            hx-get="/overview/upcoming?window={{ opt[0] }}"
-            hx-target="#upcoming-list"
-            hx-swap="innerHTML"
-            hx-push-url="false">{{ opt[1] }}</button>
-  {% endfor %}
-</div>
+   ``window_label``. ADR-0027 T-108 — macro-wrapped. #}
+{% from "_partials/segmented.html" import segmented %}
+{{ segmented(
+  mode="htmx",
+  items=[("7", "7 days"), ("30", "30 days"), ("all", "all")],
+  active=window_label,
+  name="upcoming-range",
+  hx_get="/overview/upcoming",
+  hx_target="#upcoming-list",
+  hx_swap="innerHTML",
+  hx_param="window",
+  oob=(oob is defined and oob),
+) }}
