@@ -143,11 +143,14 @@ addopts = [
   "--cov-report=xml",
   "--cov-report=html",
   "--cov-fail-under=90",
+  "-m",
+  "not visual",
 ]
 markers = [
   "unit: fast unit tests (default)",
   "integration: database or HTTP-backed tests",
   "e2e: full-stack smoke tests",
+  "visual: Playwright visual-regression snapshots (ADR-0027 §4)",
 ]
 asyncio_mode = "auto"
 filterwarnings = [

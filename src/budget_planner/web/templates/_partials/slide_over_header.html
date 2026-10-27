@@ -1,0 +1,25 @@
+{#
+  slide_over_header — title + close affordance cluster for slide-over panels.
+
+  Inputs:
+    title     (str, required)                 — the heading text.
+    close_url (str, optional, default=None)   — URL for the close `button` (HTMX GET → empty swap).
+    heading_id (str, optional, default=None)  — DOM id for the heading; wire aria-labelledby to this.
+
+  Usage:
+    {% from "_partials/slide_over_header.html" import slide_over_header %}
+    {{ slide_over_header(title="New transaction", close_url="/overview/upcoming/close", heading_id="t-head") }}
+#}
+{% macro slide_over_header(title, close_url=None, heading_id=None) %}
+<header class="slide-over__head">
+  <h2{% if heading_id %} id="{{ heading_id }}"{% endif %} class="slide-over__title">{{ title }}</h2>
+  {% if close_url %}
+    <button type="button"
+            class="slide-over__close"
+            aria-label="Close"
+            hx-get="{{ close_url }}"
+            hx-target="#modal-root"
+            hx-swap="innerHTML">×</button>
+  {% endif %}
+</header>
+{%- endmacro %}
