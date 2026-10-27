@@ -182,3 +182,83 @@ Local setup runs both `uv sync` (Python) and `npm ci` (Node dev toolchain) throu
 - CI green on `main`.
 - `docs/` kept in sync with code (ADRs for every meaningful change).
 - `README.md` with run instructions.
+
+---
+
+## 5. v2 — Remote Deployment Scope (added 2026-10-27)
+
+v2 keeps v1's functional surface unchanged and layers a hardened public-internet deployment on top. Full plan: `docs/plans/v2/`. Decisions: ADR-0032..ADR-0037.
+
+### 5.1 Deployment target
+
+- **Compute**: Scaleway Stardust `STARDUST1-S` in region `pl-waw` zone `pl-waw-1` (Warsaw).
+- **Durability**: Scaleway Object Storage bucket `budget-planner-prod-pl-waw` with Litestream continuous replication.
+- **TLS**: Caddy auto-HTTPS via Let's Encrypt (ACME HTTP-01).
+- **DNS**: operator-owned domain, A + AAAA records managed by Terraform.
+- **Server bind**: inside the container, `0.0.0.0:8000` (Caddy terminates TLS and proxies to it). ADR-0005's `127.0.0.1` constraint applies only to v1 local use.
+
+### 5.2 Authentication (new)
+
+- **Primary**: single-user passkey (WebAuthn) via `py_webauthn`. Multiple credentials per device, named by the user.
+- **Fallback**: long random password (bcrypt-hashed, Terraform-generated at provisioning) for break-glass and first-passkey registration.
+- **Session**: signed `__Host-session` cookie, 7-day sliding expiry, revocable per session via `/auth/sessions`.
+- **CSRF**: `__Host-csrf` cookie + `X-CSRF-Token` header enforced on all state-changing routes.
+- **Rate limit + jail**: 3 attempts / 15 min on fallback-login; `fail2ban` jail reading Caddy's access log.
+
+### 5.3 Infrastructure as Code (new NFR)
+
+- All Scaleway resources (project, IAM app + policy + key, instance, Flex IP, security group, object storage bucket, DNS records) are managed by **Terraform** (ADR-0035). No OpenTofu, no click-ops.
+- Terraform state lives in a bootstrap Scaleway Object Storage bucket (`budget-planner-tfstate-pl-waw`) created once out-of-band.
+- Two environments: `prod` and `drill` (disposable).
+
+### 5.4 Deployment pipeline (new NFR)
+
+- GitHub Actions: `build.yml` (image + cosign) → `deploy.yml` (SSH to deploy user, auto-rollback on `/ready` probe failure).
+- Deploy user has `/usr/sbin/nologin` + `command=".../deploy-budget-planner"` restriction. No arbitrary SSH.
+- Immutable SHA-tagged images; cosign keyless via GitHub OIDC.
+- Prod deploy requires explicit `prod` environment approval; drill deploys automatically.
+- Rollback is one SSH call or one `workflow_dispatch`.
+
+### 5.5 Durability (amends §3.7 for v2)
+
+- SQLite file at `/data/budget.db` with `journal_mode=WAL`, `synchronous=NORMAL`, `wal_autocheckpoint=0`, `busy_timeout=5000` (ADR-0034).
+- Litestream sidecar streams WAL to Scaleway Object Storage every ≤10 s.
+- 30-day retention, daily snapshots.
+- RPO ≤ 15 s. RTO target < 60 min for full re-provision.
+- Monthly automated restore drill opens a GitHub issue on failure.
+
+### 5.6 Observability (new NFR, minimal)
+
+- `/health` (liveness) + `/ready` (readiness, DB-aware) endpoints, public.
+- Structured JSON logs on stdout via `structlog`; request-id propagation.
+- UptimeRobot (or Betterstack free) hits `/health` every 5 min; email alert.
+- Scaleway cost alert at 2× expected monthly cost (PLN).
+
+### 5.7 Security (new NFR)
+
+- CSP with per-request nonce (Caddy injects, app propagates to Jinja).
+- HSTS preload, X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy minimal.
+- `trivy` + `pip-audit` block on HIGH/CRITICAL in CI.
+- `testssl.sh` grade A, Mozilla Observatory ≥ A+ required pre-go-live.
+- UFW default-deny; only 22/80/443 allowed. `fail2ban` jails on `sshd` + `caddy-auth`.
+
+### 5.8 Non-goals for v2
+
+Explicitly out of v2 scope (require ADR before promotion):
+
+- Multi-user auth beyond the single-user passkey model.
+- Autoscaling or multi-instance.
+- Cross-region replication of the Litestream bucket.
+- Centralised log store or distributed tracing.
+- CDN or edge caching.
+- CSV import from banks (remains deferred).
+
+### 5.9 Deliverables
+
+- All six v2 ADRs (0032–0037) Accepted.
+- `docs/plans/v2/` phases 1–4 complete with `✅` on every task.
+- Production deployment running at the agreed hostname with Observatory ≥ A+.
+- First restore drill logged in `docs/plans/v2/runbooks/restore-log.md`.
+- Monthly automated restore drill scheduled.
+- Operator captured the fallback password into a password manager; at least one passkey registered.
+- Dated go-live entry in `docs/CHANGELOG.md`.
