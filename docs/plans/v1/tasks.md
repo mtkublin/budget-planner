@@ -374,6 +374,40 @@ Per service and repository. Target ≥90% coverage. Pure-function heavy, mocks o
 
 ---
 
+## Phase 8 — Post-redesign UX fixes
+
+Driven by field-use report 2026-10-27. Scope: UX bugfix + polish only. See `docs/plans/v1/phase-8/README.md` for the root-cause analysis.
+
+> **ID note:** these use `T-090..T-094` as successors to Phase 7 (last `T-086`). Phase 9 (user preferences, directory `phase-9/`) currently uses `T-090..T-096` and will be renumbered by its own agent to avoid collision.
+
+### T-090 [S] Shell + rail layout fit → T-061, T-062
+- `.app-shell__main` gains `min-width: 0`; wide tables scroll inside their surface, not the page.
+- `.rail-nav` tightened so Settings footer fits at 720 px high.
+- Reference: `docs/plans/v1/phase-8/T-090-shell-and-rail-fit.md`.
+
+### T-091 [S] One-field-per-row forms (`.form-stack`) → T-053, T-069
+- Shared `.form-stack` component replaces `grid grid-cols-2` on all five create/edit partials.
+- Applies to Transactions, Planned, Recurring, Accounts, Categories.
+- Reference: `docs/plans/v1/phase-8/T-091-form-stack-layout.md`.
+
+### T-092 [S] Ledger segmented wiring → T-064
+- Wrap `_table.html` in `<div id="ledger-table">` so segmented `hx-target` resolves. Preserves legacy inner ids.
+- Secondary effect: FAB view-aware routing becomes reachable, closing the "no option to add Planned/Recurring" gap.
+- Reference: `docs/plans/v1/phase-8/T-092-ledger-segmented-wiring.md`.
+
+### T-093 [S] Overview upcoming interactions → T-063, T-069
+- `+ Planned` button wired to `/planned/new` slide-over.
+- Range segmented active state updated via `hx-swap-oob` on the segmented group.
+- Reference: `docs/plans/v1/phase-8/T-093-overview-upcoming-interactions.md`.
+
+### T-094 [S] FAB visibility scope + Budget rules affordance → T-069, T-092, ADR-0026
+- `fab_target_for` returns `None` outside Overview + Ledger; `base.html` skips the include.
+- Budget rules section gains an inline-edit hint; no new endpoint.
+- New ADR-0026 narrows ADR-0023 affordance #4.
+- Reference: `docs/plans/v1/phase-8/T-094-fab-scope-and-budget-affordance.md`.
+
+---
+
 ## Phase 7 — Deferred to v2
 
 - CSV import with pluggable parsers.
