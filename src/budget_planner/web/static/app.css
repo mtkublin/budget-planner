@@ -169,7 +169,8 @@ a { color: inherit; }
   position: sticky;
   top: 0;
   align-self: start;
-  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 0;
   overflow-y: auto;
   background: var(--surface);
 }
@@ -185,7 +186,9 @@ a { color: inherit; }
   max-width: 1200px;
   width: 100%;
   margin-inline: auto;
+  min-width: 0;
 }
+.ledger-scroll { overflow-x: auto; }
 .app-shell__footer {
   padding-inline: var(--page-gutter);
   padding-block: var(--space-5);
@@ -197,7 +200,7 @@ a { color: inherit; }
   .app-shell { grid-template-columns: 1fr; }
   .app-shell__rail {
     position: static;
-    height: auto;
+    max-height: none;
     border-right: none;
     border-bottom: 1px solid var(--rule);
   }
@@ -208,9 +211,9 @@ a { color: inherit; }
 .rail-nav {
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
-  padding: var(--space-6) var(--space-4);
-  height: 100%;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-4);
+  min-height: 100%;
 }
 .rail-wordmark {
   display: flex;
@@ -1133,4 +1136,48 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
 @media (prefers-reduced-motion: reduce) {
   .slide-over-root,
   .slide-over { animation: none; }
+}
+
+/* ---------------------------------------------------------------------- *
+ * T-084 — Liability account + fortune split (ADR-0024)
+ * ---------------------------------------------------------------------- */
+.pill--liability {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--accent-wash, color-mix(in oklab, var(--accent) 10%, transparent));
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+.account-card--liability { border-color: color-mix(in oklab, var(--accent) 30%, var(--rule)); }
+.credit-strip dt { font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; }
+.credit-strip dd { font-size: var(--text-base); }
+.utilization-bar {
+  position: relative;
+  height: 6px;
+  background: var(--rule);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.utilization-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width var(--duration-normal) var(--ease-out-expo);
+}
+.utilization-bar[aria-valuenow="100"] > span { background: var(--danger, #c2410c); }
+.badge--warning {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--warning-bg, color-mix(in oklab, var(--danger, #c2410c) 15%, transparent));
+  color: var(--danger, #c2410c);
+  font-size: 12px;
+}
+.fortune-split { display: grid; gap: var(--space-4); }
+.fortune-split__net dd { font-size: var(--text-xl); }
+@media (prefers-reduced-motion: reduce) {
+  .utilization-bar > span { transition: none; }
 }

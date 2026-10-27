@@ -17,7 +17,7 @@ from markupsafe import Markup
 
 from budget_planner.config import Settings
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import format_money
+from budget_planner.domain.money import format_money, from_minor_units
 from budget_planner.web.context import fab_target_for
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
@@ -27,6 +27,13 @@ def _money_filter(amount_minor: int | None, currency: str) -> str:
     if amount_minor is None:
         return ""
     return format_money(int(amount_minor), currency)
+
+
+def _money_major_filter(amount_minor: int | None, currency: str) -> str:
+    """Render minor-units as a bare major-unit decimal (no currency suffix)."""
+    if amount_minor is None:
+        return ""
+    return f"{from_minor_units(int(amount_minor), currency):f}"
 
 
 def _date_fmt_filter(value: date | datetime | str | None, pattern: str = "%Y-%m-%d") -> str:
@@ -98,6 +105,7 @@ def build_jinja_env(settings: Settings) -> Environment:
         enable_async=False,
     )
     env.filters["money"] = _money_filter
+    env.filters["money_major"] = _money_major_filter
     env.filters["date_fmt"] = _date_fmt_filter
     env.filters["dt_local"] = _dt_local_factory(settings.display_timezone)
     env.filters["direction_badge"] = _direction_badge

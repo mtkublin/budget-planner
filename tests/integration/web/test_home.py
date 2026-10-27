@@ -244,3 +244,33 @@ def test_overview_promoted_hidden(client: TestClient, _migrated: Settings) -> No
     assert r.status_code == 200
     assert "Already promoted" not in r.text
     assert "No planned payments in this window." in r.text
+
+
+# ---------------------------------------------------------------------------
+# T-084 — home dashboard shows Assets / Liabilities / Net worth (ADR-0024)
+
+
+def test_home_renders_assets_liabilities_net(client: TestClient, _migrated: Settings) -> None:
+    conn = get_connection(_migrated)
+    try:
+        accounts_repo.create(conn, NewAccount(name="Bank", currency="PLN", opening_balance=100_000))
+        accounts_repo.create(
+            conn,
+            NewAccount(
+                name="Visa",
+                currency="PLN",
+                is_liability=True,
+                credit_limit_minor=1_000_000,
+            ),
+        )
+    finally:
+        conn.close()
+    r = client.get("/")
+    assert r.status_code == 200
+    soup = BeautifulSoup(r.text, "html.parser")
+    panel = soup.find(id="fortune")
+    assert panel is not None
+    text = panel.get_text()
+    assert "Assets" in text
+    assert "Liabilities" in text
+    assert "Net worth" in text

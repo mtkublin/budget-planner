@@ -252,3 +252,237 @@ def test_card_snapshot_disclosure(client: TestClient, acc_id: int) -> None:
     # Snapshot <ul> lives inside the disclosure.
     snapshot_list = details.find("ul", attrs={"id": f"account-{acc_id}-snapshots"})
     assert snapshot_list is not None
+
+
+# ---------------------------------------------------------------------------
+# T-084 — Liability accounts: form, card, dashboard split (ADR-0024)
+
+
+def test_create_credit_card_account_round_trips_limit(client: TestClient) -> None:
+    r = client.post(
+        "/accounts",
+        data={
+            "name": "Visa",
+            "currency": "PLN",
+            "opening_balance": "0",
+            "is_liability": "on",
+            "credit_limit": "10000.00",
+        },
+    )
+    assert r.status_code == 200
+    assert "Credit card" in r.text
+    assert "10,000.00" in r.text
+
+
+def test_create_liability_without_limit_returns_422(client: TestClient) -> None:
+    r = client.post(
+        "/accounts",
+        data={
+            "name": "Visa",
+            "currency": "PLN",
+            "opening_balance": "0",
+            "is_liability": "on",
+            "credit_limit": "",
+        },
+    )
+    assert r.status_code == 422
+    assert "credit_limit" in r.text
+
+
+def test_create_liability_with_zero_limit_rejected(client: TestClient) -> None:
+    r = client.post(
+        "/accounts",
+        data={
+            "name": "Visa",
+            "currency": "PLN",
+            "opening_balance": "0",
+            "is_liability": "on",
+            "credit_limit": "0",
+        },
+    )
+    assert r.status_code == 422
+
+
+def test_update_asset_to_credit_card_sets_limit(client: TestClient, acc_id: int) -> None:
+    r = client.post(
+        f"/accounts/{acc_id}",
+        data={
+            "name": "Visa",
+            "type": "credit_card",
+            "is_liability": "on",
+            "credit_limit": "5000.00",
+        },
+    )
+    assert r.status_code == 200
+    assert "5,000.00" in r.text
+
+
+def test_update_credit_card_to_asset_clears_limit(client: TestClient, _migrated: Settings) -> None:
+    conn = get_connection(_migrated)
+    try:
+        acc = accounts_repo.create(
+            conn,
+            NewAccount(
+                name="Visa",
+                currency="PLN",
+                is_liability=True,
+                credit_limit_minor=1_000_000,
+            ),
+        )
+    finally:
+        conn.close()
+    r = client.post(
+        f"/accounts/{acc.id}",
+        data={"name": "Visa", "type": "", "is_liability": "", "credit_limit": ""},
+    )
+    assert r.status_code == 200
+    conn = get_connection(_migrated)
+    try:
+        after = accounts_repo.find_by_id(conn, acc.id)
+    finally:
+        conn.close()
+    assert after is not None
+    assert after.is_liability is False
+    assert after.credit_limit_minor is None
+
+
+def test_card_shows_utilization_strip_only_for_liability(
+    client: TestClient, _migrated: Settings
+) -> None:
+    conn = get_connection(_migrated)
+    try:
+        accounts_repo.create(
+            conn,
+            NewAccount(
+                name="Visa",
+                currency="PLN",
+                is_liability=True,
+                credit_limit_minor=1_000_000,
+            ),
+        )
+        accounts_repo.create(conn, NewAccount(name="Bank", currency="PLN"))
+    finally:
+        conn.close()
+    r = client.get("/accounts")
+    soup = BeautifulSoup(r.text, "html.parser")
+    cards = soup.find_all("article", class_="account-card")
+    strips_by_name = {}
+    for c in cards:
+        header = c.find("h3")
+        strip = c.find("dl", class_="credit-strip")
+        strips_by_name[header.get_text(strip=True)] = strip
+    assert strips_by_name["Visa"] is not None
+    assert strips_by_name["Bank"] is None
+
+
+def test_card_shows_over_limit_badge_when_balance_below_negative_limit(
+    client: TestClient, _migrated: Settings
+) -> None:
+    conn = get_connection(_migrated)
+    try:
+        visa = accounts_repo.create(
+            conn,
+            NewAccount(
+                name="Visa",
+                currency="PLN",
+                is_liability=True,
+                credit_limit_minor=100_000,
+            ),
+        )
+        cat = categories_repo.create(conn, NewCategory(name="X", direction=Direction.EXPENSE))
+        transactions_repo.create(
+            conn,
+            NewTransaction(
+                operation_date=date.today(),  # noqa: DTZ011
+                category_id=cat.id,
+                account_id=visa.id,
+                amount=250_000,
+            ),
+        )
+    finally:
+        conn.close()
+    card = _get_card(client, visa.id)
+    badge = card.find("p", class_="badge--warning")
+    assert isinstance(badge, Tag)
+    assert "Over limit by" in badge.get_text()
+
+
+def test_card_hides_badge_when_within_limit(client: TestClient, _migrated: Settings) -> None:
+    conn = get_connection(_migrated)
+    try:
+        visa = accounts_repo.create(
+            conn,
+            NewAccount(
+                name="Visa",
+                currency="PLN",
+                is_liability=True,
+                credit_limit_minor=1_000_000,
+            ),
+        )
+        cat = categories_repo.create(conn, NewCategory(name="Y", direction=Direction.EXPENSE))
+        transactions_repo.create(
+            conn,
+            NewTransaction(
+                operation_date=date.today(),  # noqa: DTZ011
+                category_id=cat.id,
+                account_id=visa.id,
+                amount=50_000,
+            ),
+        )
+    finally:
+        conn.close()
+    card = _get_card(client, visa.id)
+    assert card.find("p", class_="badge--warning") is None
+
+
+def test_accounts_index_renders_assets_liabilities_net(
+    client: TestClient, _migrated: Settings
+) -> None:
+    conn = get_connection(_migrated)
+    try:
+        accounts_repo.create(
+            conn,
+            NewAccount(name="Bank", currency="PLN", opening_balance=100_000),
+        )
+        accounts_repo.create(
+            conn,
+            NewAccount(
+                name="Visa",
+                currency="PLN",
+                is_liability=True,
+                credit_limit_minor=1_000_000,
+            ),
+        )
+    finally:
+        conn.close()
+    r = client.get("/accounts")
+    soup = BeautifulSoup(r.text, "html.parser")
+    section = soup.find("section", class_="fortune-split")
+    assert section is not None
+    text = section.get_text()
+    assert "Assets" in text
+    assert "Liabilities" in text
+    assert "Net worth" in text
+
+
+def test_utilization_bar_has_progressbar_role(client: TestClient, _migrated: Settings) -> None:
+    conn = get_connection(_migrated)
+    try:
+        visa = accounts_repo.create(
+            conn,
+            NewAccount(
+                name="Visa",
+                currency="PLN",
+                is_liability=True,
+                credit_limit_minor=1_000_000,
+            ),
+        )
+    finally:
+        conn.close()
+    card = _get_card(client, visa.id)
+    bar = card.find("div", class_="utilization-bar")
+    assert isinstance(bar, Tag)
+    assert bar.get("role") == "progressbar"
+    assert bar.get("aria-valuemin") == "0"
+    assert bar.get("aria-valuemax") == "100"
+    assert bar.get("aria-valuenow") is not None

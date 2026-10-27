@@ -1,11 +1,48 @@
-<article id="account-{{ card.account.id }}"
-         class="p-5 border border-[color:var(--rule)] rounded-[var(--radius-card)]">
+{% set a = card.account %}
+{% set used = (-card.balance) if (a.is_liability and card.balance < 0) else 0 %}
+{% set limit = a.credit_limit_minor or 0 %}
+{% set available = (limit - used) if (limit - used) > 0 else 0 %}
+{% set pct_raw = (used * 100 / limit) if (a.is_liability and limit) else 0 %}
+{% set pct = pct_raw if pct_raw <= 100 else 100 %}
+<article id="account-{{ a.id }}"
+         class="account-card p-5 border border-[color:var(--rule)] rounded-[var(--radius-card)]{% if a.is_liability %} account-card--liability{% endif %}">
   <header class="flex items-baseline justify-between">
-    <h3 class="font-serif text-2xl">{{ card.account.name }}</h3>
-    <span class="text-muted text-xs">{{ card.account.currency }}</span>
+    <h3 class="font-serif text-2xl">{{ a.name }}</h3>
+    <span class="text-muted text-xs">{{ a.currency }}</span>
   </header>
-  <p class="mt-3 text-3xl tabular-nums">{{ card.balance|money(card.account.currency) }}</p>
+  {% if a.is_liability %}
+    <p class="pill pill--liability eyebrow mt-2" aria-label="Liability account">Credit card</p>
+  {% endif %}
+  <p class="mt-3 text-3xl tabular-nums">{{ card.balance|money(a.currency) }}</p>
   <p class="mt-1 text-muted text-sm">{{ card.stats.txn_count }} txns</p>
+  {% if a.is_liability and a.credit_limit_minor %}
+    <dl class="credit-strip mt-3 grid grid-cols-3 gap-2 text-sm tabular-nums">
+      <div>
+        <dt class="text-muted">Limit</dt>
+        <dd>{{ a.credit_limit_minor|money(a.currency) }}</dd>
+      </div>
+      <div>
+        <dt class="text-muted">Available</dt>
+        <dd>{{ available|money(a.currency) }}</dd>
+      </div>
+      <div>
+        <dt class="text-muted">Used</dt>
+        <dd>{{ "%.0f"|format(pct_raw) }}%</dd>
+      </div>
+    </dl>
+    <div class="utilization-bar mt-2"
+         role="progressbar"
+         aria-valuemin="0"
+         aria-valuemax="100"
+         aria-valuenow="{{ pct|round(0, 'floor')|int }}">
+      <span style="width: {{ pct|round(2) }}%"></span>
+    </div>
+    {% if card.balance < -a.credit_limit_minor %}
+      <p class="badge badge--warning mt-2">
+        Over limit by {{ (used - a.credit_limit_minor)|money(a.currency) }}
+      </p>
+    {% endif %}
+  {% endif %}
   {% if card.sparkline_points %}
     <svg class="sparkline mt-3"
          viewBox="0 0 {{ card.sparkline_width }} {{ card.sparkline_height }}"
@@ -20,39 +57,39 @@
   {% endif %}
   <div class="mt-4">
     <button type="button"
-            hx-get="/accounts/{{ card.account.id }}/reconcile"
+            hx-get="/accounts/{{ a.id }}/reconcile"
             hx-target="#modal-root"
             hx-swap="innerHTML"
             class="btn-ghost"
-            aria-label="Reconcile account {{ card.account.id }}">Reconcile</button>
+            aria-label="Reconcile account {{ a.id }}">Reconcile</button>
   </div>
   <details class="snapshots mt-4">
     <summary class="eyebrow cursor-pointer">
       Show snapshots ({{ card.snapshots|length }})
     </summary>
-    <ul id="account-{{ card.account.id }}-snapshots"
+    <ul id="account-{{ a.id }}-snapshots"
         class="text-sm mt-3 text-muted">
       {% for snap in card.snapshots %}
-        <li>{{ snap.taken_at|dt_local("%Y-%m-%d %H:%M") }} — {{ snap.balance|money(card.account.currency) }}</li>
+        <li>{{ snap.taken_at|dt_local("%Y-%m-%d %H:%M") }} — {{ snap.balance|money(a.currency) }}</li>
       {% endfor %}
     </ul>
   </details>
   <div class="mt-4 flex gap-2 text-sm">
-    <button hx-get="/accounts/{{ card.account.id }}/edit"
+    <button hx-get="/accounts/{{ a.id }}/edit"
             hx-target="#account-form-slot"
             hx-swap="innerHTML"
             class="link-muted"
-            aria-label="Edit account {{ card.account.id }}">Edit</button>
-    <button hx-post="/accounts/{{ card.account.id }}/snapshot"
-            hx-target="#account-{{ card.account.id }}-snapshots"
+            aria-label="Edit account {{ a.id }}">Edit</button>
+    <button hx-post="/accounts/{{ a.id }}/snapshot"
+            hx-target="#account-{{ a.id }}-snapshots"
             hx-swap="beforeend"
             class="link-muted"
-            aria-label="Snapshot account {{ card.account.id }}">Snapshot</button>
-    <button hx-post="/accounts/{{ card.account.id }}/delete"
-            hx-target="#account-{{ card.account.id }}"
+            aria-label="Snapshot account {{ a.id }}">Snapshot</button>
+    <button hx-post="/accounts/{{ a.id }}/delete"
+            hx-target="#account-{{ a.id }}"
             hx-swap="outerHTML"
             hx-confirm="Soft-delete this account? Transactions remain."
             class="link-muted"
-            aria-label="Delete account {{ card.account.id }}">Delete</button>
+            aria-label="Delete account {{ a.id }}">Delete</button>
   </div>
 </article>
