@@ -1,4 +1,4 @@
-# ADR-0041: Forecast — Budget Overlay for Unaccounted Expected Spend
+# ADR-0042: Forecast — Budget Overlay for Unaccounted Expected Spend
 
 - **Status**: Accepted
 - **Date**: 2026-10-27
@@ -75,7 +75,7 @@ def forecast(
 ) -> ForecastSeries: ...
 ```
 
-Default is on. Callers that want the pre-ADR-0041 behaviour pass ``include_budget_overlay=False`` (unit tests exercising the pure planned+recurring projection do this).
+Default is on. Callers that want the pre-ADR-0042 behaviour pass ``include_budget_overlay=False`` (unit tests exercising the pure planned+recurring projection do this).
 
 The output shape (``ForecastSeries`` → ``DayPoint`` → ``AccountBalancePoint``) is unchanged. Budget-driven events flow through the same ``_CashEvent`` pipeline as planned/recurring and inherit identical FX conversion + rounding behaviour.
 

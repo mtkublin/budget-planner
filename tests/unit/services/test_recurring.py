@@ -462,6 +462,24 @@ def test_first_due_terminal_rule_returns_start_sentinel() -> None:
     assert rec_svc.first_due_on_or_after(rule, today=date(2026, 1, 1)) == date(2024, 1, 1)
 
 
+# occurrence_in_month helper tests
+def test_occurrence_in_month_monthly_rule_hits_target_day() -> None:
+    rule = _rule(start_date=date(2026, 1, 15))
+    assert rec_svc.occurrence_in_month(rule, 2026, 7) == date(2026, 7, 15)
+
+
+def test_occurrence_in_month_month_without_occurrence_returns_none() -> None:
+    rule = _rule(cadence=Cadence.YEARLY, start_date=date(2026, 3, 10))
+    assert rec_svc.occurrence_in_month(rule, 2026, 7) is None
+    assert rec_svc.occurrence_in_month(rule, 2027, 3) == date(2027, 3, 10)
+
+
+def test_occurrence_in_month_december_boundary() -> None:
+    rule = _rule(start_date=date(2026, 1, 31))
+    # Dec has 31 days, so monthly on day 31 → 2026-12-31.
+    assert rec_svc.occurrence_in_month(rule, 2026, 12) == date(2026, 12, 31)
+
+
 # ---------------------------------------------------------------------------
 # T-118: promote_recurring + skip_and_advance (DB-backed)
 # ---------------------------------------------------------------------------

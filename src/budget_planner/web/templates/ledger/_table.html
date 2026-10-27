@@ -1,3 +1,4 @@
+{% from "_partials/kebab_menu.html" import kebab_menu %}
 {# Ledger table (T-064, T-092).
 
    Renders one of three view variants — Actual · Planned · Recurring — picked
@@ -32,6 +33,7 @@
               <th scope="col">Next due</th>
               <th scope="col">Account</th>
               <th scope="col">Category</th>
+              <th scope="col">Description</th>
               <th scope="col" class="text-right">Amount</th>
               <th scope="col">Active</th>
               <th scope="col">Overrides</th>
@@ -94,26 +96,35 @@
                     <span class="text-faint">—</span>
                   {% endif %}
                 </td>
-                <td class="text-right space-x-2 text-sm">
+                <td class="text-right">
                   {% if row.kind == "persisted" %}
-                    <button type="button"
-                            hx-get="/planned/{{ row.persisted_id }}/edit"
-                            hx-target="#modal-root"
-                            hx-swap="innerHTML"
-                            aria-label="Edit planned {{ row.persisted_id }}">Edit</button>
-                    {% if not row.is_promoted %}
-                      <button type="button"
-                              hx-get="/planned/{{ row.persisted_id }}/promote"
-                              hx-target="#modal-root"
-                              hx-swap="innerHTML"
-                              aria-label="Promote planned {{ row.persisted_id }}">Promote →</button>
-                    {% endif %}
-                    <button type="button"
-                            hx-post="/planned/{{ row.persisted_id }}/delete"
-                            hx-target="#planned-{{ row.key }}"
-                            hx-swap="outerHTML"
-                            hx-confirm="Delete this planned entry?"
-                            aria-label="Delete planned {{ row.persisted_id }}">Delete</button>
+                    {% call kebab_menu(id="planned-" ~ row.key) %}
+                      <li role="none">
+                        <button type="button"
+                                role="menuitem"
+                                hx-get="/planned/{{ row.persisted_id }}/edit"
+                                hx-target="#modal-root"
+                                hx-swap="innerHTML">Edit</button>
+                      </li>
+                      {% if not row.is_promoted %}
+                        <li role="none">
+                          <button type="button"
+                                  role="menuitem"
+                                  hx-get="/planned/{{ row.persisted_id }}/promote"
+                                  hx-target="#modal-root"
+                                  hx-swap="innerHTML">Promote →</button>
+                        </li>
+                      {% endif %}
+                      <li role="none">
+                        <button type="button"
+                                role="menuitem"
+                                data-destructive
+                                hx-post="/planned/{{ row.persisted_id }}/delete"
+                                hx-target="#planned-{{ row.key }}"
+                                hx-swap="outerHTML"
+                                hx-confirm="Delete this planned entry?">Delete</button>
+                      </li>
+                    {% endcall %}
                   {% endif %}
                 </td>
               </tr>
@@ -129,6 +140,7 @@
                 </td>
                 <td>{{ row.account.name if row.account else '' }}</td>
                 <td>{{ row.category.name if row.category else '' }}</td>
+                <td class="text-muted">{{ row.default_description or '' }}</td>
                 <td class="text-right">
                   {% if row.amount_overridden %}
                     <em data-amount-overridden class="tabular-nums">{{ row.default_amount|money(row.currency) }}</em>
@@ -154,36 +166,49 @@
                     {% endif %}
                   </details>
                 </td>
-                <td class="text-right space-x-2 text-sm">
-                  <button type="button"
-                          hx-get="/recurring/{{ row.id }}/promote"
-                          hx-target="#modal-root"
-                          hx-swap="innerHTML"
-                          aria-label="Promote rule {{ row.id }}">Promote</button>
-                  <button type="button"
-                          hx-get="/recurring/{{ row.id }}/overrides/new?occurrence_date={{ row.next_due }}"
-                          hx-target="#modal-root"
-                          hx-swap="innerHTML"
-                          aria-label="Override next occurrence of rule {{ row.id }}">Override next…</button>
-                  <button type="button"
-                          hx-post="/recurring/{{ row.id }}/skip-next"
-                          hx-target="#recurring-{{ row.id }}"
-                          hx-swap="outerHTML"
-                          hx-confirm="Skip {{ row.next_due }}?"
-                          aria-label="Skip next occurrence of rule {{ row.id }}">Skip next</button>
-                  <button type="button"
-                          hx-get="/recurring/{{ row.id }}/edit"
-                          hx-target="#modal-root"
-                          hx-swap="innerHTML"
-                          aria-label="Edit rule {{ row.id }}">Edit</button>
-                  {% if row.active %}
-                    <button type="button"
-                            hx-post="/recurring/{{ row.id }}/deactivate"
-                            hx-target="#recurring-{{ row.id }}"
-                            hx-swap="outerHTML"
-                            hx-confirm="Delete this recurring rule? Past promotions are kept."
-                            aria-label="Delete rule {{ row.id }}">Delete</button>
-                  {% endif %}
+                <td class="text-right">
+                  {% call kebab_menu(id="recurring-" ~ row.id) %}
+                    <li role="none">
+                      <button type="button"
+                              role="menuitem"
+                              hx-get="/recurring/{{ row.id }}/promote"
+                              hx-target="#modal-root"
+                              hx-swap="innerHTML">Promote</button>
+                    </li>
+                    <li role="none">
+                      <button type="button"
+                              role="menuitem"
+                              hx-get="/recurring/{{ row.id }}/overrides/new"
+                              hx-target="#modal-root"
+                              hx-swap="innerHTML">Override</button>
+                    </li>
+                    <li role="none">
+                      <button type="button"
+                              role="menuitem"
+                              hx-post="/recurring/{{ row.id }}/skip-next"
+                              hx-target="#recurring-{{ row.id }}"
+                              hx-swap="outerHTML"
+                              hx-confirm="Skip {{ row.next_due }}?">Skip next</button>
+                    </li>
+                    <li role="none">
+                      <button type="button"
+                              role="menuitem"
+                              hx-get="/recurring/{{ row.id }}/edit"
+                              hx-target="#modal-root"
+                              hx-swap="innerHTML">Edit</button>
+                    </li>
+                    {% if row.active %}
+                      <li role="none">
+                        <button type="button"
+                                role="menuitem"
+                                data-destructive
+                                hx-post="/recurring/{{ row.id }}/deactivate"
+                                hx-target="#recurring-{{ row.id }}"
+                                hx-swap="outerHTML"
+                                hx-confirm="Delete this recurring rule? Past promotions are kept.">Delete</button>
+                      </li>
+                    {% endif %}
+                  {% endcall %}
                 </td>
               </tr>
             {% endif %}

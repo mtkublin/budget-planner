@@ -1,4 +1,4 @@
-"""Forecast service (T-025, T-125).
+"""Forecast service (T-025, T-126).
 
 Deterministic forward-looking balance projection (ADR-0015). For each day
 in ``[today, today + horizon_days]`` the service applies planned-cash
@@ -6,7 +6,7 @@ events in operation-date order on top of each account's current derived
 balance, then aggregates to ``base_currency`` using TODAY's FX rate held
 constant across the horizon (ADR-0006).
 
-T-125 (ADR-0041) introduces a **budget overlay**: synthetic expense cash
+T-126 (ADR-0042) introduces a **budget overlay**: synthetic expense cash
 events for the per-category per-month residual budget not already covered
 by planned transactions or recurring occurrences. The overlay is on by
 default; callers may disable it via ``include_budget_overlay=False`` to
@@ -265,7 +265,7 @@ def _rule_outside_window(
 
 
 # ---------------------------------------------------------------------------
-# budget overlay (ADR-0041)
+# budget overlay (ADR-0042)
 # ---------------------------------------------------------------------------
 _MONTHS_IN_YEAR = 12
 
@@ -403,7 +403,7 @@ def _collect_budget_overlay(
 ) -> list[_CashEvent]:
     """Return synthetic expense events for per-category per-month unaccounted budget.
 
-    See ADR-0041 for the formula + distribution contract. Returns ``[]``
+    See ADR-0042 for the formula + distribution contract. Returns ``[]``
     when the event window is empty or no budget-eligible residual exists.
     """
     event_start = today + dt.timedelta(days=1)
@@ -514,7 +514,7 @@ def forecast(
         base_currency: ISO 4217 code to aggregate ``totals_base_minor`` into.
         include_budget_overlay: When ``True`` (default), inject synthetic
             expense events for the per-category per-month residual budget
-            (ADR-0041). Pass ``False`` for the pre-overlay projection used
+            (ADR-0042). Pass ``False`` for the pre-overlay projection used
             by targeted regression tests.
 
     Returns:

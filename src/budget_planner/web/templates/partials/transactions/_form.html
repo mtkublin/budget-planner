@@ -1,4 +1,5 @@
 {% from "_partials/combobox.html" import combobox %}
+{% set txn_account = (accounts|selectattr('id', 'equalto', txn.account_id)|first) if txn else none %}
 <form id="txn-form"
       hx-post="{{ action }}"
       hx-target="{% if txn %}#txn-{{ txn.id }}{% else %}#txn-table tbody{% endif %}"
@@ -17,7 +18,7 @@
     Amount
     <input type="text"
            name="amount"
-           value="{{ txn.amount if txn else '' }}"
+           value="{{ txn.amount|money_major(txn_account.currency if txn_account else 'PLN') if txn else '' }}"
            inputmode="decimal"
            data-numeric
            required

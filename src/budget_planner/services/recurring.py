@@ -320,6 +320,23 @@ def first_due_on_or_after(rule: RecurringRule, today: dt.date) -> dt.date:
     return rule.start_date
 
 
+def occurrence_in_month(rule: RecurringRule, year: int, month: int) -> dt.date | None:
+    """Return the canonical occurrence_date that falls in ``(year, month)``.
+
+    Supports the generic override UI (year + month + amount): the user picks
+    a target month, the server resolves which canonical occurrence_date to
+    key the override on by intersecting the schedule with that calendar
+    month. Returns ``None`` if the rule has no occurrence in that month.
+    """
+    range_start = dt.date(year, month, 1)
+    if month == 12:  # noqa: PLR2004 — calendar literal
+        range_end = dt.date(year, 12, 31)
+    else:
+        range_end = dt.date(year, month + 1, 1) - dt.timedelta(days=1)
+    occs = generate_occurrences(rule, range_start, range_end)
+    return occs[0].occurrence_date if occs else None
+
+
 # ---------------------------------------------------------------------------
 # T-118: promotion orchestrator
 # ---------------------------------------------------------------------------
@@ -534,6 +551,7 @@ __all__ = [
     "expand",
     "first_due_on_or_after",
     "generate_occurrences",
+    "occurrence_in_month",
     "promote_recurring",
     "skip_and_advance",
 ]

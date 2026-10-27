@@ -660,11 +660,22 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 - Tests: `tests/integration/web/test_forms.py` pins slide-over markup, side-effect preview isolation, handler bytes (presence of `HTMLFormElement` + `data-reset-on-submit` + `requestConfig` + `"post"`), form-submit response shape (no slide-over), and both decimal separators landing on `1234` minor units with `12.345` → 422; four new unit tests in `tests/unit/domain/test_money.py` pin the `parse_amount_str` accept / reject matrix.
 - Test shape per `phase-12/T-124-modal-dismissal-scope.md`.
 
-### T-125 [S] Forecast budget overlay → ADR-0041, T-025, T-120
+### ✅ T-125 [S] Budget period = last-anchor-income → next-anchor-income (per-category `spent_minor`) → T-120, ADR-0041
+- `services/budget._resolve_period_start(conn, today, year, month, anchor_category)` returns the most recent promoted anchor-category transaction date `<= today`, falling back to month start when the anchor is unset, has no prior landed transaction, or in zero-budget months.
+- `services/budget.month_summary` passes the resolved `period_start` into `_expense_txns_in_range` for `this_txns` only; `prev_txns`, `year_txns`, `all_txns` keep calendar-month windows (ADR-0041 analytics non-goal).
+- `budgeted_minor` stays monthly; `remaining_minor = budgeted_minor - spent_minor` formula unchanged.
+- Tests pin anchor mid-month, no-prior-anchor fallback, zero-budget fallback, no-anchor-configured fallback, and formula consistency.
+- Test shape per `phase-12/T-125-budget-anchor-window.md`.
+
+### T-126 [S] Forecast budget overlay → ADR-0042, T-025, T-120
 - `services/forecast.budget_overlay_events(...)` computes per-category per-month unaccounted budget (`resolved_budget − spent_so_far − committed_future`, clamped ≥ 0) and emits `_CashEvent`s distributed evenly across the month window `[max(today+1, month_start), min(month_end, horizon_end)]` on the first active account (lowest id).
 - `services/forecast.forecast(...)` gains `include_budget_overlay: bool = True` and merges overlay events into `_collect_events` output ahead of day-walk accumulation. Existing dedup for persisted ↔ virtual recurring preserved.
 - Pre-overlay projection remains reachable via `include_budget_overlay=False` for the pure planned+recurring regression tests. `forecast` router + home mini-chart adopt the default (`True`) with no API change.
 - Tests pin: single-category unaccounted spread, zero-residual skip when planned+recurring ≥ budget, cross-month boundary distribution, zero-length-window skip (last-day-of-month `today`), overlay-off parity with pre-overlay series, deterministic re-run equivalence.
+
+---
+
+## Phase 7 — Deferred to v2
 
 - CSV import with pluggable parsers.
 - Auth and multi-user.

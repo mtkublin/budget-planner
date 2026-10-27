@@ -476,7 +476,7 @@ def test_adjustment_planned_row_ignored(conn: sqlite3.Connection, world: dict[st
 
 
 # ---------------------------------------------------------------------------
-# budget overlay (ADR-0041 / T-125)
+# budget overlay (ADR-0042 / T-126)
 # ---------------------------------------------------------------------------
 def _primary_account_id(world_ids: dict[str, int]) -> int:
     return min(world_ids["a1"], world_ids["a2"], world_ids["a3"])
