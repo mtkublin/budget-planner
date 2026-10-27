@@ -83,14 +83,25 @@ def test_ledger_index_renders(client: TestClient, seeded: dict[str, int]) -> Non
     soup = BeautifulSoup(r.text, "html.parser")
     seg = soup.select_one("[data-ledger-views]")
     assert seg is not None and isinstance(seg, Tag)
-    buttons = seg.select("button[data-view]")
-    assert len(buttons) == _SEG_COUNT
-    views = [b.get("data-view") for b in buttons]
+    # T-107 / ADR-0028: segmented control is anchor-based for full-page nav.
+    anchors = seg.select("a[data-view]")
+    assert len(anchors) == _SEG_COUNT
+    views = [a.get("data-view") for a in anchors]
     assert views == ["actual", "planned", "recurring"]
+    # Each tab navigates to its own view URL; no htmx wiring on the segmented.
+    for a in anchors:
+        assert a.get("href") == f"/ledger?view={a.get('data-view')}"
+        assert a.get("hx-get") is None
+        assert a.get("hx-target") is None
     # Default active view is actual.
-    actual_btn = seg.select_one('button[data-view="actual"]')
-    assert actual_btn is not None and isinstance(actual_btn, Tag)
-    assert actual_btn.get("aria-pressed") == "true"
+    actual_a = seg.select_one('a[data-view="actual"]')
+    assert actual_a is not None and isinstance(actual_a, Tag)
+    assert actual_a.get("aria-current") == "page"
+    # Non-active tabs omit aria-current.
+    for other in ("planned", "recurring"):
+        other_a = seg.select_one(f'a[data-view="{other}"]')
+        assert other_a is not None and isinstance(other_a, Tag)
+        assert other_a.get("aria-current") is None
 
 
 def test_ledger_view_actual(client: TestClient, seeded: dict[str, int]) -> None:
@@ -110,6 +121,12 @@ def test_ledger_view_planned(client: TestClient, seeded: dict[str, int]) -> None
     container = soup.select_one("[data-ledger-table]")
     assert container is not None and isinstance(container, Tag)
     assert container.get("data-view") == "planned"
+    # T-107 / ADR-0028: aria-current moves with the active view.
+    seg = soup.select_one("[data-ledger-views]")
+    assert seg is not None and isinstance(seg, Tag)
+    planned_a = seg.select_one('a[data-view="planned"]')
+    assert planned_a is not None and isinstance(planned_a, Tag)
+    assert planned_a.get("aria-current") == "page"
     # Promoted? column header present.
     headers = {th.get_text(strip=True) for th in soup.select("table.ledger thead th")}
     assert "Promoted?" in headers
@@ -132,6 +149,12 @@ def test_ledger_view_recurring(client: TestClient, seeded: dict[str, int]) -> No
     # Overrides disclosure present per row.
     details = soup.find_all("details")
     assert any("override" in d.get_text().lower() for d in details)
+    # T-107 / ADR-0028: aria-current moves with the active view.
+    seg = soup.select_one("[data-ledger-views]")
+    assert seg is not None and isinstance(seg, Tag)
+    recurring_a = seg.select_one('a[data-view="recurring"]')
+    assert recurring_a is not None and isinstance(recurring_a, Tag)
+    assert recurring_a.get("aria-current") == "page"
 
 
 def test_ledger_invalid_view_falls_back_to_actual(

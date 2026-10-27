@@ -79,17 +79,23 @@
       if (dlg) { e.preventDefault(); dlg.showModal(); }
       return;
     }
-    // T-064 — [ / ] cycle the ledger segmented control. Discover views
-    // from the DOM so the keymap can never drift from the template.
+    // T-064, T-107 — [ / ] cycle the ledger segmented control. Discover
+    // views from the DOM so the keymap can never drift from the template.
+    // After T-107 (ADR-0028) the segmented control is anchor-based: the
+    // active tab is marked with aria-current="page" and navigation goes
+    // through location.assign so the full-document render path runs
+    // through the same path as a click.
     if (e.key === "[" || e.key === "]") {
       const seg = document.querySelector("[data-ledger-views]");
       if (!seg) return;
-      const btns = Array.from(seg.querySelectorAll("[data-view]"));
-      if (btns.length === 0) return;
-      const idx = Math.max(0, btns.findIndex(b => b.getAttribute("aria-pressed") === "true"));
+      const items = Array.from(seg.querySelectorAll("[data-view]"));
+      if (items.length === 0) return;
+      const activeIdx = items.findIndex(el => el.getAttribute("aria-current") === "page");
+      const idx = Math.max(0, activeIdx);
       const delta = e.key === "]" ? 1 : -1;
-      const next = btns[(idx + delta + btns.length) % btns.length];
-      if (next) { e.preventDefault(); next.click(); }
+      const next = items[(idx + delta + items.length) % items.length];
+      const href = next && next.getAttribute("href");
+      if (href) { e.preventDefault(); window.location.assign(href); }
     }
   });
 })();

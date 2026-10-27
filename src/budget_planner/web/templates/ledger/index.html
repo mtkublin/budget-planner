@@ -8,21 +8,21 @@
     </div>
   </header>
 
-  {# Segmented control — Actual · Planned · Recurring. [ and ] cycle via
-     data-shortcut-prev / data-shortcut-next (T-068 listener). #}
+  {# Segmented control — Actual · Planned · Recurring (ADR-0028).
+     Full-page navigation, not htmx partial swap: tabs are plain anchors so
+     ``base.html`` re-renders every ``view``-dependent chrome element (FAB,
+     per-view hints) from a single server render. ``[`` / ``]`` cycle via
+     the shortcuts listener, which also calls ``location.assign`` to keep
+     the full-document render path consistent with the click path. #}
   <nav class="segmented ledger-segmented"
        aria-label="Ledger view"
        data-ledger-views>
     {% for v in views %}
       {% set is_active = v == view %}
-      <button type="button"
-              class="segmented__btn{% if is_active %} segmented__btn--active{% endif %}"
-              data-view="{{ v }}"
-              aria-pressed="{% if is_active %}true{% else %}false{% endif %}"
-              hx-get="/ledger/table?view={{ v }}"
-              hx-target="#ledger-table"
-              hx-swap="outerHTML"
-              hx-push-url="/ledger?view={{ v }}">{{ v|capitalize }}</button>
+      <a href="/ledger?view={{ v }}"
+         class="segmented__btn{% if is_active %} segmented__btn--active{% endif %}"
+         data-view="{{ v }}"
+         {% if is_active %}aria-current="page"{% endif %}>{{ v|capitalize }}</a>
     {% endfor %}
   </nav>
 

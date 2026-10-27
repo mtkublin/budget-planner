@@ -213,13 +213,15 @@ def test_slideover_is_dialog(client: TestClient) -> None:
     assert overlay.get("aria-labelledby"), "slide-over missing aria-labelledby"
 
 
-def test_ledger_segmented_has_aria_pressed(client: TestClient) -> None:
-    """T-071: Ledger segmented control exposes active view via aria-pressed."""
+def test_ledger_segmented_has_aria_current(client: TestClient) -> None:
+    """T-071 / T-107 (ADR-0028): Ledger segmented control is anchor-based for
+    full-page nav; the active view is exposed via ``aria-current="page"``."""
     soup = _soup(client, "/ledger?view=planned")
     seg = soup.select_one("[data-ledger-views]")
     assert seg is not None and isinstance(seg, Tag)
-    buttons = seg.select("[data-view]")
-    assert len(buttons) >= 3, "expected actual / planned / recurring buttons"
-    active = [b for b in buttons if b.get("aria-pressed") == "true"]
-    assert len(active) == 1, "exactly one segmented button should be aria-pressed"
+    items = seg.select("[data-view]")
+    assert len(items) >= 3, "expected actual / planned / recurring tabs"
+    active = [a for a in items if a.get("aria-current") == "page"]
+    assert len(active) == 1, "exactly one segmented tab should be aria-current"
     assert active[0].get("data-view") == "planned"
+    assert active[0].name == "a", "segmented tabs are anchors, not buttons"
