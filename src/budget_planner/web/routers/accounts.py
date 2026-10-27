@@ -23,6 +23,7 @@ from budget_planner.domain.snapshots import NewAccountSnapshot
 from budget_planner.repositories import accounts as accounts_repo, snapshots as snapshots_repo
 from budget_planner.services import (
     balance as balance_service,
+    fortune as fortune_service,
     reconciliation as reconciliation_service,
 )
 from budget_planner.web.deps import get_db, get_settings_dep
@@ -74,22 +75,14 @@ def _card_context(conn: sqlite3.Connection, account_id: int) -> dict[str, Any]:
 
 def _hydrate(conn: sqlite3.Connection, settings: Settings) -> dict[str, Any]:
     accs = accounts_repo.list_all(conn)
-    cards: list[dict[str, Any]] = []
-    totals_by_ccy: dict[str, int] = {}
-    for a in accs:
-        ctx = _card_context(conn, a.id)
-        cards.append(ctx)
-        bal: int = ctx["balance"]
-        totals_by_ccy[a.currency] = totals_by_ccy.get(a.currency, 0) + bal
-    fortune_base = (
-        sum(totals_by_ccy.values())
-        if len(totals_by_ccy) == 1
-        else sum(v for k, v in totals_by_ccy.items() if k == settings.base_currency)
-    )
+    cards: list[dict[str, Any]] = [_card_context(conn, a.id) for a in accs]
+    fortune = fortune_service.compute_fortune(conn, settings)
     return {
         "cards": cards,
-        "totals_by_ccy": totals_by_ccy,
-        "fortune_base": fortune_base,
+        "fortune": fortune,
+        "base_ccy": settings.base_currency,
+        "totals_by_ccy": fortune.net_by_ccy,
+        "fortune_base": fortune.net_base,
     }
 
 

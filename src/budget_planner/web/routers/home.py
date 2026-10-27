@@ -27,6 +27,7 @@ from budget_planner.repositories import accounts as accounts_repo
 from budget_planner.services import (
     balance as balance_service,
     budget as budget_service,
+    fortune as fortune_service,
     fx as fx_service,
     planned as planned_service,
 )
@@ -208,6 +209,7 @@ def home(
     base_ccy = settings.base_currency
 
     account_rows, totals_by_ccy, fortune_base = _collect_account_rows(conn, base_ccy)
+    fortune = fortune_service.compute_fortune(conn, settings)
     summary = budget_service.month_summary(conn, year, month)
     pace = _pace_tag(summary.totals.spent_minor, summary.totals.budgeted_minor, today, year, month)
     days_left = _days_left_in_month(today, year, month)
@@ -227,6 +229,7 @@ def home(
         month=month,
         base_ccy=base_ccy,
         fortune_base=fortune_base,
+        fortune=fortune,
         account_rows=account_rows,
         totals_by_ccy=totals_by_ccy,
         summary=summary,
