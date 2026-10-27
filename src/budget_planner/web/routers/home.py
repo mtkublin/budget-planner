@@ -246,8 +246,19 @@ def upcoming_fragment(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
 ) -> HTMLResponse:
-    """HTMX fragment for Panel C list — swapped on window change or live events."""
+    """HTMX fragment for Panel C — swapped on window change or live events.
+
+    T-093: returns the list body plus an out-of-band swap of the segmented
+    range so active state stays in sync with ``window_label`` without any
+    new client JS.
+    """
     today = date.today()  # noqa: DTZ011
-    _, window_days = _window_from(request)
+    window_label, window_days = _window_from(request)
     upcoming = _list_upcoming(conn, today, window_days)
-    return render(request, "home/_upcoming_list.html", upcoming=upcoming, today=today)
+    return render(
+        request,
+        "home/_upcoming_fragment.html",
+        upcoming=upcoming,
+        today=today,
+        window_label=window_label,
+    )

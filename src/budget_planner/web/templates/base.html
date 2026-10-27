@@ -40,7 +40,11 @@
     </div>
     <div id="drawer-root" aria-live="polite"></div>
     <div id="modal-root"></div>
-    {% block fab %}{% include "partials/_fab.html" ignore missing %}{% endblock %}
+    {% block fab %}
+      {% if fab_target_for(request) %}
+        {% include "partials/_fab.html" ignore missing %}
+      {% endif %}
+    {% endblock %}
     {# T-068 — Command palette + shortcuts cheatsheet mounted globally so every
        page gets ⌘K / Ctrl+K and `?` without opting in. #}
     {% include "partials/_palette.html" %}
