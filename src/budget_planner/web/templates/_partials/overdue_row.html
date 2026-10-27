@@ -19,12 +19,12 @@
                    is_overdue=row.is_overdue) }}
 #}
 {% macro overdue_row(date_label, amount_html, description="—", is_overdue=True, base_class="upcoming-row") %}
-<li class="{{ base_class }}{% if is_overdue %} {{ base_class }}--overdue{% endif %}">
-  {% if is_overdue %}
-    <span class="{{ base_class }}__chip">overdue</span>
-  {% endif %}
-  <span class="{{ base_class }}__date numeric">{{ date_label }}</span>
-  <span class="{{ base_class }}__description">{{ description or '—' }}</span>
-  <span class="{{ base_class }}__amount tabular-nums">{{ amount_html }}</span>
-</li>
+  <li class="{{ base_class }}{% if is_overdue %} {{ base_class }}--overdue{% endif %}">
+    {% if is_overdue %}
+      <span class="{{ base_class }}__chip">overdue</span>
+    {% endif %}
+    <span class="{{ base_class }}__date numeric">{{ date_label }}</span>
+    <span class="{{ base_class }}__description">{{ description or '—' }}</span>
+    <span class="{{ base_class }}__amount tabular-nums">{{ amount_html }}</span>
+  </li>
 {%- endmacro %}

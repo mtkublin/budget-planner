@@ -17,7 +17,7 @@ from playwright.sync_api import Page
 
 pytestmark = pytest.mark.e2e
 
-_ROUTES = ("/", "/transactions", "/accounts", "/categories", "/planned", "/recurring", "/budget")
+_ROUTES = ("/", "/ledger", "/accounts", "/budget")
 
 
 @pytest.mark.parametrize("route", _ROUTES)
@@ -55,16 +55,15 @@ def test_tab_reaches_primary_nav(page: Page, live_server: tuple[str, object]) ->
         )
         if href is not None:
             seen.append(href)
+    # Phase 6 IA: 4 primary nav items + Settings drawer link. Legacy routes
+    # (/transactions, /planned, /recurring, /categories, /analytics) are 302
+    # redirects and intentionally dropped from the rail.
     expected_order = [
         "/",
-        "/transactions",
+        "/ledger",
         "/accounts",
-        "/categories",
-        "/planned",
-        "/recurring",
         "/budget",
-        "/forecast",
-        "/analytics",
+        "/settings",
     ]
     for href in expected_order:
         assert href in seen, f"nav target {href!r} not reached by Tab; got {seen!r}"

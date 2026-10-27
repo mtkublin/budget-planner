@@ -4,8 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Budget Planner{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='tailwind.css') }}?v=t102">
-    <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}?v=fit1">
+    <link rel="stylesheet"
+          href="{{ url_for('static', path='tailwind.css') }}?v=t102">
+    <link rel="stylesheet"
+          href="{{ url_for('static', path='app.css') }}?v=fit1">
     <script src="https://unpkg.com/htmx.org@2"></script>
     <script src="https://cdn.plot.ly/plotly-2.35.0.min.js"></script>
     {% block head_extra %}{% endblock %}

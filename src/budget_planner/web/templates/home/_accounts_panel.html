@@ -8,15 +8,21 @@
     <dl class="fortune-split">
       <div>
         <dt class="text-muted text-xs">Assets</dt>
-        <dd class="tabular-nums">{{ fortune.assets_base|money(base_ccy) }}</dd>
+        <dd class="tabular-nums">
+          {{ fortune.assets_base|money(base_ccy) }}
+        </dd>
       </div>
       <div>
         <dt class="text-muted text-xs">Liabilities</dt>
-        <dd class="tabular-nums">{{ fortune.liabilities_base|money(base_ccy) }}</dd>
+        <dd class="tabular-nums">
+          {{ fortune.liabilities_base|money(base_ccy) }}
+        </dd>
       </div>
       <div class="fortune-split__net">
         <dt class="text-muted text-xs">Net worth</dt>
-        <dd class="panel__hero tabular-nums">{{ fortune.net_base|money(base_ccy) }}</dd>
+        <dd class="panel__hero tabular-nums">
+          {{ fortune.net_base|money(base_ccy) }}
+        </dd>
       </div>
     </dl>
     {% if totals_by_ccy|length > 1 %}

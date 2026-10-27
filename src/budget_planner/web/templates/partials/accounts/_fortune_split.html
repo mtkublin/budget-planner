@@ -4,15 +4,21 @@
   <dl class="fortune-split__grid grid grid-cols-3 gap-6">
     <div>
       <dt class="text-muted">Assets</dt>
-      <dd class="font-serif text-2xl tabular-nums">{{ fortune.assets_base|money(base_ccy) }}</dd>
+      <dd class="font-serif text-2xl tabular-nums">
+        {{ fortune.assets_base|money(base_ccy) }}
+      </dd>
     </div>
     <div>
       <dt class="text-muted">Liabilities</dt>
-      <dd class="font-serif text-2xl tabular-nums">{{ fortune.liabilities_base|money(base_ccy) }}</dd>
+      <dd class="font-serif text-2xl tabular-nums">
+        {{ fortune.liabilities_base|money(base_ccy) }}
+      </dd>
     </div>
     <div class="fortune-split__net">
       <dt class="text-muted">Net worth</dt>
-      <dd class="font-serif text-3xl tabular-nums">{{ fortune.net_base|money(base_ccy) }}</dd>
+      <dd class="font-serif text-3xl tabular-nums">
+        {{ fortune.net_base|money(base_ccy) }}
+      </dd>
     </div>
   </dl>
   {% if fortune.net_by_ccy|length > 1 %}
