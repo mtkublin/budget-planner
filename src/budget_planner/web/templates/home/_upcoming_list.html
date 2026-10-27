@@ -1,15 +1,14 @@
 {# Panel C body — the fragment target for /overview/upcoming. #}
+{% from "_partials/overdue_row.html" import overdue_row %}
 {% if upcoming %}
   <ul class="upcoming-rows" role="list">
     {% for row in upcoming %}
-      <li class="upcoming-row{% if row.is_overdue %} upcoming-row--overdue{% endif %}">
-        {% if row.is_overdue %}
-          <span class="upcoming-row__chip">overdue</span>
-        {% endif %}
-        <span class="upcoming-row__date numeric">{{ row.operation_date|date_fmt }}</span>
-        <span class="upcoming-row__description">{{ row.description or '—' }}</span>
-        <span class="upcoming-row__amount tabular-nums">{{ row.amount_minor|money(base_ccy) }}</span>
-      </li>
+      {{ overdue_row(
+           date_label=row.operation_date|date_fmt,
+           amount_html=row.amount_minor|money(base_ccy),
+           description=row.description,
+           is_overdue=row.is_overdue,
+         ) }}
     {% endfor %}
   </ul>
 {% else %}

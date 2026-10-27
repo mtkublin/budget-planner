@@ -1,0 +1,11 @@
+{#
+  chip — status pill. One of {overdue, upcoming, warning, info, muted}.
+
+  Inputs:
+    label  (str, required)  — pill text.
+    tone   (str, optional, default="muted") — one of overdue|upcoming|warning|info|muted.
+    extra  (str, optional, default="")      — extra class names appended to the base class.
+#}
+{% macro chip(label, tone="muted", extra="") %}
+<span class="chip chip--{{ tone }}{% if extra %} {{ extra }}{% endif %}">{{ label }}</span>
+{%- endmacro %}

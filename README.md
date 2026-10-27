@@ -6,13 +6,14 @@ Local-first personal budget planning and fortune tracking. Single user, multi-ac
 
 - Local-only web app. Binds to `127.0.0.1:8000`. No LAN exposure, no auth.
 - SQLite file on disk; data stays on the machine.
-- Python 3.12 / FastAPI / HTMX / Jinja2 / Tailwind (CDN) / Plotly.
+- Python 3.12 / FastAPI / HTMX / Jinja2 / Tailwind (compiled locally; see [ADR-0027](docs/adr/0027-frontend-toolchain-hardening.md)) / Plotly.
 
 ## Prerequisites
 
 | Tool | Why | Install |
 |------|-----|---------|
 | Python 3.12 | Runtime | `uv python install 3.12` |
+| Node 20 + npm | Dev-only frontend toolchain — Tailwind build, stylelint, visual-regression diff helper (see [ADR-0027](docs/adr/0027-frontend-toolchain-hardening.md)) | `brew install node` / `nvm install 20` |
 | [`uv`](https://docs.astral.sh/uv/) `>= 0.4` | Dependency + venv manager (see [ADR-0004](docs/adr/0004-package-manager-uv.md)) | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | [`just`](https://github.com/casey/just) | Task runner (see [ADR-0016](docs/adr/0016-task-runner-just.md)) | `brew install just` / `cargo install just` |
 
@@ -29,7 +30,8 @@ uv run playwright install chromium
 ```sh
 git clone <repo-url> budget_planner
 cd budget_planner
-just install    # uv sync + install pre-commit hooks
+just install    # uv sync + install pre-commit hooks + npm ci
+just css        # compile Tailwind once (one-off; `just dev` + `just css-watch` on separate panes thereafter)
 just migrate    # apply pending SQL migrations into the dev SQLite file
 just seed       # seed default categories (Transit, Reconciliation) and demo accounts
 just dev        # start FastAPI with hot reload on http://127.0.0.1:8000
@@ -42,8 +44,12 @@ The first `uv sync` pulls `pyarrow` (~70 MB). One-off cost.
 | Command | Does |
 |---------|------|
 | `just dev` | FastAPI dev server, hot reload, `127.0.0.1:8000`. |
+| `just css` | Build Tailwind once (purged + minified → `static/tailwind.css`). |
+| `just css-watch` | Rebuild Tailwind on save; pair with `just dev`. |
 | `just test` | Pytest with coverage; fails under 90%. |
-| `just lint` | `ruff` + `sqlfluff` + `djlint`. |
+| `just test-visual` | Playwright visual-regression snapshots (opt-in; not part of `just ci`). |
+| `just test-visual-update` | Refresh visual baselines after an intentional design change. |
+| `just lint` | `ruff` + `sqlfluff` + `djlint` + `stylelint`. |
 | `just format` | `ruff format` + `ruff --fix` + `sqlfluff fix` + `djlint --reformat`. |
 | `just typecheck` | `mypy --strict`. |
 | `just ci` | Everything CI runs (lint, typecheck, test). |

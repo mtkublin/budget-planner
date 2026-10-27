@@ -1,0 +1,32 @@
+{#
+  segmented — a segmented control. Shared shape between Overview range
+  switcher and Ledger view switcher.
+
+  Inputs:
+    items     (list[tuple[value, label]], required) — items in render order.
+    active    (str, required)                       — the currently selected value.
+    name      (str, required)                       — DOM id for the group, used as the aria-label.
+    hx_get    (str, optional, default=None)         — base URL for HTMX GET on item click.
+    hx_target (str, optional, default=None)         — CSS selector target for the swap.
+    hx_param  (str, optional, default="view")       — query-string parameter name for the item value.
+    extra     (str, optional, default="")           — extra class names on the outer group.
+
+  Usage:
+    {% from "_partials/segmented.html" import segmented %}
+    {{ segmented(items=[("actual","Actual"),("planned","Planned")], active="actual", name="ledger-view",
+                 hx_get="/ledger/table", hx_target="#ledger-table") }}
+#}
+{% macro segmented(items, active, name, hx_get=None, hx_target=None, hx_param="view", extra="") %}
+<div id="{{ name }}" class="segmented{% if extra %} {{ extra }}{% endif %}" role="tablist" aria-label="{{ name|replace('-',' ') }}">
+  {% for value, label in items %}
+    <button type="button"
+            class="segmented__item"
+            role="tab"
+            aria-pressed="{{ 'true' if value == active else 'false' }}"
+            data-value="{{ value }}"
+            {% if hx_get %}hx-get="{{ hx_get }}?{{ hx_param }}={{ value }}"{% endif %}
+            {% if hx_target %}hx-target="{{ hx_target }}"{% endif %}
+            {% if hx_get %}hx-swap="outerHTML"{% endif %}>{{ label }}</button>
+  {% endfor %}
+</div>
+{%- endmacro %}

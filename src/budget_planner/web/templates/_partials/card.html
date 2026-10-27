@@ -1,0 +1,27 @@
+{#
+  card — surface wrapper with optional header + body slot (via caller()).
+
+  Inputs:
+    title    (str, optional, default=None) — rendered inside the header. Omit for a bare surface.
+    eyebrow  (str, optional, default=None) — small label above the title.
+    extra    (str, optional, default="")   — extra class names appended to the base `card` class.
+
+  Usage:
+    {% from "_partials/card.html" import card %}
+    {% call card(title="This month", eyebrow="Budget") %}
+      <p>…body…</p>
+    {% endcall %}
+#}
+{% macro card(title=None, eyebrow=None, extra="") %}
+<section class="card{% if extra %} {{ extra }}{% endif %}">
+  {% if eyebrow or title %}
+    <header class="card__head">
+      {% if eyebrow %}<p class="card__eyebrow eyebrow">{{ eyebrow }}</p>{% endif %}
+      {% if title %}<h2 class="card__title">{{ title }}</h2>{% endif %}
+    </header>
+  {% endif %}
+  <div class="card__body">
+    {{ caller() }}
+  </div>
+</section>
+{%- endmacro %}

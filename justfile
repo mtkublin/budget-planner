@@ -33,11 +33,11 @@ css-watch:
 
 # Run Playwright visual-regression snapshot suite. Opt-in; not part of `just ci`.
 test-visual:
-    uv run pytest tests/visual -m visual
+    uv run pytest tests/visual -m visual --override-ini="addopts=-ra --strict-config --strict-markers" --no-cov
 
 # Refresh visual-regression baselines after an intentional design change.
 test-visual-update:
-    VISUAL_UPDATE=1 uv run pytest tests/visual -m visual
+    VISUAL_UPDATE=1 uv run pytest tests/visual -m visual --override-ini="addopts=-ra --strict-config --strict-markers" --no-cov
 
 # --- quality gates ---------------------------------------------------------
 
