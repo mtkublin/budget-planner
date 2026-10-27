@@ -17,7 +17,12 @@ from markupsafe import Markup
 
 from budget_planner.config import Settings
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import ISO_4217_CURRENCIES, format_money, from_minor_units
+from budget_planner.domain.money import (
+    ISO_4217_CURRENCIES,
+    currency_decimals,
+    format_money,
+    from_minor_units,
+)
 from budget_planner.web.context import fab_target_for
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
@@ -30,10 +35,16 @@ def _money_filter(amount_minor: int | None, currency: str) -> str:
 
 
 def _money_major_filter(amount_minor: int | None, currency: str) -> str:
-    """Render minor-units as a bare major-unit decimal (no currency suffix)."""
+    """Render minor-units as a bare major-unit decimal (no currency suffix).
+
+    Preserves trailing fractional zeros for the currency's precision so edit
+    forms round-trip values like ``15.50`` without the dot going missing.
+    """
     if amount_minor is None:
         return ""
-    return f"{from_minor_units(int(amount_minor), currency):f}"
+    decimals = currency_decimals(currency)
+    value = from_minor_units(int(amount_minor), currency)
+    return f"{value:.{decimals}f}"
 
 
 def _date_fmt_filter(value: date | datetime | str | None, pattern: str = "%Y-%m-%d") -> str:

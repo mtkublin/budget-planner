@@ -120,6 +120,7 @@ def test_create_unknown_account(client: TestClient, ctx: dict[str, int]) -> None
 def test_edit(client: TestClient, ctx: dict[str, int]) -> None:
     r = client.get(f"/planned/{ctx['pl']}/edit")
     assert r.status_code == 200
+    assert 'name="amount"' in r.text and 'value="500.00"' in r.text
 
 
 def test_edit_404(client: TestClient) -> None:

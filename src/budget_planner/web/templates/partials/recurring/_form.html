@@ -1,4 +1,5 @@
 {% from "_partials/combobox.html" import combobox %}
+{% set rule_account = (accounts|selectattr('id', 'equalto', rule.account_id)|first) if rule else none %}
 <form hx-post="{{ action }}"
       hx-target="{% if rule %}#recurring-{{ rule.id }}{% else %}table.ledger tbody{% endif %}"
       hx-swap="{% if rule %}outerHTML{% else %}beforeend{% endif %}"
@@ -39,7 +40,7 @@
     Amount
     <input type="text"
            name="default_amount"
-           value="{{ rule.default_amount if rule else '' }}"
+           value="{{ rule.default_amount|money_major(rule_account.currency if rule_account else 'PLN') if rule else '' }}"
            inputmode="decimal"
            data-numeric
            required>
