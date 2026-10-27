@@ -18,9 +18,10 @@ import json
 import sqlite3
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -40,7 +41,8 @@ from budget_planner.repositories import (
     categories as categories_repo,
     transactions as transactions_repo,
 )
-from budget_planner.services import budget as budget_service
+from budget_planner.services import budget as budget_service, preferences as preferences_svc
+from budget_planner.services.preferences import InvalidAnchorCategoryError
 from budget_planner.web.deps import get_db, get_settings_dep
 from budget_planner.web.htmx import trigger
 from budget_planner.web.rendering import render
@@ -195,15 +197,26 @@ def _breakdown_payloads(conn: sqlite3.Connection, base_ccy: str) -> dict[str, st
 # ---------------------------------------------------------------------------
 
 
+def _income_categories(conn: sqlite3.Connection) -> list[Any]:
+    return [
+        c
+        for c in categories_repo.list_all(conn)
+        if c.direction is Direction.INCOME and c.deleted_at is None
+    ]
+
+
 def _render_index(
     request: Request,
     conn: sqlite3.Connection,
     settings: Settings,
 ) -> HTMLResponse:
     year, month = _year_month(request)
-    summary = budget_service.month_summary(conn, year, month)
+    today = datetime.now(ZoneInfo(settings.display_timezone)).date()
+    summary = budget_service.month_summary(conn, year, month, today=today)
     rules = _rules_rows(conn, year, month)
     breakdown = _breakdown_payloads(conn, settings.base_currency)
+    income_categories = _income_categories(conn)
+    current_anchor_id = preferences_svc.get_income_anchor_category_id(conn)
     return render(
         request,
         "budget/index.html",
@@ -215,6 +228,8 @@ def _render_index(
         spend_json=breakdown["spend_json"],
         cashflow_json=breakdown["cashflow_json"],
         monthly_json=breakdown["monthly_json"],
+        income_categories=income_categories,
+        current_anchor_id=current_anchor_id,
     )
 
 
@@ -288,6 +303,33 @@ def set_recurring(
         conn,
         NewBudgetRecurringOverride(category_id=category_id, month=month, amount=minor),
     )
+    resp = Response(content="ok", media_type="text/html")
+    trigger(resp, "budget-stale")
+    return resp
+
+
+@router.post("/preferences/income-anchor")
+def set_income_anchor(
+    category_id: str = Form(""),
+    conn: sqlite3.Connection = Depends(get_db),
+) -> Response:
+    """Set or clear the income anchor preference (ADR-0025, F4.7).
+
+    An empty ``category_id`` clears the preference. A numeric value must
+    point at a live INCOME-direction category.
+    """
+    raw = category_id.strip()
+    if raw == "":
+        preferences_svc.set_income_anchor_category_id(conn, 1, None)
+    else:
+        try:
+            parsed = int(raw)
+        except ValueError:
+            return Response(status_code=422, content="invalid category_id")
+        try:
+            preferences_svc.set_income_anchor_category_id(conn, 1, parsed)
+        except InvalidAnchorCategoryError as err:
+            return Response(status_code=422, content=str(err))
     resp = Response(content="ok", media_type="text/html")
     trigger(resp, "budget-stale")
     return resp

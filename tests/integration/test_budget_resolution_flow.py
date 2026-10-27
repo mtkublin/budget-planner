@@ -86,7 +86,7 @@ def test_month_summary_integrates_actual_transactions_only(
         operation_date=date(2026, 1, 15),
     )
 
-    summary = budget_service.month_summary(conn, 2026, 1)
+    summary = budget_service.month_summary(conn, 2026, 1, today=date(2026, 1, 15))
     food_line = next(line for line in summary.lines if line.category_name == "Food")
     assert food_line.budgeted_minor == 50000
     assert food_line.spent_minor == 12000

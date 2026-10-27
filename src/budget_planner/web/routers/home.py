@@ -210,7 +210,7 @@ def home(
 
     account_rows, totals_by_ccy, fortune_base = _collect_account_rows(conn, base_ccy)
     fortune = fortune_service.compute_fortune(conn, settings)
-    summary = budget_service.month_summary(conn, year, month)
+    summary = budget_service.month_summary(conn, year, month, today=today)
     pace = _pace_tag(summary.totals.spent_minor, summary.totals.budgeted_minor, today, year, month)
     days_left = _days_left_in_month(today, year, month)
     bar_pct = 0

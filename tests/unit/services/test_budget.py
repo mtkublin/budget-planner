@@ -107,7 +107,7 @@ def test_zero_default_returns_zero(conn: sqlite3.Connection, seed: dict[str, int
 # month_summary
 # ---------------------------------------------------------------------------
 def test_january_summary(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
-    s = bs.month_summary(conn, 2026, 1)
+    s = bs.month_summary(conn, 2026, 1, today=date(2026, 1, 15))
     assert s.year == 2026
     assert s.month == 1
     by_cat = {line.category_id: line for line in s.lines}
@@ -128,7 +128,7 @@ def test_january_summary(conn: sqlite3.Connection, seed: dict[str, int]) -> None
 
 
 def test_february_delta_vs_prev_month(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
-    s = bs.month_summary(conn, 2026, 2)
+    s = bs.month_summary(conn, 2026, 2, today=date(2026, 2, 15))
     by_cat = {line.category_id: line for line in s.lines}
     # Utilities one-off 60_000; spent 55_000; remaining 5_000.
     assert by_cat[seed["utilities"]].budgeted_minor == 60_000
@@ -139,7 +139,7 @@ def test_february_delta_vs_prev_month(conn: sqlite3.Connection, seed: dict[str, 
 
 
 def test_totals_exclude_unbudgeted(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
-    s = bs.month_summary(conn, 2026, 1)
+    s = bs.month_summary(conn, 2026, 1, today=date(2026, 1, 15))
     # Budgeted: Rent 310k + Groceries 120k + Utilities 40k = 470k.
     assert s.totals.budgeted_minor == 470_000
     assert s.totals.spent_minor == 310_000 + 70_000 + 0
@@ -149,7 +149,7 @@ def test_totals_exclude_unbudgeted(conn: sqlite3.Connection, seed: dict[str, int
 def test_previous_month_rollover_january_to_december(
     conn: sqlite3.Connection, seed: dict[str, int]
 ) -> None:
-    s = bs.month_summary(conn, 2026, 1)
+    s = bs.month_summary(conn, 2026, 1, today=date(2026, 1, 15))
     by_cat = {line.category_id: line for line in s.lines}
     # No Dec 2025 Groceries in fixture → delta = 70_000.
     assert by_cat[seed["groceries"]].delta_vs_prev_month_minor == 70_000
@@ -158,7 +158,7 @@ def test_previous_month_rollover_january_to_december(
 def test_avg_monthly_overall_uses_active_months(
     conn: sqlite3.Connection, seed: dict[str, int]
 ) -> None:
-    s = bs.month_summary(conn, 2026, 2)
+    s = bs.month_summary(conn, 2026, 2, today=date(2026, 2, 15))
     by_cat = {line.category_id: line for line in s.lines}
     # Groceries active months: Nov 2025, Jan 2026, Feb 2026 → 3 months.
     # Sum = 35_000 + 70_000 + 45_000 = 150_000; avg = 50_000.
@@ -166,7 +166,7 @@ def test_avg_monthly_overall_uses_active_months(
 
 
 def test_avg_this_year(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
-    s = bs.month_summary(conn, 2026, 2)
+    s = bs.month_summary(conn, 2026, 2, today=date(2026, 2, 15))
     by_cat = {line.category_id: line for line in s.lines}
     # Groceries YTD through Feb: Jan 70_000 + Feb 45_000 = 115_000; / 2 = 57_500.
     assert by_cat[seed["groceries"]].avg_this_year_minor == 57_500
@@ -183,13 +183,13 @@ def test_soft_deleted_excluded(conn: sqlite3.Connection, seed: dict[str, int]) -
     )
     assert jan_txns
     transactions.soft_delete(conn, jan_txns[0].id)
-    s = bs.month_summary(conn, 2026, 1)
+    s = bs.month_summary(conn, 2026, 1, today=date(2026, 1, 15))
     by_cat = {line.category_id: line for line in s.lines}
     assert by_cat[cat_id].spent_minor == 70_000 - jan_txns[0].amount
 
 
 def test_income_excluded_from_spent(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
-    s = bs.month_summary(conn, 2026, 1)
+    s = bs.month_summary(conn, 2026, 1, today=date(2026, 1, 15))
     by_cat = {line.category_id: line for line in s.lines}
     # Salary category is income — should not appear in month_summary lines.
     assert seed["salary"] not in by_cat
@@ -207,7 +207,7 @@ def test_adjustment_excluded(conn: sqlite3.Connection, seed: dict[str, int]) -> 
             amount=-5000,
         ),
     )
-    s = bs.month_summary(conn, 2026, 1)
+    s = bs.month_summary(conn, 2026, 1, today=date(2026, 1, 15))
     # Adjustment direction excluded; Groceries spent unchanged at 70_000.
     by_cat = {line.category_id: line for line in s.lines}
     assert by_cat[seed["groceries"]].spent_minor == 70_000
@@ -216,7 +216,7 @@ def test_adjustment_excluded(conn: sqlite3.Connection, seed: dict[str, int]) -> 
 def test_sort_order_budgeted_first_then_alpha(
     conn: sqlite3.Connection, seed: dict[str, int]
 ) -> None:
-    s = bs.month_summary(conn, 2026, 1)
+    s = bs.month_summary(conn, 2026, 1, today=date(2026, 1, 15))
     # Budgeted lines first, then None-budget lines, each alpha by name.
     kinds = [line.budgeted_minor is None for line in s.lines]
     assert kinds == sorted(kinds)

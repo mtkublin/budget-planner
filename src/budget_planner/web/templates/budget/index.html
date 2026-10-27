@@ -6,6 +6,37 @@
     <h1 class="budget-page__h1">Plan · spend · breakdown</h1>
   </header>
   {# ------------------------------------------------------------------ #}
+  {# Section 0 — Left daily spend hero                                  #}
+  {# ------------------------------------------------------------------ #}
+  <section id="left-daily-spend"
+           class="budget-section budget-lds"
+           aria-labelledby="lds-heading"
+           aria-live="polite">
+    <header class="budget-section__header">
+      <div>
+        <p class="eyebrow">Pace</p>
+        <h2 id="lds-heading">Left to spend per day</h2>
+      </div>
+    </header>
+    <p class="budget-lds__value tabular-nums">
+      {% if summary.left_daily_spend_minor is none %}
+        <span class="text-faint">—</span>
+      {% else %}
+        {{ summary.left_daily_spend_minor|money(base_ccy) }}
+      {% endif %}
+    </p>
+    <p class="budget-lds__caption text-muted">
+      {% if summary.left_daily_spend_minor is none %}
+        No budgets set for this month yet.
+      {% else %}
+        {{ summary.totals.remaining_minor|money(base_ccy) }}
+        ÷ {{ summary.days_until_next_income }} day{% if summary.days_until_next_income != 1 %}s{% endif %},
+        next income {{ summary.next_income_date|date_fmt }}
+        ({{ summary.anchor_category_name or 'end of month' }}).
+      {% endif %}
+    </p>
+  </section>
+  {# ------------------------------------------------------------------ #}
   {# Section 1 — Monthly summary                                        #}
   {# ------------------------------------------------------------------ #}
   <section id="budget-summary"
@@ -186,6 +217,37 @@
         </tbody>
       </table>
     </div>
+  </section>
+  {# ------------------------------------------------------------------ #}
+  {# Section 2b — Income anchor preference                              #}
+  {# ------------------------------------------------------------------ #}
+  <section id="income-anchor"
+           class="budget-section"
+           aria-labelledby="income-anchor-heading">
+    <header class="budget-section__header">
+      <div>
+        <p class="eyebrow">Section 2b</p>
+        <h2 id="income-anchor-heading">Income anchor</h2>
+      </div>
+      <p class="text-muted text-sm">
+        Picks the paycheck category whose next date divides remaining budget
+        into the <a href="#left-daily-spend">left-to-spend-per-day</a>
+        number. Leave blank to fall back to end of month.
+      </p>
+    </header>
+    <form hx-post="/budget/preferences/income-anchor"
+          hx-swap="none"
+          class="budget-rule-form">
+      <label for="anchor-select" class="sr-only">Income anchor</label>
+      <select id="anchor-select" name="category_id">
+        <option value="" {% if current_anchor_id is none %}selected{% endif %}>— none —</option>
+        {% for c in income_categories %}
+          <option value="{{ c.id }}"
+                  {% if current_anchor_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn-ghost">Save</button>
+    </form>
   </section>
   {# ------------------------------------------------------------------ #}
   {# Section 3 — Breakdown                                              #}

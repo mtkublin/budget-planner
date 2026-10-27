@@ -244,6 +244,34 @@ def promote_to_actual(
     return txn
 
 
+# ---------------------------------------------------------------------------
+# next_planned_for_category (T-099)
+# ---------------------------------------------------------------------------
+def next_planned_for_category(
+    conn: sqlite3.Connection,
+    category_id: int,
+    after: dt.date,
+    *,
+    horizon_days: int = 400,
+) -> PlannedView | None:
+    """Earliest planned entry (persisted or virtual) for ``category_id`` whose
+    ``operation_date`` is strictly after ``after``, within ``horizon_days``.
+
+    Promoted rows are excluded (they already live in ``transactions``).
+    Returns ``None`` when the window holds no matching entries.
+    """
+    if horizon_days < 1:
+        raise ValueError("horizon_days must be >= 1")
+    filters = PlannedFilter(
+        date_from=after + dt.timedelta(days=1),
+        date_to=after + dt.timedelta(days=horizon_days),
+        category_ids=(category_id,),
+        promoted=False,
+    )
+    result = list_planned(conn, filters)
+    return result[0] if result else None
+
+
 __all__ = [
     "AlreadyPromotedError",
     "CannotPromoteDeletedError",
@@ -254,5 +282,6 @@ __all__ = [
     "UnsupportedDirectionError",
     "ValidationError",
     "list_planned",
+    "next_planned_for_category",
     "promote_to_actual",
 ]
