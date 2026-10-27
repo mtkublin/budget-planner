@@ -13,15 +13,13 @@
     {% endcall %}
 #}
 {% macro card(title=None, eyebrow=None, extra="") %}
-<section class="card{% if extra %} {{ extra }}{% endif %}">
-  {% if eyebrow or title %}
-    <header class="card__head">
-      {% if eyebrow %}<p class="card__eyebrow eyebrow">{{ eyebrow }}</p>{% endif %}
-      {% if title %}<h2 class="card__title">{{ title }}</h2>{% endif %}
-    </header>
-  {% endif %}
-  <div class="card__body">
-    {{ caller() }}
-  </div>
-</section>
+  <section class="card{% if extra %} {{ extra }}{% endif %}">
+    {% if eyebrow or title %}
+      <header class="card__head">
+        {% if eyebrow %}<p class="card__eyebrow eyebrow">{{ eyebrow }}</p>{% endif %}
+        {% if title %}<h2 class="card__title">{{ title }}</h2>{% endif %}
+      </header>
+    {% endif %}
+    <div class="card__body">{{ caller() }}</div>
+  </section>
 {%- endmacro %}

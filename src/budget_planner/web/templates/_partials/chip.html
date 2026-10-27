@@ -7,5 +7,5 @@
     extra  (str, optional, default="")      — extra class names appended to the base class.
 #}
 {% macro chip(label, tone="muted", extra="") %}
-<span class="chip chip--{{ tone }}{% if extra %} {{ extra }}{% endif %}">{{ label }}</span>
+  <span class="chip chip--{{ tone }}{% if extra %} {{ extra }}{% endif %}">{{ label }}</span>
 {%- endmacro %}

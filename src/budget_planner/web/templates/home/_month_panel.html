@@ -5,13 +5,11 @@
          class="panel panel--month">
   <header class="panel__header">
     <p id="month-heading" class="eyebrow">This month · {{ year }}-{{ "%02d"|format(month) }}</p>
-    <p class="panel__hero panel__hero--amount-left tabular-nums">
-      {{ summary.totals.remaining_minor|money(base_ccy) }}
-    </p>
+    <p class="panel__hero panel__hero--amount-left tabular-nums">{{ summary.totals.remaining_minor|money(base_ccy) }}</p>
     <p class="panel__hero-sub text-muted text-sm">
       spent <span class="tabular-nums">{{ summary.totals.spent_minor|money(base_ccy) }}</span>
       of <span class="tabular-nums">{{ summary.totals.budgeted_minor|money(base_ccy) }}</span>
-      <span aria-hidden="true"> · </span>
+      <span aria-hidden="true">·</span>
       {{ days_left }} days left
     </p>
   </header>
@@ -23,7 +21,8 @@
        aria-label="Budget spent">
     <span class="budget-bar__fill" style="width: {{ bar_pct }}%"></span>
   </div>
-  <p class="pace-tag pace-tag--{{ pace.kind }}" data-pace="{{ pace.kind }}">{{ pace.label }}</p>
+  <p class="pace-tag pace-tag--{{ pace.kind }}"
+     data-pace="{{ pace.kind }}">{{ pace.label }}</p>
   <nav class="panel__footer" aria-label="Budget deep-links">
     <a class="link-muted text-sm" href="/forecast">See forecast →</a>
     <a class="link-muted text-sm" href="/budget">Budget breakdown →</a>

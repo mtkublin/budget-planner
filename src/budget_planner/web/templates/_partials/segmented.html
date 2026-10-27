@@ -17,16 +17,19 @@
                  hx_get="/ledger/table", hx_target="#ledger-table") }}
 #}
 {% macro segmented(items, active, name, hx_get=None, hx_target=None, hx_param="view", extra="") %}
-<div id="{{ name }}" class="segmented{% if extra %} {{ extra }}{% endif %}" role="tablist" aria-label="{{ name|replace('-',' ') }}">
-  {% for value, label in items %}
-    <button type="button"
-            class="segmented__item"
-            role="tab"
-            aria-pressed="{{ 'true' if value == active else 'false' }}"
-            data-value="{{ value }}"
-            {% if hx_get %}hx-get="{{ hx_get }}?{{ hx_param }}={{ value }}"{% endif %}
-            {% if hx_target %}hx-target="{{ hx_target }}"{% endif %}
-            {% if hx_get %}hx-swap="outerHTML"{% endif %}>{{ label }}</button>
-  {% endfor %}
-</div>
+  <div id="{{ name }}"
+       class="segmented{% if extra %} {{ extra }}{% endif %}"
+       role="tablist"
+       aria-label="{{ name|replace('-', ' ') }}">
+    {% for value, label in items %}
+      <button type="button"
+              class="segmented__item"
+              role="tab"
+              aria-pressed="{{ 'true' if value == active else 'false' }}"
+              data-value="{{ value }}"
+              {% if hx_get %}hx-get="{{ hx_get }}?{{ hx_param }}={{ value }}"{% endif %}
+              {% if hx_target %}hx-target="{{ hx_target }}"{% endif %}
+              {% if hx_get %}hx-swap="outerHTML"{% endif %}>{{ label }}</button>
+    {% endfor %}
+  </div>
 {%- endmacro %}

@@ -5,7 +5,8 @@
   {% set ns = namespace(is_current=(href == '/' and path == '/') or (href != '/' and path.startswith(href))) %}
   {%- if not ns.is_current -%}
     {%- for alt in extra_paths -%}
-      {%- if path.startswith(alt) %}{% set ns.is_current = true %}{% endif -%}
+      {%- if path.startswith(alt) %}{% set ns.is_current = true %}
+      {% endif -%}
     {%- endfor -%}
   {%- endif %}
   <li>
@@ -19,7 +20,8 @@
   {% set ns = namespace(is_current=path.startswith(href)) %}
   {%- if not ns.is_current -%}
     {%- for alt in extra_paths -%}
-      {%- if path.startswith(alt) %}{% set ns.is_current = true %}{% endif -%}
+      {%- if path.startswith(alt) %}{% set ns.is_current = true %}
+      {% endif -%}
     {%- endfor -%}
   {%- endif %}
   <li>

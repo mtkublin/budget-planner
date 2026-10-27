@@ -370,6 +370,7 @@ def test_card_shows_utilization_strip_only_for_liability(
     for c in cards:
         header = c.find("h3")
         strip = c.find("dl", class_="credit-strip")
+        assert header is not None
         strips_by_name[header.get_text(strip=True)] = strip
     assert strips_by_name["Visa"] is not None
     assert strips_by_name["Bank"] is None
