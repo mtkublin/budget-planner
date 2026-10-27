@@ -408,6 +408,33 @@ Driven by field-use report 2026-10-27. Scope: UX bugfix + polish only. See `docs
 
 ---
 
+## Phase 9 — Left Daily Spend
+
+Metric `remaining ÷ days-until-next-income` surfaced on `/budget`; first per-user preference store (`user_preferences` table) holds the income anchor category. ADR-0025. See `docs/plans/v1/phase-9/README.md`.
+
+### ✅ T-095 [S] ADR-0025 + requirements + Phase 9 docs scaffolding
+- ADR-0025 user preferences + income anchor; F4.6 + F4.7 in `docs/requirements.md`; task stubs + CHANGELOG entry.
+
+### ✅ T-096 [S] Migration `0005_user_preferences.sql` → T-095
+- `user_preferences(user_id, key, value)` with `UNIQUE(user_id, key)`; no `deleted_at`, no audit (ADR-0025).
+
+### ✅ T-097 [S] Domain + repository → T-096
+- `domain/preferences.py` (`UserPreference`, `NewUserPreference`, `PREF_INCOME_ANCHOR_CATEGORY_ID`); `repositories/preferences.py` with `get` / `upsert` / `delete` in BEGIN/COMMIT, no `write_audit`.
+
+### ✅ T-098 [S] Preferences service + income anchor resolver → T-097, T-033
+- `services/preferences.py` with `get_` / `set_` / `resolve_income_anchor_category` + `InvalidAnchorCategoryError`. Direction + liveness defence at boundary; resolver permissive on stale references.
+
+### ✅ T-099 [S] Next-planned-income lookup → T-023
+- `services/planned.next_planned_for_category(conn, category_id, after, *, horizon_days=400)` reuses `list_planned` for persisted + virtual + dedup (ADR-0013); excludes promoted rows.
+
+### ✅ T-100 [M] Left daily spend in `services/budget.py` → T-024, T-098, T-099
+- `MonthSummary` grows `left_daily_spend_minor`, `next_income_date`, `days_until_next_income`, `anchor_category_name`. `month_summary(..., today=date)` injected per ADR-0007. Zero-budget → `None`; stale anchor / no planned hit → end-of-month fallback. Banker's rounding.
+
+### ✅ T-101 [M] `/budget` card + anchor selector + endpoint → T-036, T-100
+- New "Left to spend per day" hero section + "Income anchor" `<select>` on `/budget`. New `POST /budget/preferences/income-anchor` (empty body clears, non-income or unknown category → 422); emits `HX-Trigger: budget-stale`. `/budget` passes `today` in `settings.display_timezone`. 11 integration tests.
+
+---
+
 ## Phase 7 — Deferred to v2
 
 - CSV import with pluggable parsers.
