@@ -255,3 +255,38 @@ def test_ledger_table_wrapper_exposes_segmented_swap_target(
         assert wrapper is not None and isinstance(wrapper, Tag), view
         inner = soup.find(id=inner_id)
         assert inner is not None and isinstance(inner, Tag), view
+
+
+def test_ledger_actual_rows_sorted_desc_by_date(client: TestClient, _migrated: Settings) -> None:
+    """Ledger Actual tab sorts transactions by operation_date DESC (newest
+    first), with id DESC as tie-break. Pinned so pagination plus sort order
+    stay user-expected after schema or repo refactors."""
+    conn = get_connection(_migrated)
+    try:
+        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
+        cat = categories_repo.create(conn, NewCategory(name="Food", direction=Direction.EXPENSE))
+        for day, desc in ((1, "oldest"), (15, "middle"), (28, "newest")):
+            transactions_repo.create(
+                conn,
+                NewTransaction(
+                    operation_date=date(2026, 10, day),
+                    category_id=cat.id,
+                    account_id=acc.id,
+                    amount=1000,
+                    description=desc,
+                ),
+            )
+    finally:
+        conn.close()
+
+    r = client.get("/ledger/table?view=actual")
+    assert r.status_code == 200
+    soup = BeautifulSoup(r.text, "html.parser")
+    rows = soup.select("#txn-table tbody tr.row")
+    descriptions = [row.get_text(strip=False) for row in rows]
+    newest_idx = next(i for i, t in enumerate(descriptions) if "newest" in t)
+    middle_idx = next(i for i, t in enumerate(descriptions) if "middle" in t)
+    oldest_idx = next(i for i, t in enumerate(descriptions) if "oldest" in t)
+    assert newest_idx < middle_idx < oldest_idx, (
+        f"expected DESC by date; got newest@{newest_idx} middle@{middle_idx} oldest@{oldest_idx}"
+    )

@@ -180,6 +180,7 @@ def _actual_rows(conn: sqlite3.Connection, filters: LedgerFilters) -> list[dict[
         description_contains=filters.search,
         limit=filters.page_size,
         offset=(filters.page - 1) * filters.page_size,
+        order_desc=True,
     )
     return _hydrate_txn_rows(conn, transactions_repo.list_filtered(conn, txn_filter))
 

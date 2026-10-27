@@ -114,7 +114,8 @@ def list_filtered(
     clauses, params = _append_filter_clauses(filters, include_deleted)
     if clauses:
         sql += " WHERE " + " AND ".join(clauses)
-    sql += " ORDER BY t.operation_date ASC, t.id ASC"
+    direction = "DESC" if filters.order_desc else "ASC"
+    sql += f" ORDER BY t.operation_date {direction}, t.id {direction}"
     if filters.limit is not None:
         sql += " LIMIT ? OFFSET ?"
         params.extend([filters.limit, filters.offset])

@@ -91,3 +91,4 @@ class TransactionFilter:
     account_or_dest: int | None = None
     limit: int | None = None
     offset: int = 0
+    order_desc: bool = False
