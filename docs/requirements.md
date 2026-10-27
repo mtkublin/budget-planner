@@ -85,9 +85,10 @@ A locally-hosted web application for personal budget planning and fortune (net-w
 
 - Python 3.12.
 - SQLite (OLTP). DuckDB attach deferred to a later iteration if analytics queries become slow.
-- FastAPI + HTMX + Jinja2 (templates) + Tailwind CSS (via CDN).
+- FastAPI + HTMX + Jinja2 (templates) + Tailwind CSS (compiled via local Tailwind CLI, output to `static/tailwind.css`; see [ADR-0027](adr/0027-frontend-toolchain-hardening.md)).
 - Plotly for charts.
-- `uv` for dependency and virtual-environment management.
+- `uv` for Python dependency and virtual-environment management.
+- `pnpm` for the small dev-only Node toolchain (`tailwindcss`, `stylelint`, `pixelmatch`, Playwright). See [ADR-0027](adr/0027-frontend-toolchain-hardening.md).
 - `just` as the task runner.
 
 ### 3.2 Testing
@@ -104,15 +105,20 @@ A locally-hosted web application for personal budget planning and fortune (net-w
 - Formatted and linted with `ruff` (replaces `black` + `isort` + `flake8`; `black`-compatible output).
 - SQL formatted/linted with `sqlfluff`.
 - Jinja templates linted with `djlint`.
+- Hand-authored CSS (`static/*.css`, excluding generated `tailwind.css`) linted with `stylelint`. See [ADR-0027](adr/0027-frontend-toolchain-hardening.md).
 
 ### 3.4 Pre-commit
 
-Hooks: `ruff`, `ruff-format`, `mypy`, `pytest` (fast subset), `sqlfluff`, `djlint`, `bandit`, `detect-secrets`, and the standard pre-commit stdlib hooks (trailing whitespace, EOF newline, large file check, yaml/toml validate).
+Hooks: `ruff`, `ruff-format`, `mypy`, `pytest` (fast subset), `sqlfluff`, `djlint`, `stylelint`, `tailwind-check` (fails if `static/tailwind.css` is stale vs. content globs), `bandit`, `detect-secrets`, and the standard pre-commit stdlib hooks (trailing whitespace, EOF newline, large file check, yaml/toml validate). See [ADR-0027](adr/0027-frontend-toolchain-hardening.md) for the three new hooks.
 
 ### 3.5 Developer Experience
 
 - `just dev` — run the app with hot reload.
+- `just css` — build `static/tailwind.css` once from source.
+- `just css-watch` — watch mode for Tailwind, run alongside `just dev`.
 - `just test` — run the test suite with coverage.
+- `just test-visual` — run Playwright visual-regression snapshot tests (opt-in; not part of `just ci` by default).
+- `just test-visual-update` — regenerate visual-regression baselines after an intentional design change.
 - `just lint` — run all linters.
 - `just format` — autofix formatting.
 - `just typecheck` — mypy strict.
@@ -120,12 +126,16 @@ Hooks: `ruff`, `ruff-format`, `mypy`, `pytest` (fast subset), `sqlfluff`, `djlin
 - `just db-reset` — recreate the dev database.
 - `just seed` — seed default categories, demo accounts.
 
+Local setup runs both `uv sync` (Python) and `pnpm install --frozen-lockfile` (Node dev toolchain) through `just install`.
+
 ### 3.6 CI
 
 - GitHub Actions.
-- Single matrix row: `ubuntu-latest` + Python 3.12.
+- Single matrix row: `ubuntu-latest` + Python 3.12 + Node 20 (dev-only, for the Tailwind + stylelint + Playwright toolchain).
+- Setup steps: `actions/setup-python@v5` + `actions/setup-node@v4` + `pnpm/action-setup@v4` + `pnpm install --frozen-lockfile`.
 - Runs `just ci` on push/PR.
 - Coverage uploaded as artifact.
+- Visual-regression suite (`just test-visual`) is **not** run in default CI; it is opt-in via `CI_VISUAL=1` on manual workflow dispatch. See [ADR-0027](adr/0027-frontend-toolchain-hardening.md).
 
 ### 3.7 Data Semantics
 

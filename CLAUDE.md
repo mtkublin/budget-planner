@@ -58,6 +58,20 @@ just migrate      # apply pending migrations
 just seed         # seed default categories + demo accounts
 ```
 
+## Frontend validation (MANDATORY)
+
+Any change that touches templates (`src/budget_planner/web/templates/**`), CSS (`src/budget_planner/web/static/*.css`), responsive breakpoints, or HTMX swap targets **must** be verified with the `frontend-visual-audit` skill before the task is marked done.
+
+- Skill location: `.claude/skills/frontend-visual-audit/SKILL.md`.
+- Primary tool for all frontend validation. Do **not** rely on reading templates + CSS alone to confirm layout, overflow, responsive behavior, or HTMX render correctness.
+- Minimum sweep: run against the routes affected by the change at desktop (1440) + tablet (1024) + mobile (375) viewports.
+- Treat non-zero `horizontalScroll`, `overflowingElements`, `duplicateIds`, `consoleErrors`, or `requestFailures` as blocking signals.
+- Reference the audit result (routes checked + findings summary) in the handoff / PR description.
+
+Agents working on frontend tasks must invoke this skill rather than inferring visual correctness from code.
+
+The toolchain the skill validates against (local Tailwind build, `stylelint`, Jinja partials, Playwright visual regression) is defined in [ADR-0027](docs/adr/0027-frontend-toolchain-hardening.md).
+
 ## Rules & scope
 
 - **Scope guard**: `docs/requirements.md` section 3.8 lists what is **out of scope** for v1. Do not add v2 features without first writing a new ADR and updating `docs/requirements.md`.
@@ -71,7 +85,8 @@ Before marking a task done:
 
 1. **Docs updated first** (see "Change policy" above). `docs/requirements.md`, `docs/tasks.md`, and/or a new ADR reflect the change *before* code lands.
 2. Code + tests committed; `just ci` green.
-3. `docs/tasks.md` task line prefixed with `✅`.
-4. Relevant ADR(s) referenced in the commit; a new ADR added if the task introduced an architectural decision not already recorded.
-5. Append a dated line to `docs/CHANGELOG.md` (create on first use).
-6. Conventional-commits message referencing the task id: e.g. `feat(T-021): derive account balance`.
+3. **Frontend-touching tasks**: `frontend-visual-audit` skill run against the affected routes at desktop/tablet/mobile viewports; findings resolved or triaged (see "Frontend validation" above).
+4. `docs/tasks.md` task line prefixed with `✅`.
+5. Relevant ADR(s) referenced in the commit; a new ADR added if the task introduced an architectural decision not already recorded.
+6. Append a dated line to `docs/CHANGELOG.md` (create on first use).
+7. Conventional-commits message referencing the task id: e.g. `feat(T-021): derive account balance`.
