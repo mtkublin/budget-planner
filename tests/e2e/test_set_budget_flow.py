@@ -56,9 +56,14 @@ def test_set_budget_shows_remaining_after_spend(
         },
     ).ok
 
-    # Visit /budget for the same month.
+    # Visit /budget for the same month. Phase 9 (T-100/T-101) refactored
+    # the summary surface: `#budget-summary` is a `<section>` wrapping a
+    # `<table class="budget-row-table">`; the id no longer sits on the table.
     page.goto(f"{base_url}/budget?year=2026&month=10")
-    groceries_row = page.locator("table#budget-summary tr", has_text="Groceries").first
+    groceries_row = page.locator(
+        "#budget-summary table.budget-row-table tr",
+        has_text="Groceries",
+    ).first
     expect(groceries_row).to_contain_text("Groceries")
     # Budgeted
     expect(groceries_row).to_contain_text("500.00")

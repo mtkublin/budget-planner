@@ -51,7 +51,9 @@ def test_recurring_rule_lists_virtual_and_promote_cycle(
     ).ok
 
     # View /planned with a window that captures Jan, Feb, Mar 2026.
-    page.goto(f"{base_url}/planned?date_from=2026-01-01&date_to=2026-03-31")
+    page.goto(
+        f"{base_url}/ledger?view=planned&date_from=2026-01-01&date_to=2026-03-31",
+    )
     expect(page.get_by_text("recurring").first).to_be_visible()
     # Three virtual rows, each labelled "recurring".
     recurring_rows = page.locator("tr[id^='planned-v-']")
@@ -71,7 +73,9 @@ def test_recurring_rule_lists_virtual_and_promote_cycle(
     assert planned_resp.ok, planned_resp.text()
 
     # Scrape the persisted row id.
-    page.goto(f"{base_url}/planned?date_from=2026-01-01&date_to=2026-03-31")
+    page.goto(
+        f"{base_url}/ledger?view=planned&date_from=2026-01-01&date_to=2026-03-31",
+    )
     persisted_el = page.locator("tr[id^='planned-p-']").first
     planned_id = strip_id_prefix(persisted_el.get_attribute("id"), "planned-p-")
 
@@ -86,6 +90,7 @@ def test_recurring_rule_lists_virtual_and_promote_cycle(
     )
     assert promote_resp.ok, promote_resp.text()
 
-    # Verify the transaction appears on /transactions with the edited amount.
-    page.goto(f"{base_url}/transactions")
+    # Verify the transaction appears on the unified ledger (Phase 6 — T-064
+    # collapsed /transactions, /planned, /recurring into /ledger?view=…).
+    page.goto(f"{base_url}/ledger?view=actual")
     expect(page.get_by_text("27.50").first).to_be_visible()
