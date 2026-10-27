@@ -61,6 +61,23 @@ class MonthSummary:
     anchor_category_name: str | None
 
 
+# ADR-0031 §3 — Yearly budget grid origin tag for cell typography.
+# Literal "default" | "recurring" | "one_off" | "unset" is projected into the
+# template to encode tier dominance via CSS classes.
+@dataclass(frozen=True, slots=True)
+class YearlyCell:
+    amount_minor: int | None
+    origin: str  # "default" | "recurring" | "one_off" | "unset"
+
+
+@dataclass(frozen=True, slots=True)
+class YearlyRow:
+    category_id: int
+    category_name: str
+    cells: tuple[YearlyCell, ...]  # exactly 12 entries, Jan..Dec
+    total_minor: int
+
+
 def prev_year_month(year: int, month: int) -> tuple[int, int]:
     """Return the previous ``(year, month)`` tuple handling January rollover."""
     if month == 1:
@@ -232,11 +249,65 @@ def month_summary(
     )
 
 
+def yearly_grid(conn: sqlite3.Connection, year: int) -> tuple[YearlyRow, ...]:
+    """Return per-category (rows) by Jan..Dec (12 cells) resolved budgets.
+
+    Projection over the three persistence tables; no new storage per
+    ADR-0031 §3. Each cell carries both the resolved amount (or ``None``
+    when no tier is set) and the origin tag so the UI can encode tier
+    dominance via typography (bold = one-off, italic = recurring, plain =
+    default, em-dash = unset).
+    """
+    cats = [c for c in categories_repo.list_all(conn) if c.direction is Direction.EXPENSE]
+    defaults_by_cat = {d.category_id: d.amount for d in budgets_repo.list_defaults(conn)}
+    recurring_by_key: dict[tuple[int, int], int] = {
+        (r.category_id, r.month): r.amount for r in budgets_repo.list_recurring(conn)
+    }
+    one_off_by_key: dict[tuple[int, int], int] = {
+        (o.category_id, o.month): o.amount for o in budgets_repo.list_one_off(conn, year=year)
+    }
+
+    rows: list[YearlyRow] = []
+    for cat in cats:
+        cells: list[YearlyCell] = []
+        total = 0
+        for month in range(1, 13):
+            one_off = one_off_by_key.get((cat.id, month))
+            if one_off is not None:
+                cells.append(YearlyCell(amount_minor=one_off, origin="one_off"))
+                total += one_off
+                continue
+            recurring = recurring_by_key.get((cat.id, month))
+            if recurring is not None:
+                cells.append(YearlyCell(amount_minor=recurring, origin="recurring"))
+                total += recurring
+                continue
+            default = defaults_by_cat.get(cat.id)
+            if default is not None:
+                cells.append(YearlyCell(amount_minor=default, origin="default"))
+                total += default
+                continue
+            cells.append(YearlyCell(amount_minor=None, origin="unset"))
+        rows.append(
+            YearlyRow(
+                category_id=cat.id,
+                category_name=cat.name,
+                cells=tuple(cells),
+                total_minor=total,
+            )
+        )
+    rows.sort(key=lambda r: r.category_name.casefold())
+    return tuple(rows)
+
+
 __all__ = [
     "CategoryBudgetLine",
     "MonthSummary",
     "MonthTotals",
+    "YearlyCell",
+    "YearlyRow",
     "month_summary",
     "prev_year_month",
     "resolve_budget",
+    "yearly_grid",
 ]

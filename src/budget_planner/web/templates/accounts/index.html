@@ -7,12 +7,11 @@
       <p class="text-muted mt-2">{{ cards|length }} accounts</p>
     </div>
     <button hx-get="/accounts/new"
-            hx-target="#account-form-slot"
+            hx-target="#modal-root"
             hx-swap="innerHTML"
             class="btn-accent">+ New account</button>
   </header>
   {% include "partials/accounts/_fortune_split.html" %}
-  <div id="account-form-slot" class="my-6"></div>
   <section id="accounts-grid"
            class="grid gap-6 grid-cols-[repeat(auto-fit,minmax(320px,1fr))]">
     {% for card in cards %}

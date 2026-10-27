@@ -148,7 +148,7 @@ def create_rule(  # noqa: PLR0917
         account=acc,
         category=cat,
     )
-    trigger(html, "forecast-stale")
+    trigger(html, "forecast-stale", "ledger-stale")
     return html
 
 
@@ -168,9 +168,12 @@ def edit_form(
             errors={"rule": "not found"},
             status_code=404,
         )
+    # T-114 / ADR-0030 §4 — slide-over wrapper mirrors /recurring/new.
     return render(
         request,
-        "partials/recurring/_form.html",
+        "partials/_slideover.html",
+        slide_over_title="Edit recurring rule",
+        form_include="partials/recurring/_form.html",
         rule=rule,
         action=f"/recurring/{rule_id}",
         categories=categories_repo.list_all(conn),
@@ -250,7 +253,7 @@ def update_rule_handler(  # noqa: PLR0917
         account=acc,
         category=cat,
     )
-    trigger(html, "forecast-stale")
+    trigger(html, "forecast-stale", "ledger-stale")
     return html
 
 
@@ -274,7 +277,7 @@ def deactivate_rule(
         account=acc,
         category=cat,
     )
-    trigger(html, "forecast-stale")
+    trigger(html, "forecast-stale", "ledger-stale")
     return html
 
 
@@ -330,7 +333,7 @@ def add_override(  # noqa: PLR0917
         account=acc,
         category=cat,
     )
-    trigger(html, "forecast-stale")
+    trigger(html, "forecast-stale", "ledger-stale")
     return html
 
 
@@ -359,5 +362,5 @@ def delete_override(
         account=acc,
         category=cat,
     )
-    trigger(html, "forecast-stale")
+    trigger(html, "forecast-stale", "ledger-stale")
     return html

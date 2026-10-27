@@ -17,7 +17,7 @@ from markupsafe import Markup
 
 from budget_planner.config import Settings
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import format_money, from_minor_units
+from budget_planner.domain.money import ISO_4217_CURRENCIES, format_money, from_minor_units
 from budget_planner.web.context import fab_target_for
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
@@ -94,6 +94,16 @@ def _csrf_token() -> str:
     return ""
 
 
+def _today_local_factory(tz_name: str) -> Any:
+    """Return today's date in `display_timezone` as ISO string (ADR-0030 §1)."""
+    tz = ZoneInfo(tz_name)
+
+    def _today_local() -> str:
+        return datetime.now(tz).date().isoformat()
+
+    return _today_local
+
+
 def build_jinja_env(settings: Settings) -> Environment:
     """Return a fully-configured Jinja environment for the web layer."""
     env = Environment(
@@ -115,4 +125,7 @@ def build_jinja_env(settings: Settings) -> Environment:
     env.globals["Direction"] = Direction
     # T-069 — per-request FAB routing without threading state through routers.
     env.globals["fab_target_for"] = fab_target_for
+    # T-110 / ADR-0030 — shared primitives: default-date-today + ISO 4217 list.
+    env.globals["today_local"] = _today_local_factory(settings.display_timezone)
+    env.globals["iso_4217_currencies"] = ISO_4217_CURRENCIES
     return env

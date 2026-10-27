@@ -67,7 +67,8 @@ def _seed_anchor_and_income(
 def test_left_daily_spend_card_renders_number_and_caption(
     client: TestClient, _migrated: Settings, world: dict[str, int]
 ) -> None:
-    _seed_anchor_and_income(_migrated, world["salary"], world["checking"], date(2099, 12, 31))
+    # Within horizon_days=400 so the anchor name resolves on the hero caption.
+    _seed_anchor_and_income(_migrated, world["salary"], world["checking"], date(2027, 1, 15))
     r = client.get("/budget")
     assert r.status_code == 200
     assert "Left to spend per day" in r.text
@@ -96,14 +97,22 @@ def test_left_daily_spend_card_shows_end_of_month_fallback_when_anchor_unset(
     assert "end of month" in r.text
 
 
-def test_budget_page_lists_income_categories_in_select(
+def test_settings_prefs_lists_income_categories_in_select(
     client: TestClient, world: dict[str, int]
 ) -> None:
-    r = client.get("/budget")
+    """ADR-0031 §1 — income anchor selector relocated to Settings → Preferences."""
+    r = client.get("/settings?tab=prefs")
     assert r.status_code == 200
     assert "Income anchor" in r.text
     assert 'id="anchor-select"' in r.text
     assert ">Salary<" in r.text
+
+
+def test_budget_page_links_to_settings_anchor(client: TestClient, world: dict[str, int]) -> None:
+    """ADR-0031 §1 — the hero caption carries a `Change anchor →` link."""
+    r = client.get("/budget")
+    assert r.status_code == 200
+    assert "/settings?tab=prefs#income-anchor" in r.text
 
 
 def test_post_anchor_sets_preference(

@@ -55,13 +55,27 @@ _MINOR_UNITS_PER_MAJOR = 100
 
 @dataclass(frozen=True, slots=True)
 class RulesRow:
-    """One row of the Rules editor table."""
+    """One row of the Rules editor table (ADR-0031 §2 — category + default)."""
 
     category_id: int
     category_name: str
-    default_minor: int
-    recurring_minor: int | None
-    one_off_minor: int | None
+    default_minor: int | None
+
+
+_MONTH_LABELS: tuple[str, ...] = (
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+)
 
 
 def _year_month(request: Request) -> tuple[int, int]:
@@ -72,25 +86,23 @@ def _year_month(request: Request) -> tuple[int, int]:
     return year, month
 
 
-def _rules_rows(conn: sqlite3.Connection, year: int, month: int) -> tuple[RulesRow, ...]:
-    """Collect the per-category three-tier editable rows for the Rules section."""
-    cats = [c for c in categories_repo.list_all(conn) if not c.is_system]
+def _rules_rows(conn: sqlite3.Connection) -> tuple[RulesRow, ...]:
+    """Per-expense-category rows for the Rules editor (ADR-0031 §2).
+
+    Each row carries only the default amount (nullable); recurring + one-off
+    overrides are authored on demand via the per-row Override… slide-over.
+    """
+    cats = [
+        c
+        for c in categories_repo.list_all(conn)
+        if not c.is_system and c.direction is Direction.EXPENSE
+    ]
     defaults = {d.category_id: d.amount for d in budgets_repo.list_defaults(conn)}
-    recurring = {
-        r.category_id: r.amount for r in budgets_repo.list_recurring(conn) if r.month == month
-    }
-    one_off = {
-        o.category_id: o.amount
-        for o in budgets_repo.list_one_off(conn, year=year)
-        if o.month == month
-    }
     rows = [
         RulesRow(
             category_id=cat.id,
             category_name=cat.name,
-            default_minor=defaults.get(cat.id, 0),
-            recurring_minor=recurring.get(cat.id),
-            one_off_minor=one_off.get(cat.id),
+            default_minor=defaults.get(cat.id),
         )
         for cat in cats
     ]
@@ -197,14 +209,6 @@ def _breakdown_payloads(conn: sqlite3.Connection, base_ccy: str) -> dict[str, st
 # ---------------------------------------------------------------------------
 
 
-def _income_categories(conn: sqlite3.Connection) -> list[Any]:
-    return [
-        c
-        for c in categories_repo.list_all(conn)
-        if c.direction is Direction.INCOME and c.deleted_at is None
-    ]
-
-
 def _render_index(
     request: Request,
     conn: sqlite3.Connection,
@@ -213,10 +217,9 @@ def _render_index(
     year, month = _year_month(request)
     today = datetime.now(ZoneInfo(settings.display_timezone)).date()
     summary = budget_service.month_summary(conn, year, month, today=today)
-    rules = _rules_rows(conn, year, month)
+    rules = _rules_rows(conn)
+    yearly = budget_service.yearly_grid(conn, year)
     breakdown = _breakdown_payloads(conn, settings.base_currency)
-    income_categories = _income_categories(conn)
-    current_anchor_id = preferences_svc.get_income_anchor_category_id(conn)
     return render(
         request,
         "budget/index.html",
@@ -224,13 +227,117 @@ def _render_index(
         month=month,
         summary=summary,
         rules=rules,
+        yearly=yearly,
+        month_labels=_MONTH_LABELS,
         base_ccy=settings.base_currency,
         spend_json=breakdown["spend_json"],
         cashflow_json=breakdown["cashflow_json"],
         monthly_json=breakdown["monthly_json"],
-        income_categories=income_categories,
-        current_anchor_id=current_anchor_id,
     )
+
+
+@router.get("/yearly", response_class=HTMLResponse)
+def yearly_fragment(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
+) -> HTMLResponse:
+    """HTMX fragment for the Yearly grid (ADR-0031 §3).
+
+    Returns just the ``#budget-yearly`` section so year switching does not
+    force a full-page reload.
+    """
+    q = request.query_params
+    today = datetime.now(ZoneInfo(settings.display_timezone)).date()
+    year = int(q.get("year", today.year))
+    yearly = budget_service.yearly_grid(conn, year)
+    return render(
+        request,
+        "budget/_yearly.html",
+        year=year,
+        yearly=yearly,
+        month_labels=_MONTH_LABELS,
+        base_ccy=settings.base_currency,
+    )
+
+
+@router.get("/rules/{category_id}/overrides/new", response_class=HTMLResponse)
+def new_override_form(
+    category_id: int,
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
+) -> HTMLResponse:
+    """Slide-over form for creating a recurring / one-off override (ADR-0031 §2)."""
+    cat = categories_repo.find_by_id(conn, category_id)
+    if cat is None:
+        return render(
+            request,
+            "partials/budget/_override_form.html",
+            category=None,
+            errors={"category": "not found"},
+            today_year=datetime.now(ZoneInfo(settings.display_timezone)).year,
+            status_code=404,
+        )
+    return render(
+        request,
+        "partials/_slideover.html",
+        slide_over_title=f"Override · {cat.name}",
+        form_include="partials/budget/_override_form.html",
+        category=cat,
+        errors={},
+        today_year=datetime.now(ZoneInfo(settings.display_timezone)).year,
+    )
+
+
+@router.post("/rules/{category_id}/overrides")
+def create_override(  # noqa: PLR0911, PLR0917
+    category_id: int,
+    tier: str = Form(...),
+    month: str = Form(""),
+    year: str = Form(""),
+    amount: str = Form(""),
+    conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
+) -> Response:
+    """Tier-dispatcher for the Override slide-over (ADR-0031 §2)."""
+    cat = categories_repo.find_by_id(conn, category_id)
+    if cat is None:
+        return Response(status_code=404, content="not found")
+    if tier not in {"recurring", "one-off"}:
+        return Response(status_code=422, content="invalid tier")
+    try:
+        parsed_month = int(month)
+    except ValueError:
+        return Response(status_code=422, content="invalid month")
+    if parsed_month < 1 or parsed_month > _MONTHS_IN_YEAR:
+        return Response(status_code=422, content="invalid month")
+    dec = _parse_decimal(amount) if amount.strip() else Decimal(0)
+    if dec is None or dec < 0:
+        return Response(status_code=422, content="invalid amount")
+    minor = to_minor_units(dec, settings.base_currency)
+    if tier == "recurring":
+        budgets_repo.set_recurring(
+            conn,
+            NewBudgetRecurringOverride(category_id=category_id, month=parsed_month, amount=minor),
+        )
+    else:
+        try:
+            parsed_year = int(year)
+        except ValueError:
+            return Response(status_code=422, content="invalid year")
+        budgets_repo.set_one_off(
+            conn,
+            NewBudgetOneOffOverride(
+                category_id=category_id,
+                year=parsed_year,
+                month=parsed_month,
+                amount=minor,
+            ),
+        )
+    resp = Response(content="ok", media_type="text/html")
+    trigger(resp, "budget-stale")
+    return resp
 
 
 @router.get("", response_class=HTMLResponse)

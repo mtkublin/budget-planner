@@ -174,3 +174,92 @@ def test_budget_manage_lands_on_rules_section(client: TestClient, cat_id: int) -
     r = client.get("/budget/manage")  # follow_redirects=True by default
     assert r.status_code == 200
     assert "Rules" in r.text
+
+
+# ---------------------------------------------------------------------------
+# T-113 / ADR-0031 — Rules Override dispatcher + Yearly budget grid
+# ---------------------------------------------------------------------------
+
+
+def test_yearly_fragment_renders_for_year(client: TestClient, cat_id: int) -> None:
+    r = client.get("/budget/yearly?year=2026")
+    assert r.status_code == 200
+    assert 'id="budget-yearly"' in r.text
+    assert "Groceries" in r.text
+
+
+def test_rules_section_renders_override_button(client: TestClient, cat_id: int) -> None:
+    r = client.get("/budget")
+    assert r.status_code == 200
+    assert f"/budget/rules/{cat_id}/overrides/new" in r.text
+
+
+def test_new_override_form_404_for_unknown_category(client: TestClient) -> None:
+    r = client.get("/budget/rules/9999/overrides/new")
+    assert r.status_code == 404
+
+
+def test_new_override_form_returns_slide_over(client: TestClient, cat_id: int) -> None:
+    r = client.get(f"/budget/rules/{cat_id}/overrides/new")
+    assert r.status_code == 200
+    assert 'name="tier"' in r.text
+    assert 'name="month"' in r.text
+    assert 'name="amount"' in r.text
+
+
+def test_create_override_recurring(client: TestClient, cat_id: int) -> None:
+    r = client.post(
+        f"/budget/rules/{cat_id}/overrides",
+        data={"tier": "recurring", "month": "6", "amount": "250"},
+    )
+    assert r.status_code == 200
+    assert "budget-stale" in r.headers["HX-Trigger"]
+
+
+def test_create_override_one_off(client: TestClient, cat_id: int) -> None:
+    r = client.post(
+        f"/budget/rules/{cat_id}/overrides",
+        data={"tier": "one-off", "month": "7", "year": "2026", "amount": "99"},
+    )
+    assert r.status_code == 200
+    assert "budget-stale" in r.headers["HX-Trigger"]
+
+
+def test_create_override_404_for_unknown_category(client: TestClient) -> None:
+    r = client.post(
+        "/budget/rules/9999/overrides",
+        data={"tier": "recurring", "month": "6", "amount": "1"},
+    )
+    assert r.status_code == 404
+
+
+def test_create_override_rejects_bad_tier(client: TestClient, cat_id: int) -> None:
+    r = client.post(
+        f"/budget/rules/{cat_id}/overrides",
+        data={"tier": "monthly", "month": "6", "amount": "1"},
+    )
+    assert r.status_code == 422
+
+
+def test_create_override_rejects_bad_month(client: TestClient, cat_id: int) -> None:
+    r = client.post(
+        f"/budget/rules/{cat_id}/overrides",
+        data={"tier": "recurring", "month": "13", "amount": "1"},
+    )
+    assert r.status_code == 422
+
+
+def test_create_override_rejects_bad_amount(client: TestClient, cat_id: int) -> None:
+    r = client.post(
+        f"/budget/rules/{cat_id}/overrides",
+        data={"tier": "recurring", "month": "6", "amount": "nope"},
+    )
+    assert r.status_code == 422
+
+
+def test_create_override_one_off_rejects_bad_year(client: TestClient, cat_id: int) -> None:
+    r = client.post(
+        f"/budget/rules/{cat_id}/overrides",
+        data={"tier": "one-off", "month": "7", "year": "bogus", "amount": "1"},
+    )
+    assert r.status_code == 422

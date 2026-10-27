@@ -1,0 +1,77 @@
+{# Override slide-over form (ADR-0031 §2).
+   Called by GET /budget/rules/{category_id}/overrides/new; posts to
+   POST /budget/rules/{category_id}/overrides which dispatches to the
+   recurring / one-off repository mutation based on `tier`. #}
+<form hx-post="/budget/rules/{{ category.id if category else 0 }}/overrides"
+      hx-swap="none"
+      class="form-stack"
+      data-reset-on-submit>
+  {% if category %}
+    <fieldset>
+      <legend>Tier</legend>
+      <label class="form-stack__inline">
+        <input type="radio" name="tier" value="recurring" data-override-tier checked>
+        Recurring (every year for this month)
+      </label>
+      <label class="form-stack__inline">
+        <input type="radio" name="tier" value="one-off" data-override-tier>
+        One-off (single year/month)
+      </label>
+    </fieldset>
+    <label>
+      Month
+      <select name="month" required>
+        {% for m in range(1, 13) %}
+          <option value="{{ m }}">{{ "%02d"|format(m) }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label data-override-year
+           {% if false %}{# shown dynamically; see inline script #}{% endif %}>
+      Year
+      <input type="number"
+             name="year"
+             value="{{ today_year }}"
+             min="2000"
+             max="2100"
+             inputmode="numeric">
+    </label>
+    <label>
+      Amount
+      <input type="text"
+             name="amount"
+             inputmode="decimal"
+             data-numeric
+             placeholder="0.00">
+    </label>
+  {% endif %}
+  {% include "partials/_form_errors.html" %}
+  <div class="form-stack__actions">
+    <button type="submit" class="btn-accent">Save override</button>
+  </div>
+</form>
+<script>
+  (function () {
+    var form = document.currentScript.previousElementSibling;
+    if (!form) return;
+    var yearField = form.querySelector("[data-override-year]");
+    var yearInput = yearField ? yearField.querySelector("input[name='year']") : null;
+    var radios = form.querySelectorAll("[data-override-tier]");
+    function sync() {
+      var picked = form.querySelector("[data-override-tier]:checked");
+      var isOneOff = picked && picked.value === "one-off";
+      if (!yearField) return;
+      if (isOneOff) {
+        yearField.removeAttribute("hidden");
+        yearField.removeAttribute("aria-hidden");
+        if (yearInput) yearInput.disabled = false;
+      } else {
+        yearField.setAttribute("hidden", "");
+        yearField.setAttribute("aria-hidden", "true");
+        if (yearInput) yearInput.disabled = true;
+      }
+    }
+    radios.forEach(function (r) { r.addEventListener("change", sync); });
+    sync();
+  })();
+</script>

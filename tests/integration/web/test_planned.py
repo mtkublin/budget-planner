@@ -193,7 +193,7 @@ def test_promote_submit(client: TestClient, ctx: dict[str, int]) -> None:
     )
     assert r.status_code == 200
     hx = json.loads(r.headers["HX-Trigger"])
-    assert hx == {"balance-stale": True, "forecast-stale": True}
+    assert hx == {"balance-stale": True, "forecast-stale": True, "ledger-stale": True}
 
 
 def test_promote_submit_invalid(client: TestClient, ctx: dict[str, int]) -> None:

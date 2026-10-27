@@ -1,13 +1,16 @@
+{% from "_partials/combobox.html" import combobox %}
 <form id="txn-form"
       hx-post="{{ action }}"
       hx-target="{% if txn %}#txn-{{ txn.id }}{% else %}#txn-table tbody{% endif %}"
       hx-swap="{% if txn %}outerHTML{% else %}afterbegin{% endif %}"
-      class="form-stack mb-6">
+      class="form-stack mb-6"
+      {% if not txn %}data-reset-on-submit{% endif %}>
   <label>
     Date
     <input type="date"
            name="operation_date"
-           value="{{ txn.operation_date|date_fmt if txn else '' }}"
+           value="{{ txn.operation_date|date_fmt if txn else today_local() }}"
+           data-default-today
            required>
   </label>
   <label>
@@ -15,6 +18,8 @@
     <input type="text"
            name="amount"
            value="{{ txn.amount if txn else '' }}"
+           inputmode="decimal"
+           data-numeric
            required
            hx-get="/transactions/_limit_preview"
            hx-include="[name='account_id'],[name='category_id'],[name='amount']"
@@ -23,44 +28,25 @@
            hx-trigger="change delay:200ms, keyup changed delay:400ms">
   </label>
   <label>
-    Category
-    <select name="category_id"
-            required
-            hx-get="/transactions/_limit_preview"
-            hx-include="[name='account_id'],[name='category_id'],[name='amount']"
-            hx-target="#limit-preview"
-            hx-swap="outerHTML"
-            hx-trigger="change">
-      {% for c in categories %}
-        <option value="{{ c.id }}"
-                {% if txn and txn.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
-      {% endfor %}
-    </select>
+    <span>Category</span>
+    {{ combobox(name="category_id", items=categories,
+      value_attr="id", label_attr="name",
+      selected_value=txn.category_id if txn else "",
+      required=True) }}
   </label>
   <label>
-    Account
-    <select name="account_id"
-            required
-            hx-get="/transactions/_limit_preview"
-            hx-include="[name='account_id'],[name='category_id'],[name='amount']"
-            hx-target="#limit-preview"
-            hx-swap="outerHTML"
-            hx-trigger="change">
-      {% for a in accounts %}
-        <option value="{{ a.id }}"
-                {% if txn and txn.account_id == a.id %}selected{% endif %}>{{ a.name }}</option>
-      {% endfor %}
-    </select>
+    <span>Account</span>
+    {{ combobox(name="account_id", items=accounts,
+      value_attr="id", label_attr="name",
+      selected_value=txn.account_id if txn else "",
+      required=True) }}
   </label>
   <label>
-    Dest (transit)
-    <select name="dest_account_id">
-      <option value="">—</option>
-      {% for a in accounts %}
-        <option value="{{ a.id }}"
-                {% if txn and txn.dest_account_id == a.id %}selected{% endif %}>{{ a.name }}</option>
-      {% endfor %}
-    </select>
+    <span>Dest (transit)</span>
+    {{ combobox(name="dest_account_id", items=accounts,
+      value_attr="id", label_attr="name",
+      selected_value=txn.dest_account_id if (txn and txn.dest_account_id) else "",
+      placeholder="— none —") }}
   </label>
   <label>
     Description

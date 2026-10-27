@@ -1,24 +1,40 @@
-<div role="dialog"
+{# T-110 / ADR-0030 §4 — reconcile dialog migrates to the shared slide-over
+   wrapper so it inherits the visible close affordance, Esc dismissal, and
+   backdrop-click dismissal from `_partials/slide_over_header.html`.
+
+   Called by `/accounts/{id}/reconcile` (GET) with:
+     - account:   Account | None (None → 404 branch).
+     - derived:   int (minor units, 0 when account missing).
+     - errors:    dict[str, str] (inline form errors). #}
+{% from "_partials/slide_over_header.html" import slide_over_header %}
+<div class="slide-over-root"
+     role="dialog"
      aria-modal="true"
      aria-labelledby="rec-title"
-     class="fixed inset-0 bg-black/20 flex items-center justify-center">
-  <form hx-post="/accounts/{{ account.id if account else 0 }}/reconcile"
-        hx-target="#account-{{ account.id if account else 0 }}"
-        hx-swap="outerHTML"
-        class="bg-white border border-[color:var(--rule)] p-6 rounded w-96">
-    <h2 id="rec-title" class="font-serif text-2xl mb-3">Reconcile</h2>
-    {% if account %}
-      <p class="text-muted text-sm mb-3">
-        Derived: <span class="tabular-nums">{{ derived|money(account.currency) }}</span>
-      </p>
-      <label class="block">
-        Actual balance
-        <input type="text" name="actual_balance" required>
-      </label>
-    {% endif %}
-    {% include "partials/_form_errors.html" %}
-    <div class="mt-4 flex justify-end gap-2">
-      <button type="submit" class="btn-accent">Reconcile</button>
+     data-slideover
+     onclick="if(event.target===this){this.parentElement.innerHTML='';}">
+  <aside class="slide-over" tabindex="-1">
+    {{ slide_over_header(title="Reconcile", heading_id="rec-title") }}
+    <div class="slide-over__body">
+      <form hx-post="/accounts/{{ account.id if account else 0 }}/reconcile"
+            hx-target="#account-{{ account.id if account else 0 }}"
+            hx-swap="outerHTML"
+            class="form-stack reconcile-form"
+            data-reset-on-submit>
+        {% if account %}
+          <p class="text-muted text-sm">
+            Derived: <span class="tabular-nums">{{ derived|money(account.currency) }}</span>
+          </p>
+          <label>
+            Actual balance
+            <input type="text" name="actual_balance" data-numeric required>
+          </label>
+        {% endif %}
+        {% include "partials/_form_errors.html" %}
+        <div class="form-stack__actions">
+          <button type="submit" class="btn-accent">Reconcile</button>
+        </div>
+      </form>
     </div>
-  </form>
+  </aside>
 </div>

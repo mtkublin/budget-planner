@@ -1,12 +1,15 @@
+{% from "_partials/combobox.html" import combobox %}
 <form hx-post="{{ action }}"
       hx-target="{% if planned %}#planned-p-{{ planned.id }}{% else %}#planned-table tbody{% endif %}"
       hx-swap="{% if planned %}outerHTML{% else %}afterbegin{% endif %}"
-      class="form-stack">
+      class="form-stack"
+      {% if not planned %}data-reset-on-submit{% endif %}>
   <label>
     Date
     <input type="date"
            name="operation_date"
-           value="{{ planned.operation_date|date_fmt if planned else '' }}"
+           value="{{ planned.operation_date|date_fmt if planned else today_local() }}"
+           data-default-today
            required>
   </label>
   <label>
@@ -14,25 +17,23 @@
     <input type="text"
            name="amount"
            value="{{ planned.amount if planned else '' }}"
+           inputmode="decimal"
+           data-numeric
            required>
   </label>
   <label>
-    Category
-    <select name="category_id" required>
-      {% for c in categories %}
-        <option value="{{ c.id }}"
-                {% if planned and planned.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
-      {% endfor %}
-    </select>
+    <span>Category</span>
+    {{ combobox(name="category_id", items=categories,
+      value_attr="id", label_attr="name",
+      selected_value=planned.category_id if planned else "",
+      required=True) }}
   </label>
   <label>
-    Account
-    <select name="account_id" required>
-      {% for a in accounts %}
-        <option value="{{ a.id }}"
-                {% if planned and planned.account_id == a.id %}selected{% endif %}>{{ a.name }}</option>
-      {% endfor %}
-    </select>
+    <span>Account</span>
+    {{ combobox(name="account_id", items=accounts,
+      value_attr="id", label_attr="name",
+      selected_value=planned.account_id if planned else "",
+      required=True) }}
   </label>
   <label>
     Description

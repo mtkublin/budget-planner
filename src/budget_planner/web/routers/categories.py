@@ -39,11 +39,23 @@ def new_form(request: Request) -> HTMLResponse:
     )
 
 
+_USER_DIRECTIONS: frozenset[Direction] = frozenset({Direction.INCOME, Direction.EXPENSE})
+
+
 def _validate_direction(value: str) -> Direction | None:
+    """Return the direction only if user-pickable.
+
+    T-115 / F1.6 — transit + adjustment are reserved for seeded system
+    categories (``Transit``, ``Reconciliation``) and must not reach the
+    repository via a user POST.
+    """
     try:
-        return Direction(value)
+        d = Direction(value)
     except ValueError:
         return None
+    if d not in _USER_DIRECTIONS:
+        return None
+    return d
 
 
 @router.post("")

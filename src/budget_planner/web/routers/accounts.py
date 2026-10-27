@@ -98,9 +98,13 @@ def index(
 
 @router.get("/new", response_class=HTMLResponse)
 def new_form(request: Request) -> HTMLResponse:
+    # ADR-0030 §4 — wrap in shared slide-over so the New-account form inherits
+    # the visible close affordance + Esc/backdrop dismissal.
     return render(
         request,
-        "partials/accounts/_form.html",
+        "partials/_slideover.html",
+        slide_over_title="New account",
+        form_include="partials/accounts/_form.html",
         account=None,
         action="/accounts",
         errors={},
@@ -199,7 +203,9 @@ def edit_form(
         )
     return render(
         request,
-        "partials/accounts/_form.html",
+        "partials/_slideover.html",
+        slide_over_title="Edit account",
+        form_include="partials/accounts/_form.html",
         account=acc,
         action=f"/accounts/{account_id}",
         errors={},

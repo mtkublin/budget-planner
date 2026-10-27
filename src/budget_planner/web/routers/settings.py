@@ -21,10 +21,12 @@ from typing import Any, Final, Literal, get_args
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
 
+from budget_planner.domain.enums import Direction
 from budget_planner.repositories import (
     categories as categories_repo,
     fx as fx_repo,
 )
+from budget_planner.services import preferences as preferences_svc
 from budget_planner.web.deps import get_db
 from budget_planner.web.rendering import render
 
@@ -59,6 +61,14 @@ def drawer(
         context["categories"] = categories_repo.list_all(conn)
     elif active_tab == "fx":
         context["fx_rates"] = fx_repo.list_recent(conn, limit=_FX_LIMIT)
+    elif active_tab == "prefs":
+        # ADR-0031 §1 — income anchor selector lives here now (was /budget §2b).
+        context["income_categories"] = [
+            c
+            for c in categories_repo.list_all(conn)
+            if c.direction is Direction.INCOME and c.deleted_at is None
+        ]
+        context["current_anchor_id"] = preferences_svc.get_income_anchor_category_id(conn)
     return render(request, "settings/_drawer.html", **context)
 
 

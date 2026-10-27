@@ -1,7 +1,9 @@
+{% from "_partials/combobox.html" import combobox %}
 <form hx-post="{{ action }}"
       hx-target="{% if rule %}#recurring-{{ rule.id }}{% else %}table.ledger tbody{% endif %}"
       hx-swap="{% if rule %}outerHTML{% else %}beforeend{% endif %}"
-      class="form-stack">
+      class="form-stack"
+      {% if not rule %}data-reset-on-submit{% endif %}>
   <label>
     Cadence
     <select name="cadence" required>
@@ -15,39 +17,39 @@
     Start
     <input type="date"
            name="start_date"
-           value="{{ rule.start_date|date_fmt if rule else '' }}"
+           value="{{ rule.start_date|date_fmt if rule else today_local() }}"
+           data-default-today
            required>
   </label>
   <label>
-    Category
-    <select name="category_id" required>
-      {% for c in categories %}
-        <option value="{{ c.id }}"
-                {% if rule and rule.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
-      {% endfor %}
-    </select>
+    <span>Category</span>
+    {{ combobox(name="category_id", items=categories,
+      value_attr="id", label_attr="name",
+      selected_value=rule.category_id if rule else "",
+      required=True) }}
   </label>
   <label>
-    Account
-    <select name="account_id" required>
-      {% for a in accounts %}
-        <option value="{{ a.id }}"
-                {% if rule and rule.account_id == a.id %}selected{% endif %}>{{ a.name }}</option>
-      {% endfor %}
-    </select>
+    <span>Account</span>
+    {{ combobox(name="account_id", items=accounts,
+      value_attr="id", label_attr="name",
+      selected_value=rule.account_id if rule else "",
+      required=True) }}
   </label>
   <label>
     Amount
     <input type="text"
            name="default_amount"
            value="{{ rule.default_amount if rule else '' }}"
+           inputmode="decimal"
+           data-numeric
            required>
   </label>
   <label>
     Day of month
     <input type="text"
            name="day_of_month"
-           value="{{ rule.day_of_month if rule else '' }}">
+           value="{{ rule.day_of_month if rule else '' }}"
+           inputmode="numeric">
   </label>
   <label>
     Description

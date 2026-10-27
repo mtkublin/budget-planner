@@ -16,7 +16,11 @@
 <div id="ledger-table"
      data-ledger-table-root
      data-view="{{ view }}"
-     aria-live="polite">
+     aria-live="polite"
+     hx-get="/ledger/table?view={{ view }}"
+     hx-trigger="ledger-stale from:body"
+     hx-swap="outerHTML"
+     hx-include="form.filter-chips">
   <div id="{{ table_id }}" data-ledger-table data-view="{{ view }}">
     <div class="ledger-scroll">
       <table class="ledger">
@@ -36,6 +40,7 @@
               <th scope="col">Cadence</th>
               <th scope="col">Next due</th>
               <th scope="col">Overrides</th>
+              <th scope="col" class="text-right">Actions</th>
             {% else %}
               <th scope="col" class="text-right">Actions</th>
             {% endif %}
@@ -57,9 +62,15 @@
                 <td class="text-right space-x-2 text-sm">
                   <button type="button"
                           hx-get="/transactions/{{ row.id }}/edit"
+                          hx-target="#modal-root"
+                          hx-swap="innerHTML"
+                          aria-label="Edit transaction {{ row.id }}">Edit</button>
+                  <button type="button"
+                          hx-post="/transactions/{{ row.id }}/delete"
                           hx-target="#txn-{{ row.id }}"
                           hx-swap="outerHTML"
-                          aria-label="Edit transaction {{ row.id }}">Edit</button>
+                          hx-confirm="Delete this transaction?"
+                          aria-label="Delete transaction {{ row.id }}">Delete</button>
                 </td>
               </tr>
             {% elif view == "planned" %}
@@ -78,12 +89,25 @@
                   {% endif %}
                 </td>
                 <td class="text-right space-x-2 text-sm">
-                  {% if row.kind == "persisted" and not row.is_promoted %}
+                  {% if row.kind == "persisted" %}
                     <button type="button"
-                            hx-get="/planned/{{ row.persisted_id }}/promote"
+                            hx-get="/planned/{{ row.persisted_id }}/edit"
                             hx-target="#modal-root"
                             hx-swap="innerHTML"
-                            aria-label="Promote planned {{ row.persisted_id }}">Promote →</button>
+                            aria-label="Edit planned {{ row.persisted_id }}">Edit</button>
+                    {% if not row.is_promoted %}
+                      <button type="button"
+                              hx-get="/planned/{{ row.persisted_id }}/promote"
+                              hx-target="#modal-root"
+                              hx-swap="innerHTML"
+                              aria-label="Promote planned {{ row.persisted_id }}">Promote →</button>
+                    {% endif %}
+                    <button type="button"
+                            hx-post="/planned/{{ row.persisted_id }}/delete"
+                            hx-target="#planned-{{ row.key }}"
+                            hx-swap="outerHTML"
+                            hx-confirm="Delete this planned entry?"
+                            aria-label="Delete planned {{ row.persisted_id }}">Delete</button>
                   {% endif %}
                 </td>
               </tr>
@@ -113,6 +137,21 @@
                       <p class="text-faint text-sm">No overrides</p>
                     {% endif %}
                   </details>
+                </td>
+                <td class="text-right space-x-2 text-sm">
+                  <button type="button"
+                          hx-get="/recurring/{{ row.id }}/edit"
+                          hx-target="#modal-root"
+                          hx-swap="innerHTML"
+                          aria-label="Edit rule {{ row.id }}">Edit</button>
+                  {% if row.active %}
+                    <button type="button"
+                            hx-post="/recurring/{{ row.id }}/deactivate"
+                            hx-target="#recurring-{{ row.id }}"
+                            hx-swap="outerHTML"
+                            hx-confirm="Deactivate this rule?"
+                            aria-label="Deactivate rule {{ row.id }}">Delete</button>
+                  {% endif %}
                 </td>
               </tr>
             {% endif %}

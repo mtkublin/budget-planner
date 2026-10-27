@@ -13,7 +13,9 @@
     <label>
       Direction
       <select name="direction" required>
-        {% for d in [Direction.INCOME, Direction.EXPENSE, Direction.TRANSIT] %}
+        {# T-115 / ADR-0030 scope — user-created categories limited to income +
+           expense. Transit + Adjustment are system-only (seeded migration). #}
+        {% for d in [Direction.INCOME, Direction.EXPENSE] %}
           <option value="{{ d.value }}">{{ d.value|capitalize }}</option>
         {% endfor %}
       </select>

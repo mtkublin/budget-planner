@@ -33,6 +33,7 @@
         ÷ {{ summary.days_until_next_income }} day{% if summary.days_until_next_income != 1 %}s{% endif %},
         next income {{ summary.next_income_date|date_fmt }}
         ({{ summary.anchor_category_name or 'end of month' }}).
+        <a class="link-muted text-sm" href="/settings?tab=prefs#income-anchor">Change anchor →</a>
       {% endif %}
     </p>
   </section>
@@ -133,7 +134,7 @@
     </table>
   </section>
   {# ------------------------------------------------------------------ #}
-  {# Section 2 — Rules editor                                           #}
+  {# Section 2 — Rules editor (ADR-0031 §2)                             #}
   {# ------------------------------------------------------------------ #}
   <section id="budget-rules"
            class="budget-section"
@@ -144,21 +145,19 @@
         <h2 id="budget-rules-heading">Rules</h2>
       </div>
       <p class="text-muted text-sm">
-        Rules are per category — edit any row inline. Resolution: one-off → recurring → default (in {{ base_ccy }}). Totals recalculate on save.
+        Default budgets edit inline (in {{ base_ccy }}); use <em>Override…</em>
+        to add a recurring or one-off exception. Resolution:
+        one-off → recurring → default.
       </p>
     </header>
     <div class="ledger-scroll">
       <table class="ledger budget-rules-table">
-        <caption class="sr-only">
-          Per-category budget rules: default, recurring for month {{ month }},
-          and one-off for {{ year }}-{{ "%02d"|format(month) }}
-        </caption>
+        <caption class="sr-only">Per-category default budget + override affordance</caption>
         <thead>
           <tr>
             <th scope="col">Category</th>
             <th scope="col">Default</th>
-            <th scope="col">Recurring · month {{ month }}</th>
-            <th scope="col">One-off · {{ year }}-{{ "%02d"|format(month) }}</th>
+            <th scope="col" class="text-right">Override</th>
           </tr>
         </thead>
         <tbody>
@@ -174,43 +173,20 @@
                   <input id="rule-default-{{ row.category_id }}"
                          type="text"
                          name="amount"
-                         value="{{ row.default_minor }}"
-                         inputmode="decimal">
+                         value="{{ row.default_minor if row.default_minor is not none else '' }}"
+                         placeholder="—"
+                         inputmode="decimal"
+                         data-numeric>
                   <button type="submit" class="btn-ghost">Save</button>
                 </form>
               </td>
-              <td>
-                <form hx-post="/budget/recurring/{{ row.category_id }}/{{ month }}"
-                      hx-swap="none"
-                      class="budget-rule-form">
-                  <label class="sr-only" for="rule-recurring-{{ row.category_id }}">
-                    Recurring budget for {{ row.category_name }}, month {{ month }}
-                  </label>
-                  <input id="rule-recurring-{{ row.category_id }}"
-                         type="text"
-                         name="amount"
-                         value="{{ row.recurring_minor if row.recurring_minor is not none else '' }}"
-                         placeholder="—"
-                         inputmode="decimal">
-                  <button type="submit" class="btn-ghost">Save</button>
-                </form>
-              </td>
-              <td>
-                <form hx-post="/budget/one-off/{{ row.category_id }}/{{ year }}/{{ month }}"
-                      hx-swap="none"
-                      class="budget-rule-form">
-                  <label class="sr-only" for="rule-oneoff-{{ row.category_id }}">
-                    One-off budget for {{ row.category_name }},
-                    {{ year }}-{{ "%02d"|format(month) }}
-                  </label>
-                  <input id="rule-oneoff-{{ row.category_id }}"
-                         type="text"
-                         name="amount"
-                         value="{{ row.one_off_minor if row.one_off_minor is not none else '' }}"
-                         placeholder="—"
-                         inputmode="decimal">
-                  <button type="submit" class="btn-ghost">Save</button>
-                </form>
+              <td class="text-right">
+                <button type="button"
+                        class="btn-ghost"
+                        hx-get="/budget/rules/{{ row.category_id }}/overrides/new"
+                        hx-target="#modal-root"
+                        hx-swap="innerHTML"
+                        aria-label="Add override for {{ row.category_name }}">Override…</button>
               </td>
             </tr>
           {% endfor %}
@@ -219,45 +195,18 @@
     </div>
   </section>
   {# ------------------------------------------------------------------ #}
-  {# Section 2b — Income anchor preference                              #}
+  {# Section 3 — Yearly grid (ADR-0031 §3)                              #}
   {# ------------------------------------------------------------------ #}
-  <section id="income-anchor"
-           class="budget-section"
-           aria-labelledby="income-anchor-heading">
-    <header class="budget-section__header">
-      <div>
-        <p class="eyebrow">Section 2b</p>
-        <h2 id="income-anchor-heading">Income anchor</h2>
-      </div>
-      <p class="text-muted text-sm">
-        Picks the paycheck category whose next date divides remaining budget
-        into the <a href="#left-daily-spend">left-to-spend-per-day</a>
-        number. Leave blank to fall back to end of month.
-      </p>
-    </header>
-    <form hx-post="/budget/preferences/income-anchor"
-          hx-swap="none"
-          class="budget-rule-form">
-      <label for="anchor-select" class="sr-only">Income anchor</label>
-      <select id="anchor-select" name="category_id">
-        <option value="" {% if current_anchor_id is none %}selected{% endif %}>— none —</option>
-        {% for c in income_categories %}
-          <option value="{{ c.id }}"
-                  {% if current_anchor_id == c.id %}selected{% endif %}>{{ c.name }}</option>
-        {% endfor %}
-      </select>
-      <button type="submit" class="btn-ghost">Save</button>
-    </form>
-  </section>
+  {% include "budget/_yearly.html" %}
   {# ------------------------------------------------------------------ #}
-  {# Section 3 — Breakdown                                              #}
+  {# Section 4 — Breakdown                                              #}
   {# ------------------------------------------------------------------ #}
   <section id="budget-breakdown"
            class="budget-section"
            aria-labelledby="budget-breakdown-heading">
     <header class="budget-section__header">
       <div>
-        <p class="eyebrow">Section 3</p>
+        <p class="eyebrow">Section 4</p>
         <h2 id="budget-breakdown-heading">Breakdown</h2>
       </div>
       <p class="text-muted text-sm">Minor-unit sums divided by 100 for display.</p>

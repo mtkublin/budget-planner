@@ -146,7 +146,7 @@ def create_planned(  # noqa: PLR0917
         ),
     )
     html = render(request, "partials/planned/_row.html", view=_from_persisted(pl, acc, cat))
-    trigger(html, "forecast-stale")
+    trigger(html, "forecast-stale", "ledger-stale")
     return html
 
 
@@ -181,9 +181,12 @@ def edit_form(
             errors={"planned": "not found"},
             status_code=404,
         )
+    # T-114 / ADR-0030 §4 — slide-over wrapper mirrors /planned/new.
     return render(
         request,
-        "partials/planned/_form.html",
+        "partials/_slideover.html",
+        slide_over_title="Edit planned transaction",
+        form_include="partials/planned/_form.html",
         planned=pl,
         action=f"/planned/{planned_id}",
         categories=categories_repo.list_all(conn),
@@ -245,7 +248,7 @@ def update_planned(  # noqa: PLR0917
     assert updated is not None and acc is not None
     cat = categories_repo.find_by_id(conn, updated.category_id)
     html = render(request, "partials/planned/_row.html", view=_from_persisted(updated, acc, cat))
-    trigger(html, "forecast-stale")
+    trigger(html, "forecast-stale", "ledger-stale")
     return html
 
 
@@ -256,7 +259,7 @@ def delete_planned(planned_id: int, conn: sqlite3.Connection = Depends(get_db)) 
         return Response(status_code=404, content="not found")
     planned_repo.soft_delete(conn, planned_id)
     resp = Response(content="", media_type="text/html")
-    trigger(resp, "forecast-stale")
+    trigger(resp, "forecast-stale", "ledger-stale")
     return resp
 
 
@@ -343,7 +346,7 @@ def promote_submit(  # noqa: PLR0917
     pl2 = planned_repo.find_by_id(conn, planned_id, include_deleted=True)
     assert pl2 is not None
     html = render(request, "partials/planned/_row.html", view=_from_persisted(pl2, acc, cat))
-    trigger(html, "balance-stale", "forecast-stale")
+    trigger(html, "balance-stale", "forecast-stale", "ledger-stale")
     return html
 
 

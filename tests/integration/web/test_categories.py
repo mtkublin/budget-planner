@@ -49,6 +49,13 @@ def test_create_bad_direction(client: TestClient) -> None:
     assert r.status_code == 422
 
 
+def test_create_rejects_transit_direction(client: TestClient) -> None:
+    """T-115 — ``transit`` and ``adjustment`` are reserved for system seeds."""
+    for direction in ("transit", "adjustment"):
+        r = client.post("/categories", data={"name": "Nope", "direction": direction})
+        assert r.status_code == 422, direction
+
+
 def test_create_blank_name(client: TestClient) -> None:
     r = client.post("/categories", data={"name": "   ", "direction": "expense"})
     assert r.status_code == 422

@@ -101,7 +101,7 @@ def test_create_valid_persists_and_triggers(
     assert r.status_code == 200
     assert 'id="txn-' in r.text
     hx = json.loads(r.headers["HX-Trigger"])
-    assert hx == {"balance-stale": True, "forecast-stale": True}
+    assert hx == {"balance-stale": True, "forecast-stale": True, "ledger-stale": True}
     conn = get_connection(_migrated)
     try:
         row = conn.execute("SELECT amount, description FROM transactions").fetchone()
@@ -168,6 +168,7 @@ def test_edit_and_update(client: TestClient, seeded: dict[str, int], _migrated: 
     assert json.loads(r2.headers["HX-Trigger"]) == {
         "balance-stale": True,
         "forecast-stale": True,
+        "ledger-stale": True,
     }
 
 

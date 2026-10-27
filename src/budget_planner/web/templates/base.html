@@ -52,6 +52,46 @@
     {% include "partials/_shortcuts.html" %}
     <script src="{{ url_for('static', path='js/palette.js') }}" defer></script>
     <script src="{{ url_for('static', path='js/shortcuts.js') }}" defer></script>
+    <script src="{{ url_for('static', path='js/numeric-input.js') }}?v=t110"
+            defer></script>
+    <script src="{{ url_for('static', path='js/combobox.js') }}?v=t110" defer></script>
+    {# T-110 / ADR-0030 §5 — shared form primitives:
+       1. Expose today in display_timezone so reset handlers can re-apply it.
+       2. Clear create forms + close hosting slide-over on successful submit.
+       3. Allow HTMX to swap 422 responses so inline validation renders. #}
+    <script>
+      window.__TODAY_LOCAL__ = "{{ today_local() }}";
+      document.body.addEventListener("htmx:beforeSwap", function (evt) {
+        if (evt.detail.xhr && evt.detail.xhr.status === 422) {
+          evt.detail.shouldSwap = true;
+          evt.detail.isError = false;
+        }
+      });
+      document.body.addEventListener("htmx:afterRequest", function (evt) {
+        var detail = evt.detail || {};
+        if (!detail.successful) return;
+        var xhr = detail.xhr;
+        if (!xhr || xhr.status < 200 || xhr.status >= 300) return;
+        var form = evt.target && evt.target.closest
+          ? evt.target.closest("form[data-reset-on-submit]")
+          : null;
+        if (!form) return;
+        form.reset();
+        form.querySelectorAll("input[data-default-today]").forEach(function (i) {
+          i.value = window.__TODAY_LOCAL__ || "";
+        });
+        form.querySelectorAll("[data-combobox-input]").forEach(function (i) {
+          i.value = i.dataset.initialLabel || "";
+        });
+        form.querySelectorAll("[data-combobox-value]").forEach(function (i) {
+          i.value = "";
+        });
+        var slide = form.closest(".slide-over-root");
+        if (slide && slide.parentElement) {
+          slide.parentElement.innerHTML = "";
+        }
+      });
+    </script>
     {% block scripts %}{% endblock %}
   </body>
 </html>

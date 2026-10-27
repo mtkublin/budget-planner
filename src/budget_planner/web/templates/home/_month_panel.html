@@ -7,6 +7,13 @@
     <p id="month-heading" class="eyebrow">This month · {{ year }}-{{ "%02d"|format(month) }}</p>
     <p class="panel__hero panel__hero--amount-left tabular-nums">{{ summary.totals.remaining_minor|money(base_ccy) }}</p>
     <p class="panel__hero-sub text-muted text-sm">
+      {% if summary.left_daily_spend_minor is none %}
+        <span class="text-faint">— / day</span>
+      {% else %}
+        <span class="tabular-nums">{{ summary.left_daily_spend_minor|money(base_ccy) }}</span> / day
+      {% endif %}
+    </p>
+    <p class="panel__hero-sub text-muted text-sm">
       spent <span class="tabular-nums">{{ summary.totals.spent_minor|money(base_ccy) }}</span>
       of <span class="tabular-nums">{{ summary.totals.budgeted_minor|money(base_ccy) }}</span>
       <span aria-hidden="true">·</span>

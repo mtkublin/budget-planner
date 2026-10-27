@@ -297,7 +297,7 @@ def create_txn(  # noqa: PLR0917
         "partials/transactions/_row.html",
         txn=row,
     )
-    trigger(html, "balance-stale", "forecast-stale")
+    trigger(html, "balance-stale", "forecast-stale", "ledger-stale")
     return html
 
 
@@ -318,9 +318,14 @@ def edit_form(
             errors={"txn": "not found"},
             status_code=404,
         )
+    # T-114 / ADR-0030 §4 — wrap edit in slide-over so clicking Edit opens a
+    # dialog rather than replacing the ledger row inline (which broke tbody
+    # structure and visually removed the row).
     return render(
         request,
-        "partials/transactions/_form.html",
+        "partials/_slideover.html",
+        slide_over_title="Edit transaction",
+        form_include="partials/transactions/_form.html",
         action=f"/transactions/{txn_id}",
         method="post",
         txn=txn,
@@ -397,7 +402,7 @@ def update_txn(  # noqa: PLR0917
     assert updated is not None
     row = _hydrate_rows(conn, [updated])[0]
     html = render(request, "partials/transactions/_row.html", txn=row)
-    trigger(html, "balance-stale", "forecast-stale")
+    trigger(html, "balance-stale", "forecast-stale", "ledger-stale")
     return html
 
 
@@ -405,7 +410,7 @@ def update_txn(  # noqa: PLR0917
 def delete_txn(txn_id: int, conn: sqlite3.Connection = Depends(get_db)) -> Response:
     transactions_repo.soft_delete(conn, txn_id)
     resp = Response(content="", media_type="text/html")
-    trigger(resp, "balance-stale", "forecast-stale")
+    trigger(resp, "balance-stale", "forecast-stale", "ledger-stale")
     return resp
 
 
