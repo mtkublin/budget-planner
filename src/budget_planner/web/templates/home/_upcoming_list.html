@@ -8,6 +8,7 @@
         amount_html=row.amount_minor|money(base_ccy),
         description=row.description,
         is_overdue=row.is_overdue,
+        kind=row.kind,
       ) }}
     {% endfor %}
   </ul>

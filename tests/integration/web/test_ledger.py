@@ -216,6 +216,26 @@ def test_ledger_filter_by_category(
     assert "Payday" not in r.text
 
 
+def test_ledger_planned_excludes_virtual_rows(client: TestClient, seeded: dict[str, int]) -> None:
+    """T-119 regression pin: Planned tab must NOT surface virtual
+    occurrences expanded from the active recurring rule. The seeded fixture
+    already includes an active monthly rule — none of its occurrences
+    should appear in the Planned view."""
+    r = client.get("/ledger?view=planned")
+    assert r.status_code == 200
+    soup = BeautifulSoup(r.text, "html.parser")
+    # Only the one persisted planned row should render.
+    rows = soup.select("#planned-table tbody tr.row")
+    assert len(rows) == 1
+    row = rows[0]
+    row_id = row.get("id")
+    assert isinstance(row_id, str)
+    assert row_id.startswith("planned-p-"), f"got id={row_id!r}"
+    # "Monthly rent" is the recurring rule's default_description — it must not
+    # leak into the Planned view (it belongs under /ledger?view=recurring).
+    assert "Monthly rent" not in r.text
+
+
 def test_ledger_table_wrapper_exposes_segmented_swap_target(
     client: TestClient, seeded: dict[str, int]
 ) -> None:

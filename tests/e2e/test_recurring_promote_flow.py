@@ -1,4 +1,11 @@
-"""E2E: add recurring rule → see virtual occurrences → promote a planned one."""
+"""E2E: add recurring rule → add one-off planned → promote the planned row.
+
+Post-T-119 (ADR-0038): the Planned tab no longer surfaces virtual
+occurrences; recurring rules get their own promote-and-advance affordance
+under /ledger?view=recurring. This test now exercises the persisted
+planned promotion path only (recurring promotion lives in a dedicated
+e2e once T-122 ships the Ledger row actions).
+"""
 
 from __future__ import annotations
 
@@ -12,7 +19,7 @@ from tests.e2e.conftest import strip_id_prefix
 pytestmark = pytest.mark.e2e
 
 
-def test_recurring_rule_lists_virtual_and_promote_cycle(
+def test_recurring_rule_and_planned_promote_cycle(
     live_server: tuple[str, Path],
     page: Page,
 ) -> None:
@@ -37,7 +44,8 @@ def test_recurring_rule_lists_virtual_and_promote_cycle(
     rent_row = page.locator("tr[id^='category-']", has_text="Rent").first
     category_id = strip_id_prefix(rent_row.get_attribute("id"), "category-")
 
-    # Create a monthly recurring rule starting 2026-01-15 for 50.00.
+    # Create a monthly recurring rule starting 2026-01-15 for 50.00. The rule
+    # surfaces only in the Recurring tab now (T-119).
     assert page.request.post(
         f"{base_url}/recurring",
         form={
@@ -50,16 +58,13 @@ def test_recurring_rule_lists_virtual_and_promote_cycle(
         },
     ).ok
 
-    # View /planned with a window that captures Jan, Feb, Mar 2026.
+    # Planned tab excludes virtual rows post-T-119.
     page.goto(
         f"{base_url}/ledger?view=planned&date_from=2026-01-01&date_to=2026-03-31",
     )
-    expect(page.get_by_text("recurring").first).to_be_visible()
-    # Three virtual rows, each labelled "recurring".
-    recurring_rows = page.locator("tr[id^='planned-v-']")
-    expect(recurring_rows).to_have_count(3)
+    expect(page.locator("tr[id^='planned-v-']")).to_have_count(0)
 
-    # Also create a one-off planned so promotion is a real router call.
+    # Create a one-off planned so promotion is a real router call.
     planned_resp = page.request.post(
         f"{base_url}/planned",
         form={

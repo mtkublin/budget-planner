@@ -14,7 +14,7 @@ from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Cadence, Direction
 from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.domain.preferences import PREF_INCOME_ANCHOR_CATEGORY_ID
-from budget_planner.domain.recurring import NewRecurringRule
+from budget_planner.domain.recurring import NewRecurringRule, PatchRecurringRule
 from budget_planner.repositories import (
     accounts,
     budgets,
@@ -140,9 +140,17 @@ def test_rounding_half_even(conn: sqlite3.Connection, world: dict[str, int]) -> 
     assert s.left_daily_spend_minor == 500
 
 
-def test_virtual_recurring_hit(conn: sqlite3.Connection, world: dict[str, int]) -> None:
+def test_recurring_next_due_hit(conn: sqlite3.Connection, world: dict[str, int]) -> None:
+    """T-119: `next_anchor_date` reads `rule.next_due` directly.
+
+    The repository's `_compute_initial_next_due` anchors `next_due` to
+    the earliest canonical occurrence on-or-after *actual* ``today``, so
+    for a deterministic test we re-point ``next_due`` back to the Feb
+    occurrence after the rule is created (ADR-0038 §5 — admin override via
+    `PatchRecurringRule`).
+    """
     preferences_svc.set_income_anchor_category_id(conn, 1, world["salary"])
-    recurring.create_rule(
+    rule = recurring.create_rule(
         conn,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
@@ -153,6 +161,7 @@ def test_virtual_recurring_hit(conn: sqlite3.Connection, world: dict[str, int]) 
             default_description="payroll",
         ),
     )
+    recurring.update_rule(conn, rule.id, PatchRecurringRule(next_due=date(2026, 2, 20)))
     s = bs.month_summary(conn, 2026, 2, today=date(2026, 2, 15))
     assert s.anchor_category_name == "Salary"
     assert s.next_income_date == date(2026, 2, 20)

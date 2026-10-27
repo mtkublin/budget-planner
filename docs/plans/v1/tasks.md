@@ -622,7 +622,7 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 - Audit entries on all mutations; HX-Trigger emits `ledger-stale`, `forecast-stale`, `budget-stale`.
 - Test shape per `phase-12/T-118-recurring-promote-service.md`.
 
-### T-119 [S] Decouple planned log from recurring; introduce `services.upcoming` + `services.income` → T-117
+### ✅ T-119 [S] Decouple planned log from recurring; introduce `services.upcoming` + `services.income` → T-117
 - `services/planned.list_planned` drops the virtual branch; `PlannedKind` collapses to `"persisted"`.
 - Delete `services/planned.next_planned_for_category`; callers switch to `services/income.next_anchor_date`.
 - New `services/upcoming.list_upcoming(window)` composing planned one-offs + recurring `next_due` with override merge/skip handling.

@@ -1,4 +1,10 @@
-"""Tests for the planned log service (T-023)."""
+"""Tests for the planned log service (T-023 / T-119).
+
+Post-T-119 (ADR-0038): `list_planned` returns ONLY persisted rows. The
+virtual-recurring union moved to `services.upcoming` + `services.income`;
+tests covering the virtual expansion live in `test_upcoming.py` and
+`test_income.py`.
+"""
 
 from __future__ import annotations
 
@@ -50,7 +56,8 @@ def world(conn: sqlite3.Connection) -> dict[str, int]:
             default_description="rent",
         ),
     )
-    # Override: skip March, override April to 210_000.
+    # Overrides still persisted so other services (`upcoming`, `income`)
+    # can exercise them without reconstituting the fixture.
     recurring.upsert_override(
         conn,
         NewRecurringOverride(
@@ -78,7 +85,7 @@ def world(conn: sqlite3.Connection) -> dict[str, int]:
             description="valentine groceries",
         ),
     ).id
-    # Persisted materialisation of the Jan 5 recurring occurrence (dedup target).
+    # Persisted materialisation of the Jan 5 recurring occurrence (historical dedup target).
     p2 = planned.create(
         conn,
         NewPlannedTransaction(
@@ -107,39 +114,29 @@ def world(conn: sqlite3.Connection) -> dict[str, int]:
 
 
 # ---------------------------------------------------------------------------
-# list_planned
+# list_planned — persisted-only after T-119
 # ---------------------------------------------------------------------------
-def test_list_planned_dedup_prefers_persisted(
+def test_list_planned_persisted_only(conn: sqlite3.Connection, world: dict[str, int]) -> None:
+    """No virtual rows ever surface — only ``kind='persisted'`` is possible."""
+    rows = pl_svc.list_planned(
+        conn,
+        PlannedFilter(date_from=date(2026, 1, 1), date_to=date(2026, 12, 31)),
+    )
+    assert rows  # fixture seeds at least two persisted rows
+    assert all(r.kind == "persisted" for r in rows)
+    assert all(r.persisted_id is not None for r in rows)
+
+
+def test_list_planned_no_virtual_rows_in_month_without_persisted(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
+    """February: active rule exists but no persisted row — list stays empty."""
     rows = pl_svc.list_planned(
         conn,
-        PlannedFilter(date_from=date(2026, 1, 1), date_to=date(2026, 6, 30)),
+        PlannedFilter(date_from=date(2026, 2, 1), date_to=date(2026, 2, 28)),
     )
-    jan_5 = [r for r in rows if r.operation_date == date(2026, 1, 5)]
-    assert len(jan_5) == 1  # dedup kept persisted
-    assert jan_5[0].kind == "persisted"
-
-
-def test_list_planned_skipped_occurrence_removed(
-    conn: sqlite3.Connection, world: dict[str, int]
-) -> None:
-    rows = pl_svc.list_planned(
-        conn,
-        PlannedFilter(date_from=date(2026, 3, 1), date_to=date(2026, 3, 31)),
-    )
-    assert all(r.operation_date != date(2026, 3, 5) for r in rows)
-
-
-def test_list_planned_overridden_amount(conn: sqlite3.Connection, world: dict[str, int]) -> None:
-    rows = pl_svc.list_planned(
-        conn,
-        PlannedFilter(date_from=date(2026, 4, 1), date_to=date(2026, 4, 30)),
-    )
-    apr = [r for r in rows if r.operation_date == date(2026, 4, 5)]
-    assert len(apr) == 1
-    assert apr[0].amount_minor == 210_000
-    assert apr[0].is_overridden
+    rent_rows = [r for r in rows if r.recurring_rule_id == world["rule_rent"]]
+    assert rent_rows == []
 
 
 def test_list_planned_category_filter(conn: sqlite3.Connection, world: dict[str, int]) -> None:
@@ -153,17 +150,6 @@ def test_list_planned_category_filter(conn: sqlite3.Connection, world: dict[str,
     )
     assert len(rows) == 1
     assert rows[0].persisted_id == world["p1"]
-
-
-def test_list_planned_deactivated_rule_hides_virtuals(
-    conn: sqlite3.Connection, world: dict[str, int]
-) -> None:
-    recurring.deactivate_rule(conn, world["rule_rent"])
-    rows = pl_svc.list_planned(
-        conn,
-        PlannedFilter(date_from=date(2026, 2, 1), date_to=date(2026, 2, 28)),
-    )
-    assert all(r.recurring_rule_id is None for r in rows)
 
 
 def test_list_planned_account_filter(conn: sqlite3.Connection, world: dict[str, int]) -> None:
@@ -189,65 +175,18 @@ def test_list_planned_recurring_rule_id_filter_excludes(
             recurring_rule_id=world["rule_rent"],
         ),
     )
-    # Non-recurring p1 (groceries) is excluded by the filter.
     assert all(r.recurring_rule_id == world["rule_rent"] for r in rows)
 
 
 def test_list_planned_promoted_filter_excludes(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
-    # Promote p1 → persisted row flips to is_promoted=True.
     pl_svc.promote_to_actual(conn, world["p1"], PromotionEdits())
     rows = pl_svc.list_planned(
         conn,
         PlannedFilter(date_from=date(2026, 1, 1), date_to=date(2026, 6, 30), promoted=False),
     )
     assert all(not r.is_promoted for r in rows)
-
-
-def test_list_planned_rule_end_date_before_window(
-    conn: sqlite3.Connection, world: dict[str, int]
-) -> None:
-    # Deactivate / shrink the rule's lifetime via a new rule with early end_date.
-    cat_rent = world["rent"]
-    old_rule = recurring.create_rule(
-        conn,
-        NewRecurringRule(
-            cadence=Cadence.MONTHLY,
-            start_date=date(2024, 1, 1),
-            end_date=date(2024, 12, 31),
-            category_id=cat_rent,
-            account_id=world["checking"],
-            default_amount=100,
-            default_description="old",
-        ),
-    )
-    rows = pl_svc.list_planned(
-        conn,
-        PlannedFilter(date_from=date(2026, 1, 1), date_to=date(2026, 6, 30)),
-    )
-    assert all(r.recurring_rule_id != old_rule.id for r in rows)
-
-
-def test_list_planned_rule_start_after_window(
-    conn: sqlite3.Connection, world: dict[str, int]
-) -> None:
-    future_rule = recurring.create_rule(
-        conn,
-        NewRecurringRule(
-            cadence=Cadence.MONTHLY,
-            start_date=date(2028, 1, 1),
-            category_id=world["rent"],
-            account_id=world["checking"],
-            default_amount=100,
-            default_description="future",
-        ),
-    )
-    rows = pl_svc.list_planned(
-        conn,
-        PlannedFilter(date_from=date(2026, 1, 1), date_to=date(2026, 6, 30)),
-    )
-    assert all(r.recurring_rule_id != future_rule.id for r in rows)
 
 
 def test_list_planned_sort_order(conn: sqlite3.Connection, world: dict[str, int]) -> None:
@@ -259,18 +198,6 @@ def test_list_planned_sort_order(conn: sqlite3.Connection, world: dict[str, int]
     assert dates == sorted(dates)
 
 
-def test_list_planned_virtual_rows_for_months_without_persisted(
-    conn: sqlite3.Connection, world: dict[str, int]
-) -> None:
-    rows = pl_svc.list_planned(
-        conn,
-        PlannedFilter(date_from=date(2026, 2, 1), date_to=date(2026, 2, 28)),
-    )
-    feb = [r for r in rows if r.recurring_rule_id == world["rule_rent"]]
-    assert len(feb) == 1
-    assert feb[0].kind == "virtual"
-
-
 # ---------------------------------------------------------------------------
 # promote_to_actual
 # ---------------------------------------------------------------------------
@@ -279,7 +206,6 @@ def test_promote_happy_path(conn: sqlite3.Connection, world: dict[str, int]) -> 
     assert txn.promoted_from_planned_id == world["p1"]
     assert txn.amount == 12_345
     assert txn.operation_date == date(2026, 2, 20)
-    # Planned row is linked.
     pt = planned.find_by_id(conn, world["p1"])
     assert pt is not None
     assert pt.promoted_to_txn_id == txn.id

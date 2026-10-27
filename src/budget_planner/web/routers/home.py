@@ -12,7 +12,7 @@ from __future__ import annotations
 import calendar
 import sqlite3
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Final, Literal
 
@@ -22,14 +22,13 @@ from fastapi.responses import HTMLResponse
 
 from budget_planner.config import Settings
 from budget_planner.domain.money import currency_decimals
-from budget_planner.domain.planned import PlannedFilter
 from budget_planner.repositories import accounts as accounts_repo
 from budget_planner.services import (
     balance as balance_service,
     budget as budget_service,
     fortune as fortune_service,
     fx as fx_service,
-    planned as planned_service,
+    upcoming as upcoming_service,
 )
 from budget_planner.web.deps import get_db, get_settings_dep
 from budget_planner.web.rendering import render
@@ -46,7 +45,6 @@ _PACE_LABELS: Final[dict[str, str]] = {
 
 _WINDOWS: Final[dict[str, int | None]] = {"7": 7, "30": 30, "all": None}
 _DEFAULT_WINDOW: Final[str] = "30"
-_UPCOMING_LOOKBACK_DAYS: Final[int] = 30  # how far back overdue rows surface
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +83,7 @@ class UpcomingRow:
     description: str
     amount_minor: int
     is_overdue: bool
+    kind: str  # "planned" | "recurring" — drives the row's data-kind attribute.
 
 
 def _convert_minor(
@@ -180,21 +179,23 @@ def _list_upcoming(
     today: date,
     window_days: int | None,
 ) -> tuple[UpcomingRow, ...]:
-    """Return un-promoted planned rows for Panel C."""
-    date_from = today - timedelta(days=_UPCOMING_LOOKBACK_DAYS)
-    date_to = today + timedelta(days=window_days) if window_days is not None else None
-    views = planned_service.list_planned(
-        conn,
-        PlannedFilter(date_from=date_from, date_to=date_to, promoted=False),
-    )
+    """Return the Panel C row set — planned one-offs + recurring next_due.
+
+    T-119: delegates to ``services.upcoming.list_upcoming`` which composes
+    persisted planned rows (``promoted=False``) with active recurring
+    rules (ADR-0038) and applies ``next_due`` overrides. ``window_days``
+    forwards unchanged.
+    """
+    items = upcoming_service.list_upcoming(conn, today=today, window_days=window_days)
     return tuple(
         UpcomingRow(
-            operation_date=v.operation_date,
-            description=v.description,
-            amount_minor=v.amount_minor,
-            is_overdue=v.operation_date < today,
+            operation_date=item.effective_date,
+            description=item.description,
+            amount_minor=item.amount_minor,
+            is_overdue=item.is_overdue,
+            kind=item.kind,
         )
-        for v in views
+        for item in items
     )
 
 

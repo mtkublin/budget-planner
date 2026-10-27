@@ -27,7 +27,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     transactions as transactions_repo,
 )
-from budget_planner.services import planned as planned_svc, preferences as preferences_svc
+from budget_planner.services import income as income_svc, preferences as preferences_svc
 
 
 @dataclass(frozen=True, slots=True)
@@ -222,13 +222,13 @@ def month_summary(
             anchor_category_name = None
             next_income_date = end_of_month
         else:
-            hit = planned_svc.next_planned_for_category(conn, anchor.id, after=today)
+            hit = income_svc.next_anchor_date(conn, anchor.id, after=today)
             if hit is None:
                 anchor_category_name = None
                 next_income_date = end_of_month
             else:
                 anchor_category_name = anchor.name
-                next_income_date = hit.operation_date
+                next_income_date = hit
     days_until_next_income = max((next_income_date - today).days, 1)
     if totals.budgeted_minor != 0:
         left_daily_spend_minor = int(

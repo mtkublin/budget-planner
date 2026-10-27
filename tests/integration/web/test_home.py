@@ -13,14 +13,16 @@ from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.budgets import NewBudgetDefault
 from budget_planner.domain.categories import NewCategory
-from budget_planner.domain.enums import Direction
+from budget_planner.domain.enums import Cadence, Direction
 from budget_planner.domain.planned import NewPlannedTransaction
+from budget_planner.domain.recurring import NewRecurringRule, PatchRecurringRule
 from budget_planner.domain.transactions import NewTransaction
 from budget_planner.repositories import (
     accounts as accounts_repo,
     budgets as budgets_repo,
     categories as categories_repo,
     planned as planned_repo,
+    recurring as recurring_repo,
     transactions as transactions_repo,
 )
 
@@ -234,6 +236,60 @@ def test_overview_overdue_muted(client: TestClient, _migrated: Settings) -> None
     assert overdue and "upcoming-row--overdue" in (overdue[0].get("class") or [])
     assert future_rows and "upcoming-row--overdue" not in (future_rows[0].get("class") or [])
     assert "overdue" in overdue[0].get_text().lower()
+
+
+def test_overview_upcoming_union_planned_plus_recurring(
+    client: TestClient, _migrated: Settings
+) -> None:
+    """T-119: Upcoming fragment surfaces both planned + recurring rows and
+    recurring rows carry ``data-kind="recurring"``."""
+    conn = get_connection(_migrated)
+    try:
+        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
+        cat = categories_repo.create(conn, NewCategory(name="Rent", direction=Direction.EXPENSE))
+        soon = date.today() + timedelta(days=3)  # noqa: DTZ011
+        planned_repo.create(
+            conn,
+            NewPlannedTransaction(
+                operation_date=soon,
+                category_id=cat.id,
+                account_id=acc.id,
+                amount=4200,
+                description="Future planned",
+            ),
+        )
+        rule = recurring_repo.create_rule(
+            conn,
+            NewRecurringRule(
+                cadence=Cadence.MONTHLY,
+                start_date=date(2026, 1, 1),
+                category_id=cat.id,
+                account_id=acc.id,
+                default_amount=12_000,
+                default_description="Recurring rent",
+            ),
+        )
+        # Pin next_due into the 30-day window (ADR-0038 admin override).
+        recurring_repo.update_rule(
+            conn,
+            rule.id,
+            PatchRecurringRule(next_due=date.today() + timedelta(days=5)),  # noqa: DTZ011
+        )
+    finally:
+        conn.close()
+
+    r = client.get("/overview/upcoming?window=30")
+    assert r.status_code == 200
+    soup = BeautifulSoup(r.text, "html.parser")
+    rows = soup.select(".upcoming-row")
+    assert len(rows) == 2
+    descriptions = [row.get_text() for row in rows]
+    assert any("Future planned" in d for d in descriptions)
+    assert any("Recurring rent" in d for d in descriptions)
+    recurring_rows = soup.select('.upcoming-row[data-kind="recurring"]')
+    planned_rows = soup.select('.upcoming-row[data-kind="planned"]')
+    assert len(recurring_rows) == 1
+    assert len(planned_rows) == 1
 
 
 def test_overview_promoted_hidden(client: TestClient, _migrated: Settings) -> None:

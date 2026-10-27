@@ -140,7 +140,7 @@ def _hydrate_recurring_rows(conn: sqlite3.Connection) -> list[dict[str, Any]]:
                 "id": rule.id,
                 "cadence": rule.cadence,
                 "start_date": rule.start_date,
-                "next_due": rule.start_date,
+                "next_due": rule.next_due,
                 "default_amount": rule.default_amount,
                 "default_description": rule.default_description,
                 "active": rule.active,
