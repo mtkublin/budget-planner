@@ -178,7 +178,7 @@
                   <input id="rule-default-{{ row.category_id }}"
                          type="text"
                          name="amount"
-                         value="{{ row.default_minor if row.default_minor is not none else '' }}"
+                         value="{{ row.default_minor|money_major(base_ccy) if row.default_minor is not none else '' }}"
                          placeholder="—"
                          inputmode="decimal"
                          data-numeric>
