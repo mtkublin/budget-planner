@@ -1,30 +1,35 @@
 <form hx-post="{{ action }}"
       hx-target="{% if account %}#account-{{ account.id }}{% else %}#accounts-grid{% endif %}"
       hx-swap="{% if account %}outerHTML{% else %}beforeend{% endif %}"
-      class="grid grid-cols-2 gap-3 p-4 border border-[color:var(--rule)] rounded">
+      class="form-stack">
   <label>
-    Name<input type="text"
-       name="name"
-       value="{{ account.name if account else '' }}"
-       required>
+    Name
+    <input type="text"
+           name="name"
+           value="{{ account.name if account else '' }}"
+           required>
   </label>
   <label>
-    Type<input type="text" name="type" value="{{ account.type if account else '' }}">
+    Type
+    <input type="text" name="type" value="{{ account.type if account else '' }}">
   </label>
   {% if not account %}
     <label>
-      Currency<input type="text" name="currency" maxlength="3" required>
+      Currency
+      <input type="text" name="currency" maxlength="3" required>
     </label>
     <label>
-      Opening<input type="text" name="opening_balance" value="0">
+      Opening
+      <input type="text" name="opening_balance" value="0">
     </label>
   {% else %}
     <label>
-      Currency<input type="text" value="{{ account.currency }}" disabled>
+      Currency
+      <input type="text" value="{{ account.currency }}" disabled>
     </label>
   {% endif %}
   {% include "partials/_form_errors.html" %}
-  <div class="col-span-2 flex justify-end">
+  <div class="form-stack__actions">
     <button type="submit" class="btn-accent">Save</button>
   </div>
 </form>

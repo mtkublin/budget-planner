@@ -1,18 +1,20 @@
 <form hx-post="{{ action }}"
       hx-target="{% if planned %}#planned-p-{{ planned.id }}{% else %}#planned-table tbody{% endif %}"
       hx-swap="{% if planned %}outerHTML{% else %}afterbegin{% endif %}"
-      class="grid grid-cols-2 gap-3 p-4 border border-[color:var(--rule)] rounded">
+      class="form-stack">
   <label>
-    Date<input type="date"
-       name="operation_date"
-       value="{{ planned.operation_date|date_fmt if planned else '' }}"
-       required>
+    Date
+    <input type="date"
+           name="operation_date"
+           value="{{ planned.operation_date|date_fmt if planned else '' }}"
+           required>
   </label>
   <label>
-    Amount<input type="text"
-       name="amount"
-       value="{{ planned.amount if planned else '' }}"
-       required>
+    Amount
+    <input type="text"
+           name="amount"
+           value="{{ planned.amount if planned else '' }}"
+           required>
   </label>
   <label>
     Category
@@ -32,13 +34,14 @@
       {% endfor %}
     </select>
   </label>
-  <label class="col-span-2">
-    Description<input type="text"
-       name="description"
-       value="{{ planned.description if planned else '' }}">
+  <label>
+    Description
+    <input type="text"
+           name="description"
+           value="{{ planned.description if planned else '' }}">
   </label>
   {% include "partials/_form_errors.html" %}
-  <div class="col-span-2 flex justify-end">
+  <div class="form-stack__actions">
     <button type="submit" class="btn-accent">Save</button>
   </div>
 </form>

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 import pytest
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
@@ -165,6 +165,34 @@ def test_overview_upcoming_fragment(client: TestClient, seeded: None) -> None:
     # Fragment: no <html> wrapper, but the list body renders.
     assert "<html" not in r.text.lower()
     assert "Bread" in r.text
+
+
+def test_overview_upcoming_fragment_oob_segmented(client: TestClient, seeded: None) -> None:
+    """T-093 — fragment returns an out-of-band swap of the segmented range so
+    active state follows the chosen window without any JS."""
+    r = client.get("/overview/upcoming?window=30")
+    assert r.status_code == 200
+    soup = BeautifulSoup(r.text, "html.parser")
+    seg = soup.find(id="upcoming-range")
+    assert seg is not None and isinstance(seg, Tag)
+    assert seg.get("hx-swap-oob") == "outerHTML"
+    active = seg.select_one('button[data-view="30"], button[aria-pressed="true"]')
+    assert active is not None and isinstance(active, Tag)
+    assert active.get("aria-pressed") == "true"
+    assert "30 days" in active.get_text()
+
+
+def test_overview_upcoming_plus_planned_wired(client: TestClient, seeded: None) -> None:
+    """T-093 — ``+ Planned`` button is a working HTMX trigger, not a
+    placeholder."""
+    r = client.get("/")
+    assert r.status_code == 200
+    soup = BeautifulSoup(r.text, "html.parser")
+    add_btn = soup.select_one(".panel--upcoming .panel__add")
+    assert add_btn is not None and isinstance(add_btn, Tag)
+    assert add_btn.get("hx-get") == "/planned/new"
+    assert add_btn.get("hx-target") == "#modal-root"
+    assert add_btn.get("data-add-kind") is None
 
 
 def test_overview_overdue_muted(client: TestClient, _migrated: Settings) -> None:

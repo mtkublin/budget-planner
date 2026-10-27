@@ -5,7 +5,6 @@
     <p class="eyebrow">Budget</p>
     <h1 class="budget-page__h1">Plan · spend · breakdown</h1>
   </header>
-
   {# ------------------------------------------------------------------ #}
   {# Section 1 — Monthly summary                                        #}
   {# ------------------------------------------------------------------ #}
@@ -32,15 +31,12 @@
         <label class="sr-only" for="budget-month">Month</label>
         <select id="budget-month" name="month" aria-label="Month">
           {% for m in range(1, 13) %}
-            <option value="{{ m }}" {% if m == month %}selected{% endif %}>
-              {{ "%02d"|format(m) }}
-            </option>
+            <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ "%02d"|format(m) }}</option>
           {% endfor %}
         </select>
         <button type="submit" class="btn-ghost">Go</button>
       </form>
     </header>
-
     <table class="ledger budget-row-table">
       <caption class="sr-only">
         Planned vs actual per category for {{ year }}-{{ "%02d"|format(month) }}
@@ -97,21 +93,14 @@
       <tfoot>
         <tr class="budget-row budget-row--totals">
           <td>Total</td>
-          <td class="text-right tabular-nums">
-            {{ summary.totals.budgeted_minor|money(base_ccy) }}
-          </td>
-          <td class="text-right tabular-nums">
-            {{ summary.totals.spent_minor|money(base_ccy) }}
-          </td>
+          <td class="text-right tabular-nums">{{ summary.totals.budgeted_minor|money(base_ccy) }}</td>
+          <td class="text-right tabular-nums">{{ summary.totals.spent_minor|money(base_ccy) }}</td>
           <td></td>
-          <td class="text-right tabular-nums">
-            {{ summary.totals.remaining_minor|money(base_ccy) }}
-          </td>
+          <td class="text-right tabular-nums">{{ summary.totals.remaining_minor|money(base_ccy) }}</td>
         </tr>
       </tfoot>
     </table>
   </section>
-
   {# ------------------------------------------------------------------ #}
   {# Section 2 — Rules editor                                           #}
   {# ------------------------------------------------------------------ #}
@@ -124,84 +113,80 @@
         <h2 id="budget-rules-heading">Rules</h2>
       </div>
       <p class="text-muted text-sm">
-        Three-tier resolution: one-off → recurring → default (in {{ base_ccy }}).
+        Rules are per category — edit any row inline. Resolution: one-off → recurring → default (in {{ base_ccy }}). Totals recalculate on save.
       </p>
     </header>
-
-    <table class="ledger budget-rules-table">
-      <caption class="sr-only">
-        Per-category budget rules: default, recurring for month {{ month }},
-        and one-off for {{ year }}-{{ "%02d"|format(month) }}
-      </caption>
-      <thead>
-        <tr>
-          <th scope="col">Category</th>
-          <th scope="col">Default</th>
-          <th scope="col">Recurring · month {{ month }}</th>
-          <th scope="col">One-off · {{ year }}-{{ "%02d"|format(month) }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in rules %}
-          <tr class="row">
-            <td>{{ row.category_name }}</td>
-            <td>
-              <form hx-post="/budget/defaults/{{ row.category_id }}"
-                    hx-swap="none"
-                    class="budget-rule-form">
-                <label class="sr-only"
-                       for="rule-default-{{ row.category_id }}">
-                  Default budget for {{ row.category_name }}
-                </label>
-                <input id="rule-default-{{ row.category_id }}"
-                       type="text"
-                       name="amount"
-                       value="{{ row.default_minor }}"
-                       inputmode="decimal">
-                <button type="submit" class="btn-ghost">Save</button>
-              </form>
-            </td>
-            <td>
-              <form hx-post="/budget/recurring/{{ row.category_id }}/{{ month }}"
-                    hx-swap="none"
-                    class="budget-rule-form">
-                <label class="sr-only"
-                       for="rule-recurring-{{ row.category_id }}">
-                  Recurring budget for {{ row.category_name }}, month {{ month }}
-                </label>
-                <input id="rule-recurring-{{ row.category_id }}"
-                       type="text"
-                       name="amount"
-                       value="{{ row.recurring_minor if row.recurring_minor is not none else '' }}"
-                       placeholder="—"
-                       inputmode="decimal">
-                <button type="submit" class="btn-ghost">Save</button>
-              </form>
-            </td>
-            <td>
-              <form hx-post="/budget/one-off/{{ row.category_id }}/{{ year }}/{{ month }}"
-                    hx-swap="none"
-                    class="budget-rule-form">
-                <label class="sr-only"
-                       for="rule-oneoff-{{ row.category_id }}">
-                  One-off budget for {{ row.category_name }},
-                  {{ year }}-{{ "%02d"|format(month) }}
-                </label>
-                <input id="rule-oneoff-{{ row.category_id }}"
-                       type="text"
-                       name="amount"
-                       value="{{ row.one_off_minor if row.one_off_minor is not none else '' }}"
-                       placeholder="—"
-                       inputmode="decimal">
-                <button type="submit" class="btn-ghost">Save</button>
-              </form>
-            </td>
+    <div class="ledger-scroll">
+      <table class="ledger budget-rules-table">
+        <caption class="sr-only">
+          Per-category budget rules: default, recurring for month {{ month }},
+          and one-off for {{ year }}-{{ "%02d"|format(month) }}
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Category</th>
+            <th scope="col">Default</th>
+            <th scope="col">Recurring · month {{ month }}</th>
+            <th scope="col">One-off · {{ year }}-{{ "%02d"|format(month) }}</th>
           </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {% for row in rules %}
+            <tr class="row">
+              <td>{{ row.category_name }}</td>
+              <td>
+                <form hx-post="/budget/defaults/{{ row.category_id }}"
+                      hx-swap="none"
+                      class="budget-rule-form">
+                  <label class="sr-only"
+                         for="rule-default-{{ row.category_id }}">Default budget for {{ row.category_name }}</label>
+                  <input id="rule-default-{{ row.category_id }}"
+                         type="text"
+                         name="amount"
+                         value="{{ row.default_minor }}"
+                         inputmode="decimal">
+                  <button type="submit" class="btn-ghost">Save</button>
+                </form>
+              </td>
+              <td>
+                <form hx-post="/budget/recurring/{{ row.category_id }}/{{ month }}"
+                      hx-swap="none"
+                      class="budget-rule-form">
+                  <label class="sr-only" for="rule-recurring-{{ row.category_id }}">
+                    Recurring budget for {{ row.category_name }}, month {{ month }}
+                  </label>
+                  <input id="rule-recurring-{{ row.category_id }}"
+                         type="text"
+                         name="amount"
+                         value="{{ row.recurring_minor if row.recurring_minor is not none else '' }}"
+                         placeholder="—"
+                         inputmode="decimal">
+                  <button type="submit" class="btn-ghost">Save</button>
+                </form>
+              </td>
+              <td>
+                <form hx-post="/budget/one-off/{{ row.category_id }}/{{ year }}/{{ month }}"
+                      hx-swap="none"
+                      class="budget-rule-form">
+                  <label class="sr-only" for="rule-oneoff-{{ row.category_id }}">
+                    One-off budget for {{ row.category_name }},
+                    {{ year }}-{{ "%02d"|format(month) }}
+                  </label>
+                  <input id="rule-oneoff-{{ row.category_id }}"
+                         type="text"
+                         name="amount"
+                         value="{{ row.one_off_minor if row.one_off_minor is not none else '' }}"
+                         placeholder="—"
+                         inputmode="decimal">
+                  <button type="submit" class="btn-ghost">Save</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </section>
-
   {# ------------------------------------------------------------------ #}
   {# Section 3 — Breakdown                                              #}
   {# ------------------------------------------------------------------ #}
@@ -213,11 +198,8 @@
         <p class="eyebrow">Section 3</p>
         <h2 id="budget-breakdown-heading">Breakdown</h2>
       </div>
-      <p class="text-muted text-sm">
-        Minor-unit sums divided by 100 for display.
-      </p>
+      <p class="text-muted text-sm">Minor-unit sums divided by 100 for display.</p>
     </header>
-
     <div class="budget-breakdown-grid">
       <figure class="surface-chart">
         <figcaption class="eyebrow">Spend by category</figcaption>

@@ -1,24 +1,19 @@
-{# Panel C — Upcoming planned (shell + range selector + live-swap wrapper) #}
+{# Panel C — Upcoming planned (shell + range selector + live-swap wrapper).
+   T-093 — segmented block extracted to _upcoming_range.html so the server
+   can oob-swap it alongside the list for correct active state after a
+   range change. #}
 <section id="upcoming"
          data-panel="upcoming"
          aria-labelledby="upcoming-heading"
          class="panel panel--upcoming">
   <header class="panel__header panel__header--row">
     <p id="upcoming-heading" class="eyebrow">Upcoming</p>
-    <div class="segmented" role="group" aria-label="Range">
-      {% for opt in [('7', '7 days'), ('30', '30 days'), ('all', 'all')] %}
-        <button type="button"
-                class="segmented__btn{% if window_label == opt[0] %} segmented__btn--active{% endif %}"
-                aria-pressed="{% if window_label == opt[0] %}true{% else %}false{% endif %}"
-                hx-get="/overview/upcoming?window={{ opt[0] }}"
-                hx-target="#upcoming-list"
-                hx-swap="innerHTML"
-                hx-push-url="false">{{ opt[1] }}</button>
-      {% endfor %}
-    </div>
+    {% include "home/_upcoming_range.html" %}
     <button type="button"
             class="btn-ghost panel__add"
-            data-add-kind="planned"
+            hx-get="/planned/new"
+            hx-target="#modal-root"
+            hx-swap="innerHTML"
             aria-label="Add planned payment">+ Planned</button>
   </header>
   <div id="upcoming-list"
@@ -27,7 +22,5 @@
        aria-busy="false"
        hx-get="/overview/upcoming?window={{ window_label }}"
        hx-trigger="txn-created from:body, planned-stale from:body"
-       hx-swap="innerHTML">
-    {% include "home/_upcoming_list.html" %}
-  </div>
+       hx-swap="innerHTML">{% include "home/_upcoming_list.html" %}</div>
 </section>
