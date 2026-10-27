@@ -836,6 +836,20 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
   font-variant-numeric: tabular-nums;
 }
 
+/* Left daily spend hero (T-101). Display-size numeric with hairline caption. */
+.budget-lds__value {
+  font-family: var(--font-mono);
+  font-size: var(--text-3xl, 2.75rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--space-2);
+}
+.budget-lds__caption {
+  margin: 0;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--rule);
+}
+
 .budget-breakdown-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

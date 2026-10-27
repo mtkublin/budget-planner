@@ -27,6 +27,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     transactions as transactions_repo,
 )
+from budget_planner.services import planned as planned_svc, preferences as preferences_svc
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +55,10 @@ class MonthSummary:
     month: int
     lines: tuple[CategoryBudgetLine, ...]
     totals: MonthTotals
+    left_daily_spend_minor: int | None
+    next_income_date: date
+    days_until_next_income: int
+    anchor_category_name: str | None
 
 
 def prev_year_month(year: int, month: int) -> tuple[int, int]:
@@ -125,11 +130,18 @@ def _all_expense_txns(conn: sqlite3.Connection) -> list[Transaction]:
     return transactions_repo.list_filtered(conn, TransactionFilter(directions=(Direction.EXPENSE,)))
 
 
-def month_summary(conn: sqlite3.Connection, year: int, month: int) -> MonthSummary:
+def month_summary(
+    conn: sqlite3.Connection,
+    year: int,
+    month: int,
+    *,
+    today: date,
+) -> MonthSummary:
     """Build the per-category spent / budgeted / remaining view + analytics.
 
     Lines include every live expense-direction category. Totals exclude
-    unbudgeted lines (``remaining_minor is None``).
+    unbudgeted lines (``remaining_minor is None``). ``today`` is injected
+    (ADR-0007) so left-daily-spend math stays deterministic in tests.
     """
     cats = [c for c in categories_repo.list_all(conn) if c.direction is Direction.EXPENSE]
 
@@ -181,7 +193,43 @@ def month_summary(conn: sqlite3.Connection, year: int, month: int) -> MonthSumma
         spent_minor=sum(line.spent_minor for line in lines if line.budgeted_minor is not None),
         remaining_minor=sum(line.remaining_minor or 0 for line in lines),
     )
-    return MonthSummary(year=year, month=month, lines=tuple(lines), totals=totals)
+
+    end_of_month = _month_range(year, month)[1]
+    if totals.budgeted_minor == 0:
+        anchor_category_name: str | None = None
+        next_income_date = end_of_month
+        left_daily_spend_minor: int | None = None
+    else:
+        anchor = preferences_svc.resolve_income_anchor_category(conn)
+        if anchor is None:
+            anchor_category_name = None
+            next_income_date = end_of_month
+        else:
+            hit = planned_svc.next_planned_for_category(conn, anchor.id, after=today)
+            if hit is None:
+                anchor_category_name = None
+                next_income_date = end_of_month
+            else:
+                anchor_category_name = anchor.name
+                next_income_date = hit.operation_date
+    days_until_next_income = max((next_income_date - today).days, 1)
+    if totals.budgeted_minor != 0:
+        left_daily_spend_minor = int(
+            (Decimal(totals.remaining_minor) / Decimal(days_until_next_income)).quantize(
+                Decimal("1"), rounding=ROUND_HALF_EVEN
+            )
+        )
+
+    return MonthSummary(
+        year=year,
+        month=month,
+        lines=tuple(lines),
+        totals=totals,
+        left_daily_spend_minor=left_daily_spend_minor,
+        next_income_date=next_income_date,
+        days_until_next_income=days_until_next_income,
+        anchor_category_name=anchor_category_name,
+    )
 
 
 __all__ = [
