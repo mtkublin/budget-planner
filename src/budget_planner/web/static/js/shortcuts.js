@@ -23,10 +23,23 @@
     return map;
   };
 
+  // T-071 — Overlay stack: native <dialog>[open] wins (focus trap + Esc are
+  // free); fall back to role=dialog overlays (slide-over, drawer) by clearing
+  // their mount root. Order matches visual z-index: last-opened overlay goes
+  // first out.
+  const closeTopmostOverlay = () => {
+    const dlg = Array.from(document.querySelectorAll("dialog[open]")).pop();
+    if (dlg) { dlg.close(); return true; }
+    const slide = document.querySelector("[data-slideover]");
+    if (slide) { const root = document.getElementById("modal-root"); if (root) root.innerHTML = ""; return true; }
+    const drawer = document.querySelector("[data-drawer]");
+    if (drawer) { const root = document.getElementById("drawer-root"); if (root) root.innerHTML = ""; return true; }
+    return false;
+  };
+
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
-      const top = Array.from(document.querySelectorAll("dialog[open]")).pop();
-      if (top) { e.preventDefault(); top.close(); }
+      if (closeTopmostOverlay()) e.preventDefault();
       return;
     }
     if (guarded()) return;

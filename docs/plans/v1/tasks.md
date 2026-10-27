@@ -306,69 +306,69 @@ Per service and repository. Target ≥90% coverage. Pure-function heavy, mocks o
 
 > Collapses 9 top-level nav items into 4 + a Settings drawer. Adds Command palette (⌘K) + Quick-add FAB + keyboard shortcuts. No data-model change; pure web-layer refactor. Decision: [ADR-0023](../../adr/0023-ux-redesign-information-architecture.md). Detailed plan + ASCII mockups: [`phase-6/README.md`](phase-6/README.md), [`phase-6/mockups.md`](phase-6/mockups.md).
 
-### T-060 [S] ADR-0023 + Phase 6 docs scaffolding
+### ✅ T-060 [S] ADR-0023 + Phase 6 docs scaffolding
 - Write [`docs/adr/0023-ux-redesign-information-architecture.md`](../../adr/0023-ux-redesign-information-architecture.md).
 - Add Phase 6 directory + 12 task stub files under `docs/plans/v1/phase-6/`.
 - Rename prior "Phase 6 — Deferred to v2" to Phase 7 (below).
 
-### T-061 [S] Base shell refactor → T-060
+### ✅ T-061 [S] Base shell refactor → T-060
 - Left rail + `#drawer-root` + `#modal-root` + FAB slot in `base.html`.
 - Preserve Jinja block names (`title`, `head_extra`, `nav`, `main`, `scripts`).
 - Reuse editorial/Swiss tokens from T-053.
 - Reference: ADR-0023.
 
-### T-062 [S] Nav partial rewrite (4-item left rail) → T-061
+### ✅ T-062 [S] Nav partial rewrite (4-item left rail) → T-061
 - `partials/_nav.html`: Overview, Ledger, Accounts, Budget + Settings affordance at bottom.
 - `aria-current="page"` on active; 2 px accent left-border; `data-shortcut` attrs.
 - Reference: ADR-0023.
 
-### T-063 [P] Overview composition → T-062
+### ✅ T-063 [P] Overview composition → T-062
 - Three-panel layout: Accounts list + sum, Budget-left headline, Upcoming planned with overdue muting.
 - New fragment `/overview/upcoming?window=7|30|all`.
 - Reuse `services.balance.derive_balance`, `services.budget.month_summary`, `services.planned.list_planned`.
 - Reference: ADR-0023.
 
-### T-064 [P] Ledger unification → T-062
+### ✅ T-064 [P] Ledger unification → T-062
 - New `routers/ledger.py` + `templates/ledger/{index,_table}.html` with Actual|Planned|Recurring segmented control.
 - Fragment `/ledger/table?view=…` dispatches to existing repository queries.
 - Alias old fragment routes.
 - Reference: ADR-0023.
 
-### T-065 [P] Accounts polish → T-061
+### ✅ T-065 [P] Accounts polish → T-061
 - Per-card 90-day sparkline (pure SVG), inline Reconcile button, Show snapshots disclosure.
 - Reference: ADR-0023.
 
-### T-066 [P] Budget consolidation → T-061
+### ✅ T-066 [P] Budget consolidation → T-061
 - `/budget` with three stacked sections: Monthly summary, Rules editor, Breakdown.
 - Reuse analytics figures from current `/analytics`.
 - Reference: ADR-0023.
 
-### T-067 [P] Settings drawer → T-061
+### ✅ T-067 [P] Settings drawer → T-061
 - New `routers/settings.py` + `templates/settings/{_categories,_fx,_prefs}.html`.
 - Slide-over right, 480 px, three internal tabs (Categories, FX, Preferences).
 - Reference: ADR-0023.
 
-### T-068 [P] Command palette + keyboard shortcuts → T-062
+### ✅ T-068 [P] Command palette + keyboard shortcuts → T-062
 - `partials/_palette.html` + `static/js/palette.js` (~60 lines) + `static/js/shortcuts.js` (~40 lines) + `partials/_shortcuts.html` cheatsheet.
 - Keyboard map: `g o/l/a/b/s`, `n`, `/`, `[ ]`, `?`, `⌘K`, `⎋`.
 - Reference: ADR-0023.
 
-### T-069 [P] Quick-add FAB + slide-over form → T-064
+### ✅ T-069 [P] Quick-add FAB + slide-over form → T-064
 - Fixed bottom-right 56×56 accent FAB; `n` key opens.
 - Context-aware against active Ledger segmented tab.
 - Reference: ADR-0023.
 
-### T-070 [S] Legacy URL redirects → T-064, T-066, T-067
+### ✅ T-070 [S] Legacy URL redirects → T-064, T-066, T-067
 - 302: `/transactions`, `/planned`, `/recurring`, `/categories`, `/analytics` → new homes.
 - Preserve HTMX fragment aliases for one release.
 - Reference: ADR-0023.
 
-### T-071 [S] Accessibility re-audit on new surfaces → T-063..T-069
+### ✅ T-071 [S] Accessibility re-audit on new surfaces → T-063..T-069
 - Focus trap in drawer + palette; shared focus-manager; `aria-current` on new nav; reduced-motion branches.
 - Topmost-overlay stack rule (drawer + modal + palette coexist).
 - Reference: ADR-0023, ADR-0019 (T-052 baseline).
 
-### T-072 [S] README + CHANGELOG update → T-071
+### ✅ T-072 [S] README + CHANGELOG update → T-071
 - README: nav screenshot description, keyboard map, migration note, ADR-0023 link.
 - CHANGELOG entry on landing day.
 

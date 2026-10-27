@@ -53,17 +53,22 @@ The first `uv sync` pulls `pyarrow` (~70 MB). One-off cost.
 
 ## Where things live
 
-| Feature | Route | Deep dive |
-|---------|-------|-----------|
-| Dashboard | `/` | [`docs/requirements.md`](docs/requirements.md) §4.1 |
-| Transactions ledger | `/transactions` | [`docs/requirements.md`](docs/requirements.md) §4.2 |
-| Accounts | `/accounts` | [ADR-0010](docs/adr/0010-account-model-free-text-type.md), [ADR-0011](docs/adr/0011-derived-balance-snapshots-reconciliation.md) |
-| Categories | `/categories` | [ADR-0008](docs/adr/0008-transaction-amount-sign-and-direction.md) |
-| Planned items | `/planned` | [ADR-0012](docs/adr/0012-planned-manual-promotion.md) |
-| Recurring rules | `/recurring` | [ADR-0013](docs/adr/0013-recurring-virtual-occurrences-and-overrides.md) |
-| Budget | `/budget` | [ADR-0014](docs/adr/0014-budget-flat-no-rollover-three-tier.md) |
-| Forecast | `/forecast` | [ADR-0015](docs/adr/0015-forecast-deterministic-live-htmx.md) |
-| Analytics | `/analytics` | [`docs/requirements.md`](docs/requirements.md) §4.9 |
+Phase 6 ([ADR-0023](docs/adr/0023-ux-redesign-information-architecture.md)) collapsed the nine Phase 3 pages into **four primary tabs + a Settings drawer**. Legacy URLs 302-redirect to their new homes for one release before the Phase 7 cleanup.
+
+| Tab | Route | Collapses | Deep dive |
+|---------|-------|-----------|-----------|
+| Overview | `/` | Home + Forecast summary + Analytics headline | [`docs/requirements.md`](docs/requirements.md) §3.9 |
+| Ledger | `/ledger?view=actual\|planned\|recurring` | Transactions + Planned + Recurring | [ADR-0012](docs/adr/0012-planned-manual-promotion.md), [ADR-0013](docs/adr/0013-recurring-virtual-occurrences-and-overrides.md) |
+| Accounts | `/accounts` | Balances + Snapshots + Reconcile | [ADR-0010](docs/adr/0010-account-model-free-text-type.md), [ADR-0011](docs/adr/0011-derived-balance-snapshots-reconciliation.md) |
+| Budget | `/budget` | Budget rules + Monthly summary + Breakdown charts | [ADR-0014](docs/adr/0014-budget-flat-no-rollover-three-tier.md) |
+| Settings (drawer) | `/settings?tab=categories\|fx\|prefs` | Categories + FX cache + Preferences | [ADR-0023](docs/adr/0023-ux-redesign-information-architecture.md) |
+| Forecast (deep page) | `/forecast` | — | [ADR-0015](docs/adr/0015-forecast-deterministic-live-htmx.md) |
+
+**Interaction model** ([ADR-0023](docs/adr/0023-ux-redesign-information-architecture.md)):
+
+- **Quick-add FAB** — fixed bottom-right button; the target form adapts to the active page (`/transactions/new` on Overview, `/planned/new` on `/ledger?view=planned`, etc.).
+- **Command palette** — `⌘K` / `Ctrl+K`.
+- **Keyboard shortcuts** — `g o` Overview · `g l` Ledger · `g a` Accounts · `g b` Budget · `g s` Settings · `n` Quick-add · `/` focus search · `[` / `]` cycle Ledger views · `?` cheatsheet · `Esc` close topmost overlay.
 
 ## Project docs
 
@@ -95,7 +100,7 @@ Amounts are stored as positive integer minor units; direction derives from `cate
 
 ## Accessibility
 
-The eight primary routes target WCAG 2.1 AA on the main flows: semantic landmarks, keyboard navigation, visible focus rings, labelled inputs, announced HTMX swaps, 4.5:1 contrast. Reduced-motion preference is honoured. Styles live in [`src/budget_planner/web/static/app.css`](src/budget_planner/web/static/app.css).
+The four primary tabs plus the Settings drawer target WCAG 2.1 AA: semantic landmarks, keyboard navigation, visible focus rings, labelled inputs, announced HTMX swaps, 4.5:1 contrast. Native `<dialog>` (command palette, shortcuts cheatsheet) ships focus trap + Esc close for free; `role="dialog"` overlays (settings drawer, slide-over form) share a stack so `Esc` always closes the topmost one. Reduced-motion preference is honoured. Styles live in [`src/budget_planner/web/static/app.css`](src/budget_planner/web/static/app.css).
 
 ## Design
 

@@ -33,6 +33,10 @@ _ROUTES = (
     "/budget/manage",
     "/forecast",
     "/analytics",
+    # T-071 — new ADR-0023 surfaces.
+    "/ledger",
+    "/ledger?view=planned",
+    "/ledger?view=recurring",
 )
 
 
@@ -182,3 +186,40 @@ def test_dialogs_have_accessible_labels(client: TestClient) -> None:
     assert dialog is not None and isinstance(dialog, Tag)
     assert dialog.get("aria-labelledby"), "reconcile dialog missing aria-labelledby"
     assert dialog.get("aria-modal") == "true"
+
+
+def test_settings_drawer_is_dialog(client: TestClient) -> None:
+    """T-071: settings drawer carries full dialog aria shape + data-drawer hook."""
+    r = client.get("/settings")
+    assert r.status_code == 200
+    frag = BeautifulSoup(r.text, "html.parser")
+    drawer = frag.select_one("[data-drawer]")
+    assert drawer is not None and isinstance(drawer, Tag)
+    assert drawer.get("role") == "dialog"
+    assert drawer.get("aria-modal") == "true"
+    assert drawer.get("aria-labelledby"), "drawer missing aria-labelledby"
+    assert drawer.get("tabindex") == "-1"
+
+
+def test_slideover_is_dialog(client: TestClient) -> None:
+    """T-071: FAB-launched slide-over form carries dialog aria + data-slideover."""
+    r = client.get("/transactions/new")
+    assert r.status_code == 200
+    frag = BeautifulSoup(r.text, "html.parser")
+    overlay = frag.select_one("[data-slideover]")
+    assert overlay is not None and isinstance(overlay, Tag)
+    assert overlay.get("role") == "dialog"
+    assert overlay.get("aria-modal") == "true"
+    assert overlay.get("aria-labelledby"), "slide-over missing aria-labelledby"
+
+
+def test_ledger_segmented_has_aria_pressed(client: TestClient) -> None:
+    """T-071: Ledger segmented control exposes active view via aria-pressed."""
+    soup = _soup(client, "/ledger?view=planned")
+    seg = soup.select_one("[data-ledger-views]")
+    assert seg is not None and isinstance(seg, Tag)
+    buttons = seg.select("[data-view]")
+    assert len(buttons) >= 3, "expected actual / planned / recurring buttons"
+    active = [b for b in buttons if b.get("aria-pressed") == "true"]
+    assert len(active) == 1, "exactly one segmented button should be aria-pressed"
+    assert active[0].get("data-view") == "planned"
