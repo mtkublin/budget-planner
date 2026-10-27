@@ -7,6 +7,7 @@ Parses form input, calls the service / repo, renders Jinja fragments.
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -27,10 +28,26 @@ from budget_planner.repositories import (
     categories as categories_repo,
     transactions as transactions_repo,
 )
-from budget_planner.services import export as export_service
+from budget_planner.services import (
+    balance as balance_service,
+    export as export_service,
+)
 from budget_planner.web.deps import get_db, get_settings_dep
 from budget_planner.web.htmx import trigger
 from budget_planner.web.rendering import render
+
+
+@dataclass(frozen=True, slots=True)
+class LimitPreview:
+    """Projected utilisation snapshot for the transaction form (ADR-0024)."""
+
+    projected_balance: int
+    available_after: int
+    used_after: int
+    limit: int
+    over_by: int
+    currency: str
+
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -103,6 +120,66 @@ def list_page() -> RedirectResponse:
     (``/transactions/new``, ``/transactions/{id}/edit``, etc.) remain live.
     """
     return RedirectResponse(url="/ledger?view=actual", status_code=302)
+
+
+def _compute_limit_preview(
+    conn: sqlite3.Connection, account_id: int, category_id: int, amount_raw: str
+) -> LimitPreview | None:
+    """Project post-transaction utilization for a liability account.
+
+    Soft-failing by design: any missing/unparseable input returns ``None`` so
+    the fragment stays blank and the user can keep editing (ADR-0024).
+    """
+    acc = accounts_repo.find_by_id(conn, account_id)
+    if acc is None or not acc.is_liability or acc.credit_limit_minor is None:
+        return None
+    cat = categories_repo.find_by_id(conn, category_id)
+    if cat is None:
+        return None
+    try:
+        dec = Decimal(amount_raw)
+    except (InvalidOperation, TypeError):
+        return None
+    if dec <= 0:
+        return None
+    amount_minor = to_minor_units(dec, acc.currency)
+    current = balance_service.derive_balance(conn, account_id)
+    direction = cat.direction
+    if direction is Direction.INCOME:
+        delta = amount_minor
+    elif direction is Direction.EXPENSE or direction is Direction.TRANSIT:
+        delta = -amount_minor
+    else:
+        delta = amount_minor
+    projected = current + delta
+    limit = acc.credit_limit_minor
+    used_after = max(-projected, 0)
+    available_after = max(limit - used_after, 0)
+    over_by = max(used_after - limit, 0)
+    return LimitPreview(
+        projected_balance=projected,
+        available_after=available_after,
+        used_after=used_after,
+        limit=limit,
+        over_by=over_by,
+        currency=acc.currency,
+    )
+
+
+@router.get("/_limit_preview", response_class=HTMLResponse)
+def limit_preview(
+    request: Request,
+    account_id: str = "",
+    category_id: str = "",
+    amount: str = "",
+    conn: sqlite3.Connection = Depends(get_db),
+) -> HTMLResponse:
+    acc_id = _parse_int(account_id)
+    cat_id = _parse_int(category_id)
+    preview: LimitPreview | None = None
+    if acc_id is not None and cat_id is not None:
+        preview = _compute_limit_preview(conn, acc_id, cat_id, amount)
+    return render(request, "partials/transactions/_limit_preview.html", preview=preview)
 
 
 @router.get("/table", response_class=HTMLResponse)

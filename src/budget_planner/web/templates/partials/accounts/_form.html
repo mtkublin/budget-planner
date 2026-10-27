@@ -1,7 +1,7 @@
 <form hx-post="{{ action }}"
       hx-target="{% if account %}#account-{{ account.id }}{% else %}#accounts-grid{% endif %}"
       hx-swap="{% if account %}outerHTML{% else %}beforeend{% endif %}"
-      class="form-stack">
+      class="form-stack account-form">
   <label>
     Name
     <input type="text"
@@ -28,8 +28,39 @@
       <input type="text" value="{{ account.currency }}" disabled>
     </label>
   {% endif %}
+  <label class="form-stack__inline">
+    <input type="checkbox"
+           name="is_liability"
+           data-toggle-limit
+           {% if account and account.is_liability %}checked{% endif %}>
+    Credit card (liability)
+  </label>
+  <label class="account-form__limit"
+         data-limit-field
+         {% if not (account and account.is_liability) %}hidden{% endif %}>
+    Credit limit
+    <input type="text"
+           name="credit_limit"
+           inputmode="decimal"
+           value="{% if account and account.credit_limit_minor %}{{ account.credit_limit_minor|money_major(account.currency) }}{% endif %}">
+  </label>
   {% include "partials/_form_errors.html" %}
   <div class="form-stack__actions">
     <button type="submit" class="btn-accent">Save</button>
   </div>
 </form>
+<script>
+  (function () {
+    const form = document.currentScript.previousElementSibling;
+    const cb = form.querySelector("[data-toggle-limit]");
+    const field = form.querySelector("[data-limit-field]");
+    if (!cb || !field) return;
+    cb.addEventListener("change", () => {
+      if (cb.checked) {
+        field.removeAttribute("hidden");
+      } else {
+        field.setAttribute("hidden", "");
+      }
+    });
+  })();
+</script>

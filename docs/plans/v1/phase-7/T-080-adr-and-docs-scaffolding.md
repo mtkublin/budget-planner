@@ -10,7 +10,7 @@ Lay the paper trail for Phase 7 before any code lands. Writes the ADR that gover
 
 - Upstream tasks: none (this is the first task of the phase).
 - Binding standard: `CLAUDE.md` change policy — docs come first, no exceptions.
-- Adjacent precedent: [`T-060`](../phase-6/) for Phase 6 and [`T-090`](../phase-9/) for Phase 9 — mirror both.
+- Adjacent precedent: [`T-060`](../phase-6/) for Phase 6 and [`T-095`](../phase-9/) for Phase 9 — mirror both.
 
 ## Deliverables
 

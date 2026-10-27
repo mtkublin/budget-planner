@@ -1,18 +1,18 @@
-# T-092 — Domain + Repository for User Preferences
+# T-097 — Domain + Repository for User Preferences
 
 > Phase 9 — Left Daily Spend. Status: pending.
 
 ## Purpose
 
-Add the domain types (`UserPreference` + `NewUserPreference` + the first known-key constant) and a small pure-function repository (`get`, `upsert`, `delete`) for the `user_preferences` table introduced by T-091. Repository runs inside an explicit `BEGIN`/`COMMIT` for atomicity but deliberately **does not** write to `audit_log` — preferences are UI state, not domain mutations, per ADR-0025.
+Add the domain types (`UserPreference` + `NewUserPreference` + the first known-key constant) and a small pure-function repository (`get`, `upsert`, `delete`) for the `user_preferences` table introduced by T-096. Repository runs inside an explicit `BEGIN`/`COMMIT` for atomicity but deliberately **does not** write to `audit_log` — preferences are UI state, not domain mutations, per ADR-0025.
 
 ## Inputs / prerequisites
 
-- Upstream tasks: T-091 (table landed).
+- Upstream tasks: T-096 (table landed).
 - Binding standards: [`ADR-0025`](../../../adr/0025-user-preferences-and-income-anchor.md) § Decision 5, [`ADR-0022`](../../../adr/0022-repository-layer-soft-delete-audit-discipline.md) (repository transaction discipline — this ADR carves out a settings-only audit exception).
 - Adjacent precedents:
   - `src/budget_planner/domain/accounts.py` — frozen `slots=True, kw_only=True` dataclass shape.
-  - `src/budget_planner/repositories/budgets.py` — simple-table repository (no soft-delete / no audit) is the closest existing analogue; T-092 extends the pattern.
+  - `src/budget_planner/repositories/budgets.py` — simple-table repository (no soft-delete / no audit) is the closest existing analogue; T-097 extends the pattern.
   - `src/budget_planner/repositories/_shared.py` — `transaction()` context manager used verbatim; `mutate(...)` / `write_audit(...)` are explicitly **not** called from the new module.
 
 ## Deliverables
@@ -61,11 +61,11 @@ New tests:
 
 - **`ON CONFLICT ... DO UPDATE` requires SQLite 3.24+.** Shipping Python 3.12 brings sqlite3 ≥ 3.31. Safe.
 - **`created_at` on update.** `ON CONFLICT ... DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP` leaves `created_at` untouched. If you accidentally include `created_at = excluded.created_at`, the test `test_upsert_update_preserves_created_at_and_bumps_updated_at` will fail — do not add it.
-- **Transaction nesting.** Service layer wrappers (T-093) call these repository functions inside their own transactions. `_shared.transaction()` already supports SAVEPOINT nesting (see T-023 upgrade). Reuse — do not reinvent.
+- **Transaction nesting.** Service layer wrappers (T-098) call these repository functions inside their own transactions. `_shared.transaction()` already supports SAVEPOINT nesting (see T-023 upgrade). Reuse — do not reinvent.
 - **No soft-delete.** Deleting a preference literally removes the row. If a historical audit of preference changes is ever requested, this is a v2 enhancement (bump to `user_preferences_v2` with a tombstone column).
 
 ## Handoff notes
 
-- Hand-off to T-093: the service layer imports `get`, `upsert`, `delete` and the `PREF_INCOME_ANCHOR_CATEGORY_ID` constant.
-- Hand-off to T-096: a dropdown on `/budget/manage` uses `upsert` for set and `delete` for clear; the empty-string body on the POST endpoint maps to `delete`.
-- Commit shape: `feat(T-092): user_preferences repository + domain (ADR-0025)`.
+- Hand-off to T-098: the service layer imports `get`, `upsert`, `delete` and the `PREF_INCOME_ANCHOR_CATEGORY_ID` constant.
+- Hand-off to T-101: a dropdown on `/budget/manage` uses `upsert` for set and `delete` for clear; the empty-string body on the POST endpoint maps to `delete`.
+- Commit shape: `feat(T-097): user_preferences repository + domain (ADR-0025)`.

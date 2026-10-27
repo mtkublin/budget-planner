@@ -15,11 +15,22 @@
     <input type="text"
            name="amount"
            value="{{ txn.amount if txn else '' }}"
-           required>
+           required
+           hx-get="/transactions/_limit_preview"
+           hx-include="[name='account_id'],[name='category_id'],[name='amount']"
+           hx-target="#limit-preview"
+           hx-swap="outerHTML"
+           hx-trigger="change delay:200ms, keyup changed delay:400ms">
   </label>
   <label>
     Category
-    <select name="category_id" required>
+    <select name="category_id"
+            required
+            hx-get="/transactions/_limit_preview"
+            hx-include="[name='account_id'],[name='category_id'],[name='amount']"
+            hx-target="#limit-preview"
+            hx-swap="outerHTML"
+            hx-trigger="change">
       {% for c in categories %}
         <option value="{{ c.id }}"
                 {% if txn and txn.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
@@ -28,7 +39,13 @@
   </label>
   <label>
     Account
-    <select name="account_id" required>
+    <select name="account_id"
+            required
+            hx-get="/transactions/_limit_preview"
+            hx-include="[name='account_id'],[name='category_id'],[name='amount']"
+            hx-target="#limit-preview"
+            hx-swap="outerHTML"
+            hx-trigger="change">
       {% for a in accounts %}
         <option value="{{ a.id }}"
                 {% if txn and txn.account_id == a.id %}selected{% endif %}>{{ a.name }}</option>
@@ -52,6 +69,7 @@
            value="{{ txn.description if txn else '' }}">
   </label>
   {% include "partials/_form_errors.html" %}
+  {% include "partials/transactions/_limit_preview.html" %}
   <div class="form-stack__actions">
     <button type="submit" class="btn-accent">Save</button>
   </div>

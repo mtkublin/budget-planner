@@ -1,4 +1,4 @@
-# T-095 — Left Daily Spend in `services/budget.py`
+# T-100 — Left Daily Spend in `services/budget.py`
 
 > Phase 9 — Left Daily Spend. Status: pending.
 
@@ -8,7 +8,7 @@ Extend `MonthSummary` with the new metric so templates and routers consume one D
 
 ## Inputs / prerequisites
 
-- Upstream tasks: T-024 (budget service baseline), T-093 (anchor resolver), T-094 (next-planned-income lookup).
+- Upstream tasks: T-024 (budget service baseline), T-098 (anchor resolver), T-099 (next-planned-income lookup).
 - Binding standards:
   - [`ADR-0014`](../../../adr/0014-budget-flat-no-rollover-three-tier.md) — flat budgets, no rollover (unchanged by this task).
   - [`ADR-0025`](../../../adr/0025-user-preferences-and-income-anchor.md) — anchor fallback rules.
@@ -83,7 +83,7 @@ New tests under `tests/unit/services/test_budget_left_daily_spend.py`:
 
 1. **DTO fields.** Add the four new fields to `MonthSummary` in alphabetical adjacency to the existing fields, matching the slots-aware frozen dataclass pattern.
 2. **Imports.** Add `from budget_planner.services import planned as planned_svc, preferences as preferences_svc`. Watch for a circular import — `services.planned` already imports from `repositories`; keep this at the top.
-3. **Signature change.** `today` is required and keyword-only. Every existing caller currently defaults to `date.today()` at the service — this task **moves** that default to each caller. Audit the router (T-096 does the real work) and tests (`tests/unit/services/test_budget.py` and `tests/integration/web/test_budget.py`); update each with an injected date.
+3. **Signature change.** `today` is required and keyword-only. Every existing caller currently defaults to `date.today()` at the service — this task **moves** that default to each caller. Audit the router (T-101 does the real work) and tests (`tests/unit/services/test_budget.py` and `tests/integration/web/test_budget.py`); update each with an injected date.
 4. **Last-day-of-month helper.** Reuse `_month_range(year, month)` which already returns `(start, end)`.
 5. **Floor at 1 and rounding.** Mirror the `_mean_minor` pattern already in the module (`Decimal` + `ROUND_HALF_EVEN` + `int(...)`).
 6. **Public export.** `MonthSummary` already in `__all__`; nothing to add there, but mention the new fields in the module docstring.
@@ -98,7 +98,7 @@ New tests under `tests/unit/services/test_budget_left_daily_spend.py`:
 
 ## Risks & gotchas
 
-- **Signature change ripple.** `today` is now required. Every existing caller breaks until updated. Pair this task's PR with T-096 or ship a shim default (`today: date | None = None`) only if you must — the preferred shape is "no shim, update every caller".
+- **Signature change ripple.** `today` is now required. Every existing caller breaks until updated. Pair this task's PR with T-101 or ship a shim default (`today: date | None = None`) only if you must — the preferred shape is "no shim, update every caller".
 - **Timezone correctness.** The router must compute `today` in `Europe/Warsaw` (or `settings.display_timezone`). Passing UTC `date.today()` from a service test is fine for determinism; the production call site is the one that must get the TZ right.
 - **Fallback caption.** `anchor_category_name is None` is the signal to the template to render `(end of month)`. Do not pass a placeholder string from the service — keeping it `None` makes the template contract explicit.
 - **Rounding bias.** Banker's rounding (`ROUND_HALF_EVEN`) matches the rest of the service (`_mean_minor`). Do not switch to `ROUND_HALF_UP` for this one metric — consistency wins.
@@ -106,5 +106,5 @@ New tests under `tests/unit/services/test_budget_left_daily_spend.py`:
 
 ## Handoff notes
 
-- Hand-off to T-096: templates consume `summary.left_daily_spend_minor` / `summary.anchor_category_name` / `summary.next_income_date` / `summary.days_until_next_income` directly. No new filters needed; `money` and `date_fmt` already exist (T-030).
-- Commit shape: `feat(T-095): MonthSummary.left_daily_spend_minor (ADR-0025, F4.6)`.
+- Hand-off to T-101: templates consume `summary.left_daily_spend_minor` / `summary.anchor_category_name` / `summary.next_income_date` / `summary.days_until_next_income` directly. No new filters needed; `money` and `date_fmt` already exist (T-030).
+- Commit shape: `feat(T-100): MonthSummary.left_daily_spend_minor (ADR-0025, F4.6)`.

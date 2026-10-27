@@ -107,6 +107,24 @@ def new_form(request: Request) -> HTMLResponse:
     )
 
 
+def _parse_liability(raw: str) -> bool:
+    return raw.strip().lower() in {"on", "true", "1"}
+
+
+def _parse_credit_limit(raw: str, currency: str) -> tuple[int | None, str | None]:
+    """Return (minor_units, error_message)."""
+    trimmed = raw.strip()
+    if not trimmed:
+        return None, "positive credit limit required"
+    try:
+        dec = Decimal(trimmed)
+    except InvalidOperation:
+        return None, "positive credit limit required"
+    if dec <= 0:
+        return None, "positive credit limit required"
+    return to_minor_units(dec, currency), None
+
+
 @router.post("")
 def create_account(  # noqa: PLR0917
     request: Request,
@@ -114,6 +132,8 @@ def create_account(  # noqa: PLR0917
     currency: str = Form(...),
     opening_balance: str = Form("0"),
     type: str = Form(""),
+    is_liability: str = Form(""),
+    credit_limit: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
 ) -> Response:
     errors: dict[str, str] = {}
@@ -127,6 +147,12 @@ def create_account(  # noqa: PLR0917
         opening_dec = Decimal(0)
     if not name.strip():
         errors["name"] = "name required"
+    liability = _parse_liability(is_liability)
+    credit_limit_minor: int | None = None
+    if liability and not errors.get("currency"):
+        credit_limit_minor, limit_err = _parse_credit_limit(credit_limit, cur)
+        if limit_err is not None:
+            errors["credit_limit"] = limit_err
     if errors:
         return render(
             request,
@@ -139,7 +165,14 @@ def create_account(  # noqa: PLR0917
     opening = to_minor_units(opening_dec, cur)
     acc = accounts_repo.create(
         conn,
-        NewAccount(name=name.strip(), currency=cur, opening_balance=opening, type=type or None),
+        NewAccount(
+            name=name.strip(),
+            currency=cur,
+            opening_balance=opening,
+            type=type or None,
+            is_liability=liability,
+            credit_limit_minor=credit_limit_minor,
+        ),
     )
     html = render(
         request,
@@ -174,11 +207,13 @@ def edit_form(
 
 
 @router.post("/{account_id}")
-def update_account(
+def update_account(  # noqa: PLR0917
     account_id: int,
     request: Request,
     name: str = Form(...),
     type: str = Form(""),
+    is_liability: str = Form(""),
+    credit_limit: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
 ) -> Response:
     acc = accounts_repo.find_by_id(conn, account_id)
@@ -200,7 +235,33 @@ def update_account(
             errors={"name": "name required"},
             status_code=422,
         )
-    accounts_repo.update(conn, account_id, PatchAccount(name=name.strip(), type=type or None))
+    liability = _parse_liability(is_liability)
+    patch_limit: int | None = None
+    clear_limit = False
+    if liability:
+        patch_limit, limit_err = _parse_credit_limit(credit_limit, acc.currency)
+        if limit_err is not None:
+            return render(
+                request,
+                "partials/accounts/_form.html",
+                account=acc,
+                action=f"/accounts/{account_id}",
+                errors={"credit_limit": limit_err},
+                status_code=422,
+            )
+    else:
+        clear_limit = True
+    accounts_repo.update(
+        conn,
+        account_id,
+        PatchAccount(
+            name=name.strip(),
+            type=type or None,
+            is_liability=liability,
+            credit_limit_minor=patch_limit,
+            clear_credit_limit=clear_limit,
+        ),
+    )
     updated = accounts_repo.find_by_id(conn, account_id)
     assert updated is not None
     html = render(

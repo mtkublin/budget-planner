@@ -488,6 +488,11 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
   padding-top: var(--space-2);
   border-top: 1px solid var(--rule);
 }
+.form-stack__inline {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+}
 
 /* ---- Flash (T-051 kinds) ---- */
 
@@ -1169,4 +1174,48 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
 @media (prefers-reduced-motion: reduce) {
   .slide-over-root,
   .slide-over { animation: none; }
+}
+
+/* ---------------------------------------------------------------------- *
+ * T-084 — Liability account + fortune split (ADR-0024)
+ * ---------------------------------------------------------------------- */
+.pill--liability {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--accent-wash, color-mix(in oklab, var(--accent) 10%, transparent));
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+.account-card--liability { border-color: color-mix(in oklab, var(--accent) 30%, var(--rule)); }
+.credit-strip dt { font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; }
+.credit-strip dd { font-size: var(--text-base); }
+.utilization-bar {
+  position: relative;
+  height: 6px;
+  background: var(--rule);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.utilization-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width var(--duration-normal) var(--ease-out-expo);
+}
+.utilization-bar[aria-valuenow="100"] > span { background: var(--danger, #c2410c); }
+.badge--warning {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--warning-bg, color-mix(in oklab, var(--danger, #c2410c) 15%, transparent));
+  color: var(--danger, #c2410c);
+  font-size: 12px;
+}
+.fortune-split { display: grid; gap: var(--space-4); }
+.fortune-split__net dd { font-size: var(--text-xl); }
+@media (prefers-reduced-motion: reduce) {
+  .utilization-bar > span { transition: none; }
 }

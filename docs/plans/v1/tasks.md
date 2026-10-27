@@ -374,6 +374,47 @@ Per service and repository. Target ≥90% coverage. Pure-function heavy, mocks o
 
 ---
 
+## Phase 7 — Liability accounts (credit cards)
+
+Adds behavioural classification + credit limit to accounts (ADR-0024, F2.1a). Scope: accounts surface + fortune reporting. See `docs/plans/v1/phase-7/README.md`.
+
+### ✅ T-080 [S] ADR-0024 + Phase 7 docs scaffolding
+- ADR-0024, F2.1a in `docs/requirements.md`, Phase 7 README + task stubs.
+
+### ✅ T-081 [S] Migration `0004_add_liability_columns.sql` → T-080
+- `accounts.is_liability INTEGER NOT NULL DEFAULT 0 CHECK (0,1)`; `accounts.credit_limit_minor INTEGER CHECK (NULL or > 0)`.
+- Idempotent additive migration; existing rows default to assets.
+- Reference: `docs/plans/v1/phase-7/T-081-migration-liability-columns.md`.
+
+### ✅ T-082 [S] Domain + repository → T-081
+- `Account`, `NewAccount`, `PatchAccount` gain `is_liability: bool` + `credit_limit_minor: int | None`.
+- `PatchAccount.clear_credit_limit` sentinel distinguishes "no change" from "clear to NULL".
+- Repository CRUD, hydrator, audit payloads thread the two new fields.
+- Reference: `docs/plans/v1/phase-7/T-082-domain-and-repository.md`.
+
+### ✅ T-083 [S] Fortune service → T-082
+- New `services/fortune.py` with `compute_fortune(conn, settings) -> FortuneTotals`.
+- Both `/` and `/accounts` routers call the service; `derive_balance` / `signed_legs` untouched.
+- Reference: `docs/plans/v1/phase-7/T-083-fortune-service.md`.
+
+### ✅ T-084 [S] Web form + templates → T-083
+- Account form: "Credit card (liability)" checkbox + conditional credit-limit input.
+- Account card: pill, utilization strip, over-limit badge.
+- Overview + Accounts: Assets / Liabilities / Net worth split.
+- Reference: `docs/plans/v1/phase-7/T-084-web-form-and-templates.md`.
+
+### ✅ T-085 [S] Transaction-form soft warning → T-084
+- `GET /transactions/_limit_preview` HTMX fragment previews post-transaction utilization for a liability account.
+- Soft-only: form continues to submit when `over_by > 0`.
+- Reference: `docs/plans/v1/phase-7/T-085-transaction-form-soft-warning.md`.
+
+### ✅ T-086 [S] Seed + e2e journey → T-084
+- `seed.seed()` adds demo "Bank (PLN)" + "Visa (PLN)" accounts, idempotent on re-seed.
+- `tests/e2e/test_credit_card_journey.py` exercises the full user flow end-to-end.
+- Reference: `docs/plans/v1/phase-7/T-086-seed-and-e2e-journey.md`.
+
+---
+
 ## Phase 8 — Post-redesign UX fixes
 
 Driven by field-use report 2026-10-27. Scope: UX bugfix + polish only. See `docs/plans/v1/phase-8/README.md` for the root-cause analysis.

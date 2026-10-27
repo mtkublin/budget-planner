@@ -299,3 +299,153 @@ def test_filter_by_category(
     descs = {td.text.strip() for td in soup.find_all("td", class_="text-muted")}
     assert "g" in descs
     assert "s" not in descs
+
+
+# ---------------------------------------------------------------------------
+# T-085 — Transaction-form credit-card soft warning (ADR-0024)
+
+
+@pytest.fixture
+def visa_setup(_migrated: Settings) -> dict[str, int]:
+    conn = get_connection(_migrated)
+    try:
+        visa = accounts_repo.create(
+            conn,
+            NewAccount(
+                name="Visa",
+                currency="PLN",
+                is_liability=True,
+                credit_limit_minor=1_000_000,
+            ),
+        )
+        asset = accounts_repo.create(
+            conn, NewAccount(name="Bank", currency="PLN", opening_balance=200_000)
+        )
+        expense = categories_repo.create(conn, NewCategory(name="X", direction=Direction.EXPENSE))
+        income = categories_repo.create(conn, NewCategory(name="Pay", direction=Direction.INCOME))
+        return {
+            "visa": visa.id,
+            "asset": asset.id,
+            "expense": expense.id,
+            "income": income.id,
+        }
+    finally:
+        conn.close()
+
+
+def test_preview_hidden_for_asset_account(client: TestClient, visa_setup: dict[str, int]) -> None:
+    r = client.get(
+        "/transactions/_limit_preview",
+        params={
+            "account_id": visa_setup["asset"],
+            "category_id": visa_setup["expense"],
+            "amount": "100.00",
+        },
+    )
+    assert r.status_code == 200
+    assert "limit-preview" in r.text
+    soup = BeautifulSoup(r.text, "html.parser")
+    assert soup.find("aside", class_="limit-preview") is None
+
+
+def test_preview_shows_available_for_within_limit_expense(
+    client: TestClient, visa_setup: dict[str, int]
+) -> None:
+    r = client.get(
+        "/transactions/_limit_preview",
+        params={
+            "account_id": visa_setup["visa"],
+            "category_id": visa_setup["expense"],
+            "amount": "500.00",
+        },
+    )
+    assert r.status_code == 200
+    assert "After this transaction" in r.text
+    assert "9,500.00" in r.text
+
+
+def test_preview_shows_over_limit_for_overshoot_expense(
+    client: TestClient, visa_setup: dict[str, int]
+) -> None:
+    r = client.get(
+        "/transactions/_limit_preview",
+        params={
+            "account_id": visa_setup["visa"],
+            "category_id": visa_setup["expense"],
+            "amount": "15000.00",
+        },
+    )
+    assert r.status_code == 200
+    assert "Over limit" in r.text
+    assert "5,000.00" in r.text
+
+
+def test_preview_handles_adjustment_signed_amount(
+    client: TestClient, visa_setup: dict[str, int], _migrated: Settings
+) -> None:
+    conn = get_connection(_migrated)
+    try:
+        adj_cat = categories_repo.find_by_name(conn, "Reconciliation")
+        assert adj_cat is not None
+    finally:
+        conn.close()
+    r = client.get(
+        "/transactions/_limit_preview",
+        params={
+            "account_id": visa_setup["visa"],
+            "category_id": adj_cat.id,
+            "amount": "100.00",
+        },
+    )
+    assert r.status_code == 200
+
+
+def test_preview_updates_on_amount_change(client: TestClient, visa_setup: dict[str, int]) -> None:
+    r1 = client.get(
+        "/transactions/_limit_preview",
+        params={
+            "account_id": visa_setup["visa"],
+            "category_id": visa_setup["expense"],
+            "amount": "100.00",
+        },
+    )
+    r2 = client.get(
+        "/transactions/_limit_preview",
+        params={
+            "account_id": visa_setup["visa"],
+            "category_id": visa_setup["expense"],
+            "amount": "500.00",
+        },
+    )
+    assert "9,900.00" in r1.text
+    assert "9,500.00" in r2.text
+
+
+def test_preview_bad_amount_returns_blank_fragment(
+    client: TestClient, visa_setup: dict[str, int]
+) -> None:
+    r = client.get(
+        "/transactions/_limit_preview",
+        params={
+            "account_id": visa_setup["visa"],
+            "category_id": visa_setup["expense"],
+            "amount": "not-a-number",
+        },
+    )
+    assert r.status_code == 200
+    soup = BeautifulSoup(r.text, "html.parser")
+    assert soup.find("aside", class_="limit-preview") is None
+
+
+def test_form_submits_even_when_over_limit(client: TestClient, visa_setup: dict[str, int]) -> None:
+    r = client.post(
+        "/transactions",
+        data={
+            "operation_date": "2026-10-27",
+            "category_id": visa_setup["expense"],
+            "account_id": visa_setup["visa"],
+            "amount": "15000.00",
+            "description": "overshoot",
+        },
+    )
+    assert r.status_code == 200

@@ -1,10 +1,10 @@
-# T-094 — Next-Planned-Income Lookup on `services/planned.py`
+# T-099 — Next-Planned-Income Lookup on `services/planned.py`
 
 > Phase 9 — Left Daily Spend. Status: pending.
 
 ## Purpose
 
-Add a thin pure function that answers "what is the earliest planned entry (persisted or virtual) in category X with `operation_date > today`?" so the budget service (T-095) can compute the "days until next income" denominator without re-implementing the planned-log UNION. Reuses `list_planned(...)` end-to-end — one source of truth for persisted + virtual + override dedup (ADR-0013).
+Add a thin pure function that answers "what is the earliest planned entry (persisted or virtual) in category X with `operation_date > today`?" so the budget service (T-100) can compute the "days until next income" denominator without re-implementing the planned-log UNION. Reuses `list_planned(...)` end-to-end — one source of truth for persisted + virtual + override dedup (ADR-0013).
 
 ## Inputs / prerequisites
 
@@ -69,5 +69,5 @@ New tests under `tests/unit/services/test_planned_next_for_category.py`:
 
 ## Handoff notes
 
-- Hand-off to T-095 (budget service): import `next_planned_for_category`; pass the resolved anchor category id + today's date.
-- Commit shape: `feat(T-094): next_planned_for_category helper on planned service`.
+- Hand-off to T-100 (budget service): import `next_planned_for_category`; pass the resolved anchor category id + today's date.
+- Commit shape: `feat(T-099): next_planned_for_category helper on planned service`.

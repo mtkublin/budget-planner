@@ -1,4 +1,4 @@
-# T-096 — `/budget` Card + `/budget/manage` Anchor Selector
+# T-101 — `/budget` Card + `/budget/manage` Anchor Selector
 
 > Phase 9 — Left Daily Spend. Status: pending.
 
@@ -8,7 +8,7 @@ Make the metric visible and the anchor settable from the web UI. One new card on
 
 ## Inputs / prerequisites
 
-- Upstream tasks: T-036 (existing budget router + templates), T-095 (`MonthSummary` extension).
+- Upstream tasks: T-036 (existing budget router + templates), T-100 (`MonthSummary` extension).
 - Binding standards:
   - [`ADR-0023`](../../../adr/0023-ux-redesign-information-architecture.md) — `/budget` is a workflow surface; the metric belongs here, not on Overview.
   - [`ADR-0025`](../../../adr/0025-user-preferences-and-income-anchor.md).
@@ -88,4 +88,4 @@ New tests under `tests/integration/web/test_budget.py` (or sibling file if the c
 ## Handoff notes
 
 - Hand-off to README update (future task if needed): the `/budget` surface now has a prominent metric worth mentioning in the project README's "Daily commands + what you see" section.
-- Commit shape: `feat(T-096): /budget — left daily spend card + anchor selector (ADR-0025, F4.6, F4.7)`.
+- Commit shape: `feat(T-101): /budget — left daily spend card + anchor selector (ADR-0025, F4.6, F4.7)`.

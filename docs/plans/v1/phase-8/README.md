@@ -74,7 +74,7 @@ Five groups; each has acceptance criteria. Order is bottom-up (least-risky first
 
 ## Phase 8 handoff
 
-- Each group has a task file in this directory (`T-090`..`T-094`) with scope, test plan, and docs-to-touch. IDs chosen as successors to Phase 7 (last `T-086`); Phase 9 (user preferences) currently uses `T-090..T-096` and will be renumbered by its own agent.
+- Each group has a task file in this directory (`T-090`..`T-094`) with scope, test plan, and docs-to-touch. IDs chosen as successors to Phase 7 (last `T-086`); Phase 9 (user preferences) uses `T-095..T-101` as successors to this phase.
 - Group order: G1 → G2 → G3 → G4 → G5 (so form layout exists before FAB scope changes assume a correct slide-over).
 - Every task updates `docs/CHANGELOG.md`, `docs/plans/v1/tasks.md`, and either `docs/requirements.md` (if UX-user-facing) or an ADR (G5 only).
 - All tasks are **S** (sequential within phase), small, bug-fix / polish — not architectural.

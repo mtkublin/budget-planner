@@ -1,14 +1,14 @@
-# T-093 — Preferences Service + Income Anchor Resolver
+# T-098 — Preferences Service + Income Anchor Resolver
 
 > Phase 9 — Left Daily Spend. Status: pending.
 
 ## Purpose
 
-Expose the "income anchor" preference as three service functions with semantic validation (direction = `INCOME`, category live) at the boundary. Decouples T-095 (budget service consumer) and T-096 (web router) from the stringly-typed preference storage. Resolver returns the fully hydrated `Category` so downstream callers can display its name without a second repository fetch.
+Expose the "income anchor" preference as three service functions with semantic validation (direction = `INCOME`, category live) at the boundary. Decouples T-100 (budget service consumer) and T-101 (web router) from the stringly-typed preference storage. Resolver returns the fully hydrated `Category` so downstream callers can display its name without a second repository fetch.
 
 ## Inputs / prerequisites
 
-- Upstream tasks: T-092 (repository + domain), T-033 (categories router — only for the live-category discovery surface in T-096; service itself needs only `repositories.categories`).
+- Upstream tasks: T-097 (repository + domain), T-033 (categories router — only for the live-category discovery surface in T-101; service itself needs only `repositories.categories`).
 - Binding standards: [`ADR-0025`](../../../adr/0025-user-preferences-and-income-anchor.md), [`ADR-0021`](../../../adr/0021-functional-style-no-oop.md).
 - Adjacent precedents:
   - `src/budget_planner/services/budget.py` — simple pure-function service with typed inputs + narrow error types.
@@ -82,6 +82,6 @@ New tests:
 
 ## Handoff notes
 
-- Hand-off to T-095 (budget service): import `resolve_income_anchor_category` only. The int-returning `get_*` is a convenience for the web router.
-- Hand-off to T-096 (web): import `set_income_anchor_category_id` for the POST endpoint and `get_income_anchor_category_id` to pre-select the current value in the dropdown.
-- Commit shape: `feat(T-093): income anchor preference service (ADR-0025)`.
+- Hand-off to T-100 (budget service): import `resolve_income_anchor_category` only. The int-returning `get_*` is a convenience for the web router.
+- Hand-off to T-101 (web): import `set_income_anchor_category_id` for the POST endpoint and `get_income_anchor_category_id` to pre-select the current value in the dropdown.
+- Commit shape: `feat(T-098): income anchor preference service (ADR-0025)`.
