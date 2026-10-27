@@ -44,3 +44,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0038 | [Recurring Rules — Standalone Lifecycle with `next_due` + Direct Promotion](0038-recurring-standalone-lifecycle.md) (supersedes ADR-0013; amends ADR-0012) |
 | 0039 | [Budget "Left to Spend per Day" Includes Recurring Commitments](0039-budget-daily-spend-includes-recurring.md) (amends ADR-0025 §F4.6, ADR-0038) |
 | 0040 | [Modal Dismissal Fires on Form Submit Only, Not Side-Effect HTMX Requests](0040-modal-dismissal-scope.md) (amends ADR-0030 §5) |
+| 0041 | [Budget "Period" is Last-Anchor-Income to Next-Anchor-Income, Not Calendar Month](0041-budget-period-anchor-window.md) (amends ADR-0025 §F4.6, ADR-0039) |
