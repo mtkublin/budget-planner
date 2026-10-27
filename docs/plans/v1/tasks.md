@@ -649,10 +649,10 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 - New `partials/recurring/_promote_modal.html` slide-over with editable fields + "Override applied" banner.
 - Test shape per `phase-12/T-122-ledger-recurring-actions.md`; `frontend-visual-audit` on `/ledger?view=recurring`.
 
-### T-123 [P] Account form credit-limit initial-render bug → T-116
-- `partials/accounts/_form.html`: rewrite the sync `<script>` to find the form via `[data-account-form]` attribute, run on `DOMContentLoaded` + `htmx:afterSwap`; add defensive early-return.
-- Confirm Jinja condition `account is None or not account.is_liability` drives all three attributes together.
-- Test shape per `phase-12/T-123-account-credit-limit-initial-render.md`; `frontend-visual-audit` on `/accounts`.
+### ✅ T-123 [P] Account form credit-limit initial-render bug → T-116
+- `partials/accounts/_form.html`: rewrote the sync `<script>` to find the form via `[data-account-form]` attribute (position-independent, HTMX-swap-safe), run on initial parse + scoped `htmx:afterSwap`, idempotent via `form.dataset.limitWired`; also toggles inline `style.display` so `.form-stack label { display: flex }` no longer outweighs UA `[hidden]{display:none}`.
+- Jinja condition on all three attributes now reads `account is none or not account.is_liability`; the hidden branch also emits `style="display:none"` on the label.
+- Four integration tests pin the markup contract (`/accounts/new`, liability edit, asset edit, `data-account-form` hook); `frontend-visual-audit` on `/accounts` at 1440 / 1024 / 375 confirms lockstep toggle behaviour, no console errors / request failures / horizontal scroll.
 
 ### ✅ T-124 [P] Modal dismissal scope + amount `,`/`.` regression test → ADR-0040
 - `templates/base.html` scripts block: scope reset-and-close to `evt.target instanceof HTMLFormElement && form[data-reset-on-submit] && verb ∈ {post, put, delete}` (ADR-0040). The 422-shouldSwap branch above is unchanged.

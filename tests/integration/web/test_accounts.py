@@ -466,6 +466,76 @@ def test_accounts_index_renders_assets_liabilities_net(
     assert "Net worth" in text
 
 
+# ---------------------------------------------------------------------------
+# T-123 — Credit-limit field initial-render lockstep bug (ADR-0030 §6 contract).
+#
+# The sync `<script>` previously resolved the form via
+# `document.currentScript.previousElementSibling`, which breaks when the form
+# fragment is nested inside `partials/_slideover.html`. These tests pin the
+# server-rendered contract: `hidden` + `aria-hidden="true"` on the limit label
+# and `disabled` on the input must track `account is None or not
+# account.is_liability` in lockstep.
+
+
+def _limit_markup(html: str) -> tuple[Tag, Tag]:
+    soup = BeautifulSoup(html, "html.parser")
+    label = soup.find("label", attrs={"data-limit-field": True})
+    assert isinstance(label, Tag), "credit-limit label with data-limit-field expected"
+    limit_input = label.find("input", attrs={"name": "credit_limit"})
+    assert isinstance(limit_input, Tag), "credit_limit input expected inside label"
+    return label, limit_input
+
+
+def test_new_form_hides_credit_limit_by_default(client: TestClient) -> None:
+    r = client.get("/accounts/new")
+    assert r.status_code == 200
+    label, limit_input = _limit_markup(r.text)
+    assert label.has_attr("hidden")
+    assert label.get("aria-hidden") == "true"
+    assert limit_input.has_attr("disabled")
+
+
+def test_new_form_marks_form_root_for_sync(client: TestClient) -> None:
+    r = client.get("/accounts/new")
+    assert r.status_code == 200
+    soup = BeautifulSoup(r.text, "html.parser")
+    form = soup.find("form", attrs={"data-account-form": True})
+    assert isinstance(form, Tag), "account form must expose data-account-form hook"
+
+
+def test_edit_form_shows_credit_limit_for_liability(
+    client: TestClient, _migrated: Settings
+) -> None:
+    conn = get_connection(_migrated)
+    try:
+        visa = accounts_repo.create(
+            conn,
+            NewAccount(
+                name="Visa",
+                currency="PLN",
+                is_liability=True,
+                credit_limit_minor=1_000_000,
+            ),
+        )
+    finally:
+        conn.close()
+    r = client.get(f"/accounts/{visa.id}/edit")
+    assert r.status_code == 200
+    label, limit_input = _limit_markup(r.text)
+    assert not label.has_attr("hidden")
+    assert label.get("aria-hidden") is None
+    assert not limit_input.has_attr("disabled")
+
+
+def test_edit_form_hides_credit_limit_for_asset(client: TestClient, acc_id: int) -> None:
+    r = client.get(f"/accounts/{acc_id}/edit")
+    assert r.status_code == 200
+    label, limit_input = _limit_markup(r.text)
+    assert label.has_attr("hidden")
+    assert label.get("aria-hidden") == "true"
+    assert limit_input.has_attr("disabled")
+
+
 def test_utilization_bar_has_progressbar_role(client: TestClient, _migrated: Settings) -> None:
     conn = get_connection(_migrated)
     try:
