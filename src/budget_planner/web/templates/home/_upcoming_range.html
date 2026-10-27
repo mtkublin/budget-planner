@@ -3,13 +3,13 @@
    ``window_label``. ADR-0027 T-108 — macro-wrapped. #}
 {% from "_partials/segmented.html" import segmented %}
 {{ segmented(
-     mode="htmx",
-     items=[("7", "7 days"), ("30", "30 days"), ("all", "all")],
-     active=window_label,
-     name="upcoming-range",
-     hx_get="/overview/upcoming",
-     hx_target="#upcoming-list",
-     hx_swap="innerHTML",
-     hx_param="window",
-     oob=(oob is defined and oob),
-   ) }}
+  mode="htmx",
+  items=[("7", "7 days"), ("30", "30 days"), ("all", "all")],
+  active=window_label,
+  name="upcoming-range",
+  hx_get="/overview/upcoming",
+  hx_target="#upcoming-list",
+  hx_swap="innerHTML",
+  hx_param="window",
+  oob=(oob is defined and oob),
+) }}

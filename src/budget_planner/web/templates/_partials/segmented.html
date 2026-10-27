@@ -43,28 +43,34 @@
                  hx_swap="innerHTML", hx_param="window", oob=oob) }}
 #}
 {% macro segmented(mode="link", items=None, active=None, name=None, href_tmpl=None, hx_get=None, hx_target=None, hx_swap="outerHTML", hx_param="view", hx_push_url=False, oob=False, extra="") -%}
-{%- if mode == "link" -%}
-<nav id="{{ name }}" class="segmented{% if extra %} {{ extra }}{% endif %}" aria-label="{{ name|replace('-',' ') }}">
-  {% for value, label in items %}
-    {% set is_active = value == active %}
-    <a href="{{ href_tmpl.replace('{value}', value|string) }}"
-       class="segmented__btn{% if is_active %} segmented__btn--active{% endif %}"
-       data-value="{{ value }}"
-       {% if is_active %}aria-current="page"{% endif %}>{{ label }}</a>
-  {% endfor %}
-</nav>
-{%- else -%}
-<div id="{{ name }}" class="segmented{% if extra %} {{ extra }}{% endif %}" role="group" aria-label="{{ name|replace('-',' ') }}"{% if oob %} hx-swap-oob="outerHTML"{% endif %}>
-  {% for value, label in items %}
-    {% set is_active = value == active %}
-    <button type="button"
-            class="segmented__btn{% if is_active %} segmented__btn--active{% endif %}"
-            aria-pressed="{{ 'true' if is_active else 'false' }}"
-            hx-get="{{ hx_get }}?{{ hx_param }}={{ value }}"
-            hx-target="{{ hx_target }}"
-            hx-swap="{{ hx_swap }}"
-            hx-push-url="{{ 'true' if hx_push_url else 'false' }}">{{ label }}</button>
-  {% endfor %}
-</div>
-{%- endif -%}
+  {%- if mode == "link" -%}
+    <nav id="{{ name }}"
+         class="segmented{% if extra %} {{ extra }}{% endif %}"
+         aria-label="{{ name|replace('-', ' ') }}">
+      {% for value, label in items %}
+        {% set is_active = value == active %}
+        <a href="{{ href_tmpl.replace('{value}', value|string) }}"
+           class="segmented__btn{% if is_active %} segmented__btn--active{% endif %}"
+           data-value="{{ value }}"
+           {% if is_active %}aria-current="page"{% endif %}>{{ label }}</a>
+      {% endfor %}
+    </nav>
+  {%- else -%}
+    <div id="{{ name }}"
+         class="segmented{% if extra %} {{ extra }}{% endif %}"
+         role="group"
+         aria-label="{{ name|replace('-', ' ') }}"
+         {% if oob %} hx-swap-oob="outerHTML"{% endif %}>
+      {% for value, label in items %}
+        {% set is_active = value == active %}
+        <button type="button"
+                class="segmented__btn{% if is_active %} segmented__btn--active{% endif %}"
+                aria-pressed="{{ 'true' if is_active else 'false' }}"
+                hx-get="{{ hx_get }}?{{ hx_param }}={{ value }}"
+                hx-target="{{ hx_target }}"
+                hx-swap="{{ hx_swap }}"
+                hx-push-url="{{ 'true' if hx_push_url else 'false' }}">{{ label }}</button>
+      {% endfor %}
+    </div>
+  {%- endif -%}
 {%- endmacro %}

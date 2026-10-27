@@ -18,13 +18,13 @@
     {{ slide_over_header(title=slide_over_title) }}
 #}
 {% macro slide_over_header(title, heading_id="slide-over-title") %}
-<header class="slide-over__header">
-  <h2 id="{{ heading_id }}" class="slide-over__title">{{ title }}</h2>
-  <button type="button"
-          class="slide-over__close"
-          aria-label="Close"
-          onclick="this.closest('#modal-root').innerHTML='';">
-    <span aria-hidden="true">&times;</span>
-  </button>
-</header>
+  <header class="slide-over__header">
+    <h2 id="{{ heading_id }}" class="slide-over__title">{{ title }}</h2>
+    <button type="button"
+            class="slide-over__close"
+            aria-label="Close"
+            onclick="this.closest('#modal-root').innerHTML='';">
+      <span aria-hidden="true">×</span>
+    </button>
+  </header>
 {%- endmacro %}

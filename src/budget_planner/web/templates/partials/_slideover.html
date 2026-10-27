@@ -17,8 +17,6 @@
      onclick="if(event.target===this){this.parentElement.innerHTML='';}">
   <aside class="slide-over" tabindex="-1">
     {{ slide_over_header(title=slide_over_title) }}
-    <div class="slide-over__body">
-      {% include form_include %}
-    </div>
+    <div class="slide-over__body">{% include form_include %}</div>
   </aside>
 </div>
