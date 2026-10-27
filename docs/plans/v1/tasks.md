@@ -512,12 +512,11 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 - README's "Prerequisites" table + Quick start now mention the Node + npm setup; the daily-commands table lists `just css` / `just css-watch` / `just test-visual` / `just test-visual-update`.
 - `CLAUDE.md` "Frontend validation" cross-links ADR-0027 (committed in the earlier docs commit).
 
-### T-108 [M] Jinja partial extraction — remaining call sites → T-104
-- Replace open-coded duplicates for `card`, `segmented`, `chip`, and `slide_over_header` across Overview, Ledger, Accounts, Budget, Settings drawer, Transaction form, Planned, Recurring templates.
-- Each swap must leave the visual-regression suite green; refresh baselines only when the design intentionally changes.
-
-### T-109 [S] Visual-regression pixelmatch tolerance → T-105
-- Wire `pixelmatch`'s Node CLI into `tests/visual/test_snapshots.py` so the suite tolerates ≤ 0.1 pixel ratio diffs per ADR-0027 §4. Current implementation is byte-equal and is a strict first baseline, which is fine until anti-aliasing drift between CI and local shows up.
+### ✅ T-108 [M] Jinja partial extraction — remaining call sites → T-104
+- `segmented` macro rewritten to match the existing `.segmented` + `.segmented__btn` + `.segmented__btn--active` CSS layer; supports both `mode="link"` (Ledger-style full-page anchor nav) and `mode="htmx"` (Overview Upcoming-style button + hx-get). Applied to `home/_upcoming_range.html`. Ledger segmented application deferred to the ADR-0028 branch so the macro adoption does not stomp on the parallel refactor.
+- `slide_over_header` macro rewritten to match the existing `.slide-over__header` / `.slide-over__title` / `.slide-over__close` layer and the inline-JS close pattern. Applied to `partials/_slideover.html`, which is the single host for every FAB-launched slide-over form.
+- `card` + `chip` scaffolds deleted. Both inventions required new CSS tokens / classes not present in `app.css`; introducing them is a design decision outside the Phase 10 toolchain scope. A follow-up ADR (likely ADR-0029) is needed before those two macros reappear — call site inventory for both lives in ADR-0023 context and the Phase 6 design-direction note in `app.css`.
+- Visual-regression suite green across the full 12 snapshots; fast suite (`upcoming`, `slideover`, `fab`, `home`) 28 passed.
 
 ### T-107 [S] Ledger segmented control → full-page nav → ADR-0028
 - Supersedes implementation approach in T-092 for segmented tabs only; filter form and pagination keep their htmx partial swaps.

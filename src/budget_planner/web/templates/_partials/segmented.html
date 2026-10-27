@@ -1,32 +1,70 @@
 {#
-  segmented — a segmented control. Shared shape between Overview range
-  switcher and Ledger view switcher.
+  segmented — segmented control shared by Overview range switcher,
+  Ledger view switcher, and future ADR-0023 segmented surfaces.
 
-  Inputs:
-    items     (list[tuple[value, label]], required) — items in render order.
-    active    (str, required)                       — the currently selected value.
-    name      (str, required)                       — DOM id for the group, used as the aria-label.
-    hx_get    (str, optional, default=None)         — base URL for HTMX GET on item click.
-    hx_target (str, optional, default=None)         — CSS selector target for the swap.
-    hx_param  (str, optional, default="view")       — query-string parameter name for the item value.
-    extra     (str, optional, default="")           — extra class names on the outer group.
+  Supports two render modes:
+    - mode="link"   (default) — <nav> wrapper with <a href=...> items. Full-page nav.
+    - mode="htmx"             — <div role="group"> wrapper with <button> items wiring
+                                 hx-get / hx-target / hx-swap for partial swap.
 
-  Usage:
+  Inputs (common):
+    items       (list[tuple[value, label]], required) — items in render order.
+    active      (str, required)                       — the currently selected value.
+    name        (str, required)                       — DOM id for the group, used as aria-label.
+    extra       (str, optional, default="")           — extra class names on the outer wrapper.
+
+  Inputs (mode="link"):
+    href_tmpl   (str, required)                       — item href. `{value}` is substituted.
+
+  Inputs (mode="htmx"):
+    hx_get      (str, required)                       — base URL for GET on click.
+    hx_target   (str, required)                       — CSS selector target for swap.
+    hx_swap     (str, optional, default="outerHTML")  — hx-swap style.
+    hx_param    (str, optional, default="view")       — query-string parameter name.
+    hx_push_url (bool, optional, default=False)       — pass through to hx-push-url.
+    oob         (bool, optional, default=False)       — emit hx-swap-oob="outerHTML" on the wrapper.
+
+  Styling: uses the existing `.segmented` + `.segmented__btn` + `.segmented__btn--active`
+  CSS layer (app.css); macros do not introduce new classes.
+
+  Usage (link):
     {% from "_partials/segmented.html" import segmented %}
-    {{ segmented(items=[("actual","Actual"),("planned","Planned")], active="actual", name="ledger-view",
-                 hx_get="/ledger/table", hx_target="#ledger-table") }}
+    {{ segmented(mode="link",
+                 items=[("actual","Actual"),("planned","Planned")],
+                 active=view, name="ledger-view",
+                 href_tmpl="/ledger?view={value}",
+                 extra="ledger-segmented") }}
+
+  Usage (htmx):
+    {{ segmented(mode="htmx",
+                 items=[("7","7 days"),("30","30 days"),("all","all")],
+                 active=window_label, name="upcoming-range",
+                 hx_get="/overview/upcoming", hx_target="#upcoming-list",
+                 hx_swap="innerHTML", hx_param="window", oob=oob) }}
 #}
-{% macro segmented(items, active, name, hx_get=None, hx_target=None, hx_param="view", extra="") %}
-<div id="{{ name }}" class="segmented{% if extra %} {{ extra }}{% endif %}" role="tablist" aria-label="{{ name|replace('-',' ') }}">
+{% macro segmented(mode="link", items=None, active=None, name=None, href_tmpl=None, hx_get=None, hx_target=None, hx_swap="outerHTML", hx_param="view", hx_push_url=False, oob=False, extra="") -%}
+{%- if mode == "link" -%}
+<nav id="{{ name }}" class="segmented{% if extra %} {{ extra }}{% endif %}" aria-label="{{ name|replace('-',' ') }}">
   {% for value, label in items %}
+    {% set is_active = value == active %}
+    <a href="{{ href_tmpl.replace('{value}', value|string) }}"
+       class="segmented__btn{% if is_active %} segmented__btn--active{% endif %}"
+       data-value="{{ value }}"
+       {% if is_active %}aria-current="page"{% endif %}>{{ label }}</a>
+  {% endfor %}
+</nav>
+{%- else -%}
+<div id="{{ name }}" class="segmented{% if extra %} {{ extra }}{% endif %}" role="group" aria-label="{{ name|replace('-',' ') }}"{% if oob %} hx-swap-oob="outerHTML"{% endif %}>
+  {% for value, label in items %}
+    {% set is_active = value == active %}
     <button type="button"
-            class="segmented__item"
-            role="tab"
-            aria-pressed="{{ 'true' if value == active else 'false' }}"
-            data-value="{{ value }}"
-            {% if hx_get %}hx-get="{{ hx_get }}?{{ hx_param }}={{ value }}"{% endif %}
-            {% if hx_target %}hx-target="{{ hx_target }}"{% endif %}
-            {% if hx_get %}hx-swap="outerHTML"{% endif %}>{{ label }}</button>
+            class="segmented__btn{% if is_active %} segmented__btn--active{% endif %}"
+            aria-pressed="{{ 'true' if is_active else 'false' }}"
+            hx-get="{{ hx_get }}?{{ hx_param }}={{ value }}"
+            hx-target="{{ hx_target }}"
+            hx-swap="{{ hx_swap }}"
+            hx-push-url="{{ 'true' if hx_push_url else 'false' }}">{{ label }}</button>
   {% endfor %}
 </div>
+{%- endif -%}
 {%- endmacro %}
