@@ -6,7 +6,7 @@
     ({{ "%+.2f"|format(delta / 100.0) }} / day)
   </span>
   {% if result is defined %}
-    <span class="afford__pace afford__pace--{{ result.pace_tag }}">{{ result.pace_tag.replace("_", " ") }}</span>
+    <span class="afford__pace afford__pace--{{ result.pace_tag }}">{{ result.pace_tag.replace('_', ' ') }}</span>
   {% endif %}
 {% else %}
   Would leave <strong class="afford__per-day">{{ "{:,.2f}".format(new_left_per_day / 100.0) }} {{ base_ccy }} / day</strong>

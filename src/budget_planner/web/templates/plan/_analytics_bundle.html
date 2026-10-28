@@ -13,7 +13,8 @@ minimal — Phase 5 lands the SVG charts.
       <h2 class="rd-panel__title">Spend by category</h2>
       <span class="text-muted">— {{ base_ccy }}</span>
     </header>
-    <ul class="rd-analytics__list" data-rows="{{ bundle.spend_by_category|length }}">
+    <ul class="rd-analytics__list"
+        data-rows="{{ bundle.spend_by_category|length }}">
       {% for row in bundle.spend_by_category %}
         <li data-category-id="{{ row.category_id }}">
           <span>{{ row.category_name }}</span>
@@ -22,12 +23,12 @@ minimal — Phase 5 lands the SVG charts.
       {% endfor %}
     </ul>
   </section>
-
   <section class="rd-panel rd-analytics__averages">
     <header class="rd-panel__head">
       <h2 class="rd-panel__title">12-month averages</h2>
     </header>
-    <ul class="rd-analytics__list" data-rows="{{ bundle.twelve_month_averages|length }}">
+    <ul class="rd-analytics__list"
+        data-rows="{{ bundle.twelve_month_averages|length }}">
       {% for row in bundle.twelve_month_averages %}
         <li data-category-id="{{ row.category_id }}">
           <span>{{ row.category_name }}</span>
@@ -36,14 +37,19 @@ minimal — Phase 5 lands the SVG charts.
       {% endfor %}
     </ul>
   </section>
-
   <section class="rd-panel rd-analytics__flow">
     <header class="rd-panel__head">
       <h2 class="rd-panel__title">Income vs expense (trailing 12m)</h2>
     </header>
     <table class="rd-table">
       <caption class="sr-only">Monthly income vs expense</caption>
-      <thead><tr><th>Month</th><th class="num">Income</th><th class="num">Expense</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Month</th>
+          <th class="num">Income</th>
+          <th class="num">Expense</th>
+        </tr>
+      </thead>
       <tbody>
         {% for point in bundle.income_vs_expense_monthly %}
           <tr data-month="{{ point.label }}">
@@ -55,12 +61,12 @@ minimal — Phase 5 lands the SVG charts.
       </tbody>
     </table>
   </section>
-
   <section class="rd-panel rd-analytics__largest">
     <header class="rd-panel__head">
       <h2 class="rd-panel__title">Largest single items</h2>
     </header>
-    <ul class="rd-analytics__largest-list" data-rows="{{ bundle.largest_items|length }}">
+    <ul class="rd-analytics__largest-list"
+        data-rows="{{ bundle.largest_items|length }}">
       {% for item in bundle.largest_items %}
         <li data-transaction-id="{{ item.transaction_id }}">
           <span>{{ item.operation_date.isoformat() }}</span>

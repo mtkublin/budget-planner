@@ -6,7 +6,8 @@
         data-source="{{ row.source }}">
       <span class="rd-last-checked__name">{{ row.account_name }}</span>
       {% if row.last_checked_at %}
-        <time class="rd-last-checked__when" datetime="{{ row.last_checked_at.isoformat() }}">
+        <time class="rd-last-checked__when"
+              datetime="{{ row.last_checked_at.isoformat() }}">
           {{ row.last_checked_at.date().isoformat() }}
         </time>
         <span class="rd-last-checked__source">· {{ row.source }}</span>
