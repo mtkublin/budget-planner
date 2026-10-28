@@ -13,7 +13,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
-from markupsafe import Markup
+from markupsafe import Markup, escape
 
 from budget_planner.config import Settings
 from budget_planner.domain.enums import Direction
@@ -86,6 +86,16 @@ _DIRECTION_COLORS: dict[str, str] = {
     Direction.ADJUSTMENT.value: "pill-adjust",
 }
 
+# ADR-0048: CSS color used when a category has no override. Keeps the direction
+# palette in a single lookup; the actual oklch values live in app.css under the
+# matching custom properties.
+_DIRECTION_CSS_VARS: dict[str, str] = {
+    Direction.INCOME.value: "var(--income)",
+    Direction.EXPENSE.value: "var(--expense)",
+    Direction.TRANSIT.value: "var(--transit)",
+    Direction.ADJUSTMENT.value: "var(--adjust)",
+}
+
 
 def _direction_badge(direction: Direction | str | None) -> Markup:
     if direction is None:
@@ -97,6 +107,58 @@ def _direction_badge(direction: Direction | str | None) -> Markup:
     # just capitalised. Safe to mark as Markup — content is derived not user.
     return Markup(  # noqa: S704
         f'<span class="pill {css}" aria-label="{label}">{label}</span>'
+    )
+
+
+def _resolve_category_color(direction: Direction | str | None, color: str | None) -> str:
+    """Return the CSS color for a category: hex override else direction var.
+
+    ADR-0048 — ``color`` is a 6-digit lowercase hex (validated at the service
+    layer); falsy means "inherit direction". Unknown direction falls back to
+    the adjustment hue.
+    """
+    if color:
+        return color
+    if direction is None:
+        return _DIRECTION_CSS_VARS[Direction.ADJUSTMENT.value]
+    value = direction.value if isinstance(direction, Direction) else str(direction)
+    return _DIRECTION_CSS_VARS.get(value, _DIRECTION_CSS_VARS[Direction.ADJUSTMENT.value])
+
+
+def _category_label_parts(
+    name: str | None,
+    direction: Direction | str | None,
+    color: str | None,
+) -> Markup:
+    """Render a coloured category name span from scalar fields.
+
+    ADR-0048 — used by templates where only ``name`` + ``direction`` +
+    ``color`` are available (budget service projections). Returns empty
+    Markup when ``name`` is falsy so callers can fall back to an em-dash
+    or similar on the template side.
+    """
+    if not name:
+        return Markup("")
+    css_color = _resolve_category_color(direction, color)
+    safe_name = escape(name)
+    return Markup(  # noqa: S704
+        f'<span class="cat-name" style="color: {css_color}">{safe_name}</span>'
+    )
+
+
+def _category_label(category: Any) -> Markup:
+    """Render a coloured category name span from a ``Category``-shaped object.
+
+    Accepts anything with ``name`` / ``direction`` / ``color`` attributes.
+    Returns empty Markup for ``None`` so templates can call it without a
+    surrounding guard.
+    """
+    if category is None:
+        return Markup("")
+    return _category_label_parts(
+        getattr(category, "name", None),
+        getattr(category, "direction", None),
+        getattr(category, "color", None),
     )
 
 
@@ -131,6 +193,9 @@ def build_jinja_env(settings: Settings) -> Environment:
     env.filters["dt_local"] = _dt_local_factory(settings.display_timezone)
     env.filters["direction_badge"] = _direction_badge
     env.globals["direction_badge"] = _direction_badge
+    # ADR-0048 — colour the category name across every surface it appears.
+    env.globals["category_label"] = _category_label
+    env.globals["category_label_parts"] = _category_label_parts
     env.globals["base_ccy"] = settings.base_currency
     env.globals["csrf_token"] = _csrf_token
     env.globals["Direction"] = Direction

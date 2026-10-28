@@ -1,7 +1,20 @@
+{# ADR-0048 — color override lives next to the name field. The direction
+   <select> is still create-only (direction is immutable after create per
+   PatchCategory). The color picker is disabled when "Use direction default"
+   is checked; a disabled <input> is not submitted, so the server receives
+   no `color` field → stored as NULL. #}
+{% set has_override = category and category.color %}
+{% set fallback_hex = {
+  (Direction.INCOME.value): "#2f8f5a",
+  (Direction.EXPENSE.value): "#c9403a",
+  (Direction.TRANSIT.value): "#3b7fa3",
+  (Direction.ADJUSTMENT.value): "#8a7a90"
+} %}
+{% set direction_value = category.direction.value if category else Direction.INCOME.value %}
 <form hx-post="{{ action }}"
       hx-target="{% if category %}#category-{{ category.id }}{% else %}table.ledger tbody{% endif %}"
       hx-swap="{% if category %}outerHTML{% else %}beforeend{% endif %}"
-      class="form-stack">
+      class="form-stack cat-form">
   <label>
     Name
     <input type="text"
@@ -21,8 +34,39 @@
       </select>
     </label>
   {% endif %}
+  <fieldset class="cat-color-field">
+    <legend>Color</legend>
+    <label class="cat-color-field__default">
+      <input type="checkbox"
+             name="clear_color"
+             value="1"
+             data-cat-color-reset
+             {% if not has_override %}checked{% endif %}>
+      Use direction default
+    </label>
+    <label class="cat-color-field__picker">
+      <span class="sr-only">Pick a custom color</span>
+      <input type="color"
+             name="color"
+             data-cat-color-input
+             value="{{ category.color if has_override else fallback_hex[direction_value] }}"
+             {% if not has_override %}disabled{% endif %}>
+    </label>
+  </fieldset>
   {% include "partials/_form_errors.html" %}
   <div class="form-stack__actions">
     <button type="submit" class="btn-accent">Save</button>
   </div>
 </form>
+<script>
+  (function () {
+    var form = document.currentScript.previousElementSibling;
+    var reset = form.querySelector('[data-cat-color-reset]');
+    var picker = form.querySelector('[data-cat-color-input]');
+    if (!reset || !picker) return;
+    function sync() { picker.disabled = reset.checked; }
+    reset.addEventListener('change', sync);
+    picker.addEventListener('input', function () { reset.checked = false; });
+    sync();
+  })();
+</script>

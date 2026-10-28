@@ -1,5 +1,5 @@
 <tr id="category-{{ category.id }}" class="row">
-  <td>{{ category.name }}{% if category.is_system %} <span class="text-muted text-xs">(system)</span>{% endif %}</td>
+  <td>{{ category_label(category) }}{% if category.is_system %} <span class="text-muted text-xs">(system)</span>{% endif %}</td>
   <td>{{ direction_badge(category.direction) }}</td>
   <td class="text-right space-x-2 text-sm">
     {% if not category.is_system %}

@@ -432,6 +432,52 @@ a { color: inherit; }
 .pill-transit { background: color-mix(in oklab, var(--transit) 16%, transparent); color: var(--transit); }
 .pill-adjust  { background: color-mix(in oklab, var(--adjust) 16%, transparent);  color: var(--adjust); }
 
+/* ---- Category name (ADR-0048) ----
+ * Colour defaults to the direction palette and may be overridden per
+ * category via an inline `color:` style. Weight nudged so the colour reads
+ * as identity, not emphasis — the row's accent spine still owns hover. */
+.cat-name { font-weight: 500; color: inherit; }
+
+/* ---- Category form — color picker + reset (ADR-0048) ---- */
+.cat-color-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.cat-color-field legend {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-eyebrow);
+  color: var(--faint);
+  padding: 0;
+  margin-bottom: var(--space-2);
+}
+
+.cat-color-field__default {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.cat-color-field__picker input[type="color"] {
+  width: 2.5rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid var(--rule);
+  background: transparent;
+  cursor: pointer;
+}
+
+.cat-color-field__picker input[type="color"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ---- Ledger table (hairline rhythm; hover shows accent spine) ---- */
 
 table.ledger { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }

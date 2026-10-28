@@ -1,7 +1,7 @@
 <tr id="txn-{{ txn.id }}" class="row">
   <td class="whitespace-nowrap font-semibold">{{ txn.operation_date|date_fmt }}</td>
   <td>
-    {{ txn.category.name if txn.category else '' }}
+    {{ category_label(txn.category) }}
     {% if txn.category %}{{ direction_badge(txn.category.direction) }}{% endif %}
   </td>
   <td>

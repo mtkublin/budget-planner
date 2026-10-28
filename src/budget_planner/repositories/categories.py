@@ -8,7 +8,7 @@ from budget_planner.domain.categories import Category, NewCategory, PatchCategor
 from budget_planner.domain.enums import Direction
 from budget_planner.repositories._shared import mutate, parse_dt, parse_dt_required
 
-_COLUMNS = "id, user_id, name, direction, is_system, created_at, updated_at, deleted_at"
+_COLUMNS = "id, user_id, name, direction, is_system, color, created_at, updated_at, deleted_at"
 
 
 def _row_to_category(row: sqlite3.Row) -> Category:
@@ -18,6 +18,7 @@ def _row_to_category(row: sqlite3.Row) -> Category:
         name=row["name"],
         direction=Direction(row["direction"]),
         is_system=bool(row["is_system"]),
+        color=row["color"],
         created_at=parse_dt_required(row["created_at"]),
         updated_at=parse_dt_required(row["updated_at"]),
         deleted_at=parse_dt(row["deleted_at"]),
@@ -65,8 +66,9 @@ def list_all(
 def create(conn: sqlite3.Connection, data: NewCategory) -> Category:
     def _action(c: sqlite3.Connection) -> tuple[int, Category]:
         cursor = c.execute(
-            "INSERT INTO categories(user_id, name, direction, is_system) VALUES (?, ?, ?, ?)",
-            (data.user_id, data.name, data.direction.value, int(data.is_system)),
+            "INSERT INTO categories(user_id, name, direction, is_system, color) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (data.user_id, data.name, data.direction.value, int(data.is_system), data.color),
         )
         new_id = int(cursor.lastrowid or 0)
         created = find_by_id(c, new_id)

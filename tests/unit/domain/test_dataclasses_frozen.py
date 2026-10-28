@@ -73,6 +73,7 @@ def test_category_is_frozen() -> None:
         name="Food",
         direction=Direction.EXPENSE,
         is_system=False,
+        color=None,
         created_at=_UTC_NOW,
         updated_at=_UTC_NOW,
         deleted_at=None,

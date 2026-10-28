@@ -98,7 +98,7 @@
             {% set bar_pct = 0 %}
           {% endif %}
           <tr class="row budget-row">
-            <td>{{ line.category_name }}</td>
+            <td>{{ category_label_parts(line.category_name, line.category_direction, line.category_color) }}</td>
             <td class="text-right tabular-nums">
               {% if line.budgeted_minor is none %}
                 <span class="text-faint">—</span>
@@ -168,7 +168,7 @@
         <tbody>
           {% for row in rules %}
             <tr class="row">
-              <td>{{ row.category_name }}</td>
+              <td>{{ category_label_parts(row.category_name, row.category_direction, row.category_color) }}</td>
               <td>
                 <form hx-post="/budget/defaults/{{ row.category_id }}"
                       hx-swap="none"

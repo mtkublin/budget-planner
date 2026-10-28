@@ -25,7 +25,7 @@
     {% endif %}
   </td>
   <td>{{ account.name if account else '—' }}</td>
-  <td>{{ category.name if category else '—' }}</td>
+  <td>{% if category %}{{ category_label(category) }}{% else %}—{% endif %}</td>
   <td class="text-right tabular-nums">
     {% if amount_overridden %}
       <em data-amount-overridden>{{ display_amount|money(account.currency if account else 'PLN') }}</em>

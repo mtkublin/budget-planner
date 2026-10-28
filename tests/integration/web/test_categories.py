@@ -102,3 +102,63 @@ def test_delete_system_blocked(client: TestClient, _migrated: Settings) -> None:
         conn.close()
     r = client.post(f"/categories/{transit.id}/delete")
     assert r.status_code == 409
+
+
+# -- ADR-0048 color override --------------------------------------------
+
+
+def test_create_with_color(client: TestClient, _migrated: Settings) -> None:
+    r = client.post(
+        "/categories",
+        data={"name": "Travel", "direction": "expense", "color": "#A3C2FF"},
+    )
+    assert r.status_code == 200
+    conn = get_connection(_migrated)
+    try:
+        cat = categories_repo.find_by_name(conn, "Travel")
+    finally:
+        conn.close()
+    assert cat is not None
+    # Hex normalised to lowercase per ADR-0048.
+    assert cat.color == "#a3c2ff"
+
+
+def test_create_clear_color_wins_over_color_value(client: TestClient, _migrated: Settings) -> None:
+    r = client.post(
+        "/categories",
+        data={
+            "name": "Reset",
+            "direction": "expense",
+            "color": "#aabbcc",
+            "clear_color": "1",
+        },
+    )
+    assert r.status_code == 200
+    conn = get_connection(_migrated)
+    try:
+        cat = categories_repo.find_by_name(conn, "Reset")
+    finally:
+        conn.close()
+    assert cat is not None
+    assert cat.color is None
+
+
+def test_create_invalid_hex_422(client: TestClient) -> None:
+    r = client.post(
+        "/categories",
+        data={"name": "Bad", "direction": "expense", "color": "not-hex"},
+    )
+    assert r.status_code == 422
+
+
+def test_update_set_color_then_clear(client: TestClient, cat_id: int) -> None:
+    set_resp = client.post(
+        f"/categories/{cat_id}",
+        data={"name": "Groceries", "color": "#112233"},
+    )
+    assert set_resp.status_code == 200
+    clear_resp = client.post(
+        f"/categories/{cat_id}",
+        data={"name": "Groceries", "clear_color": "1"},
+    )
+    assert clear_resp.status_code == 200
