@@ -1,4 +1,4 @@
-"""ADR-0047 — category_label helper."""
+"""ADR-0048 — category_label helper."""
 
 from __future__ import annotations
 

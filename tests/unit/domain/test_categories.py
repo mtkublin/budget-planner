@@ -1,4 +1,4 @@
-"""ADR-0047 — domain-level colour helpers + PatchCategory semantics."""
+"""ADR-0048 — domain-level colour helpers + PatchCategory semantics."""
 
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ def test_patch_sets_color() -> None:
 
 
 def test_patch_clear_color_overrides_color() -> None:
-    """ADR-0047 — clear_color is the explicit reset sentinel."""
+    """ADR-0048 — clear_color is the explicit reset sentinel."""
     assert PatchCategory(color="#112233", clear_color=True).as_dict() == {"color": None}
 
 

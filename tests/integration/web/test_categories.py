@@ -104,7 +104,7 @@ def test_delete_system_blocked(client: TestClient, _migrated: Settings) -> None:
     assert r.status_code == 409
 
 
-# -- ADR-0047 color override --------------------------------------------
+# -- ADR-0048 color override --------------------------------------------
 
 
 def test_create_with_color(client: TestClient, _migrated: Settings) -> None:
@@ -119,7 +119,7 @@ def test_create_with_color(client: TestClient, _migrated: Settings) -> None:
     finally:
         conn.close()
     assert cat is not None
-    # Hex normalised to lowercase per ADR-0047.
+    # Hex normalised to lowercase per ADR-0048.
     assert cat.color == "#a3c2ff"
 
 

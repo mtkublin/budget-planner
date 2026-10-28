@@ -1,4 +1,4 @@
-# ADR-0047: Category Color Coding — Per-Category Override with Direction Default
+# ADR-0048: Category Color Coding — Per-Category Override with Direction Default
 
 - **Status**: Accepted
 - **Date**: 2026-10-28
@@ -96,7 +96,7 @@ Charts (`budget/_breakdown.html` spend-by-category, `forecast/_chart.html`) are 
 
 ## Consequences
 
-- **DB migration cost:** one additive `ALTER TABLE` (0010). No table rebuild, no FK pragma toggle. Backward-compatible — pre-ADR-0047 rows get `color = NULL` by column default and continue to render in direction color exactly as before.
+- **DB migration cost:** one additive `ALTER TABLE` (0010). No table rebuild, no FK pragma toggle. Backward-compatible — pre-ADR-0048 rows get `color = NULL` by column default and continue to render in direction color exactly as before.
 - **Service surface widens by three fields** (`Category.color`, `NewCategory.color`, `PatchCategory.color` + `clear_color`). All optional; no caller is forced to pass them.
 - **Visual change is broad** (every Ledger row, Budget row, Recurring row, Planned row). Visual regression suite under `tests/visual/` will have baselines rewritten in this task's PR; the frontend-visual-audit skill run gates the merge per `CLAUDE.md`.
 - **Direction pill retains its single-purpose semantic.** It is still the only direction signal; color overrides on category names cannot confuse "is this income or expense" because the pill answers that question regardless of the name's hue.

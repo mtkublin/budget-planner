@@ -59,7 +59,7 @@ def _validate_direction(value: str) -> Direction | None:
 
 
 def _resolve_color_form(color: str | None, clear_color: str | None) -> tuple[str | None, bool]:
-    """ADR-0047 — return ``(hex_or_none, clear_requested)``.
+    """ADR-0048 — return ``(hex_or_none, clear_requested)``.
 
     ``clear_color`` present means "reset to direction default" and wins over
     any ``color`` value the browser might send. Raises ``ValueError`` via

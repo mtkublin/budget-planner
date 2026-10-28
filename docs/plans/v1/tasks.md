@@ -680,8 +680,8 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 - `templates/partials/_nav.html`: new `{{ navlink('/forecast', 'Forecast', 'g f') }}` after Budget.
 - Tests: 10 new unit tests in `tests/unit/services/test_forecast_monthly.py` cover empty / single-month / multi-month / income-only / expense-only / recurring-included / transit-excluded / fx-conversion / end-balance-matches-daily / negative-horizon. Integration tests in `tests/integration/web/test_forecast.py` migrated to `horizon_months`, new `_table.html` + `_view.html` fragment-shape tests, nav-link assertion. `test_home.py::test_nav_has_five_primary_items_plus_settings` picks up the new entry.
 
-### ✅ T-131 [S] Category colour coding — per-category override with direction default → ADR-0047
-- Migration `0010_add_category_color.sql`: add nullable `categories.color TEXT CHECK (color IS NULL OR color GLOB '#[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]')`. Additive; no table rebuild; no FK pragma toggle.
+### ✅ T-132 [S] Category colour coding — per-category override with direction default → ADR-0048
+- Migration `0011_add_category_color.sql`: add nullable `categories.color TEXT CHECK (color IS NULL OR color GLOB '#[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]')`. Additive; no table rebuild; no FK pragma toggle.
 - Domain: `Category.color: str | None`, `NewCategory.color: str | None = None`, `PatchCategory.color + clear_color: bool` sentinel for explicit NULL reset. New `normalise_color(raw) -> str | None` + `HEX_COLOR_RE` validator mirror the SQL CHECK.
 - Repository: `_COLUMNS` + `_row_to_category` + `create` grow `color`; `update` uses the existing `as_dict` path (which now understands `clear_color`).
 - Service / router: `web/routers/categories.create_category` + `update_category` accept `color` + `clear_color` form fields, normalise via `_resolve_color_form`, return 422 with field error `color` on malformed hex. Budget service `CategoryBudgetLine` + `YearlyRow` + router `RulesRow` grow `category_direction` + `category_color` so templates can render the coloured name without round-tripping to the Category DTO.

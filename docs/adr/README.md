@@ -49,4 +49,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0043 | [Forecast Surface — Monthly Horizon + Breakdown Table](0043-forecast-tab-monthly-horizon-and-table.md) (amends ADR-0015) |
 | 0045 | [Recurring Rules — Formula-Derived Amount (Percentage of Other Rules)](0045-recurring-formula-amount.md) (amends ADR-0013, ADR-0038) |
 | 0046 | [Recurring Overrides — Soft-Consume on Promotion (Not Delete)](0046-recurring-override-soft-consume.md) (amends ADR-0038 §Promotion-flow step 6e) |
-| 0047 | [Category Color Coding — Per-Category Override with Direction Default](0047-category-color-coding.md) (amends ADR-0023; extends F1.6) |
+| 0048 | [Category Color Coding — Per-Category Override with Direction Default](0048-category-color-coding.md) (amends ADR-0023; extends F1.6) |

@@ -86,7 +86,7 @@ _DIRECTION_COLORS: dict[str, str] = {
     Direction.ADJUSTMENT.value: "pill-adjust",
 }
 
-# ADR-0047: CSS color used when a category has no override. Keeps the direction
+# ADR-0048: CSS color used when a category has no override. Keeps the direction
 # palette in a single lookup; the actual oklch values live in app.css under the
 # matching custom properties.
 _DIRECTION_CSS_VARS: dict[str, str] = {
@@ -113,7 +113,7 @@ def _direction_badge(direction: Direction | str | None) -> Markup:
 def _resolve_category_color(direction: Direction | str | None, color: str | None) -> str:
     """Return the CSS color for a category: hex override else direction var.
 
-    ADR-0047 — ``color`` is a 6-digit lowercase hex (validated at the service
+    ADR-0048 — ``color`` is a 6-digit lowercase hex (validated at the service
     layer); falsy means "inherit direction". Unknown direction falls back to
     the adjustment hue.
     """
@@ -132,7 +132,7 @@ def _category_label_parts(
 ) -> Markup:
     """Render a coloured category name span from scalar fields.
 
-    ADR-0047 — used by templates where only ``name`` + ``direction`` +
+    ADR-0048 — used by templates where only ``name`` + ``direction`` +
     ``color`` are available (budget service projections). Returns empty
     Markup when ``name`` is falsy so callers can fall back to an em-dash
     or similar on the template side.
@@ -193,7 +193,7 @@ def build_jinja_env(settings: Settings) -> Environment:
     env.filters["dt_local"] = _dt_local_factory(settings.display_timezone)
     env.filters["direction_badge"] = _direction_badge
     env.globals["direction_badge"] = _direction_badge
-    # ADR-0047 — colour the category name across every surface it appears.
+    # ADR-0048 — colour the category name across every surface it appears.
     env.globals["category_label"] = _category_label
     env.globals["category_label_parts"] = _category_label_parts
     env.globals["base_ccy"] = settings.base_currency

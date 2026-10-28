@@ -66,7 +66,7 @@ def test_update_noop_patch(conn: sqlite3.Connection) -> None:
     assert ops == ["create", "update"]
 
 
-# -- ADR-0047 color override --------------------------------------------
+# -- ADR-0048 color override --------------------------------------------
 
 
 def test_create_with_color(conn: sqlite3.Connection) -> None:
