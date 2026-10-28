@@ -18,7 +18,7 @@ from datetime import date
 import pytest
 from fastapi.testclient import TestClient
 
-from budget_planner.domain.enums import Direction, OverrideState
+from budget_planner.domain.enums import Cadence, Direction, OverrideState
 from budget_planner.domain.recurring import (
     AmountFormula,
     FormulaTerm,
@@ -226,6 +226,52 @@ class TestChaining:
         # F3 = tax + surcharge → 1 200.00 + 500.00 = 1 700.00 → 170 000 minor
         f3 = _formula(("+", 10_000, (expense_tax, expense_surcharge)))
         assert formula_svc.compute_formula_amount(conn, f3, 2026, 1) == 170_000
+
+    def test_yearly_formula_source_contributes_only_in_payout_month(
+        self,
+        conn: sqlite3.Connection,
+        make_rule: Callable[..., int],
+        account_id: int,
+        income_a: int,
+        expense_tax: int,
+    ) -> None:
+        """Yearly formula source contributes only in its canonical month.
+
+        Regression: `_sum_category_in_month` used to recursively compute a
+        formula source rule's value for every (year, month) regardless of
+        the rule's canonical schedule. A yearly-cadence bonus would then
+        feed its percentage into every month's parent sum, inflating a
+        monthly tax formula year-round. The fix gates on
+        `generate_occurrences(rule, month_start, month_end)`.
+        """
+        # Monthly salary → always contributes.
+        make_rule(
+            account_id=account_id,
+            category_id=income_a,
+            amount=10_000_00,
+            start_date=date(2026, 1, 1),
+        )
+        # Yearly bonus formula living in the SAME income category. Formula
+        # irrelevant for this test — just needs to be non-fixed so we hit
+        # the formula branch of `_sum_category_in_month`.
+        make_rule(
+            account_id=account_id,
+            category_id=income_a,
+            amount=1,
+            start_date=date(2026, 3, 15),
+            amount_formula=_formula(("+", 500, (income_a,))),  # placeholder
+            cadence=Cadence.YEARLY,
+        )
+        # 12 % tax formula over the income category.
+        tax = _formula(("+", 1200, (income_a,)))
+
+        # January: only salary → 12 % x 10 000.00 = 1 200.00 → 120 000 minor.
+        assert formula_svc.compute_formula_amount(conn, tax, 2026, 1) == 120_000
+        # February: still only salary.
+        assert formula_svc.compute_formula_amount(conn, tax, 2026, 2) == 120_000
+        # March: salary + bonus (bonus = 5 % x 10 000.00 = 500.00 → 50 000
+        # minor). Tax = 12 % x (10 000.00 + 500.00) = 1 260.00 → 126 000.
+        assert formula_svc.compute_formula_amount(conn, tax, 2026, 3) == 126_000
 
 
 class TestValidateFormulaSourcesCycle:

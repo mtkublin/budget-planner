@@ -164,7 +164,7 @@ def _sum_category_in_month(
     overrides stay visible).
     """
     from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
-    from budget_planner.services.recurring import expand  # noqa: PLC0415
+    from budget_planner.services.recurring import expand, generate_occurrences  # noqa: PLC0415
 
     start, end = _month_bounds(year, month)
     cat_set = set(category_ids)
@@ -186,15 +186,24 @@ def _sum_category_in_month(
             overrides = recurring_repo.list_overrides_all(conn, rule.id)
             value = sum(occ.amount for occ in expand(rule, overrides, start, end))
         else:
-            value = _evaluate(
-                conn,
-                rule.amount_formula,
-                year,
-                month,
-                exclude_rule_id=rule.id,
-                in_progress=in_progress | {rule.id},
-                cache=cache,
-            )
+            # ADR-0047 month-scope fix: a formula source rule contributes only
+            # if its canonical schedule produces an occurrence in (year, month).
+            # Without this gate a yearly bonus formula would feed its computed
+            # value into every month's parent sum, not just the payout month.
+            n_occurrences = len(generate_occurrences(rule, start, end))
+            if n_occurrences == 0:
+                value = 0
+            else:
+                per_occurrence = _evaluate(
+                    conn,
+                    rule.amount_formula,
+                    year,
+                    month,
+                    exclude_rule_id=rule.id,
+                    in_progress=in_progress | {rule.id},
+                    cache=cache,
+                )
+                value = n_occurrences * per_occurrence
         cache[key] = value
         total += value
     return total
