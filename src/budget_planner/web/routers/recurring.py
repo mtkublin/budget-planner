@@ -1,4 +1,4 @@
-"""Recurring rules router (T-035; formula support per ADR-0043)."""
+"""Recurring rules router (T-035; formula support per ADR-0045)."""
 
 from __future__ import annotations
 

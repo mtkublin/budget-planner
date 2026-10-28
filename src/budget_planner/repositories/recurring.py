@@ -1,4 +1,4 @@
-"""Recurring rules + sparse overrides repository (ADR-0013 / ADR-0038 / ADR-0043)."""
+"""Recurring rules + sparse overrides repository (ADR-0013 / ADR-0038 / ADR-0045)."""
 
 from __future__ import annotations
 
@@ -330,9 +330,9 @@ def list_overrides(
 ) -> list[RecurringOverride]:
     """List overrides for a rule.
 
-    Default excludes consumed overrides (ADR-0044) so pre-ADR-0044 callers
+    Default excludes consumed overrides (ADR-0046) so pre-ADR-0046 callers
     (promote lookup, override UI, skip-and-advance) see only live rows.
-    Formula compute paths (ADR-0043) call ``list_overrides_all`` to include
+    Formula compute paths (ADR-0045) call ``list_overrides_all`` to include
     historical rows that still need to materialise their canonical month.
     """
     sql = f"SELECT {_OVERRIDE_COLUMNS} FROM recurring_rule_overrides WHERE rule_id = ?"
@@ -344,7 +344,7 @@ def list_overrides(
 
 
 def list_overrides_all(conn: sqlite3.Connection, rule_id: int) -> list[RecurringOverride]:
-    """List every override for a rule, consumed or not (ADR-0044)."""
+    """List every override for a rule, consumed or not (ADR-0046)."""
     return list_overrides(conn, rule_id, include_consumed=True)
 
 
@@ -354,7 +354,7 @@ def mark_override_promoted(
     *,
     txn_id: int,
 ) -> None:
-    """Stamp ``promoted_to_txn_id = txn_id`` on an override (ADR-0044 step 6e).
+    """Stamp ``promoted_to_txn_id = txn_id`` on an override (ADR-0046 step 6e).
 
     Audit-free: the orchestrating promotion service writes a single
     ``update`` audit entry on the rule mutation, matching the pattern used

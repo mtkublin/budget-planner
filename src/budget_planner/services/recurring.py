@@ -401,7 +401,7 @@ def promote_recurring(
     match = _resolve_override_for_next_due(overrides, due_date)
 
     # Defaults start from the rule. Formula rules recompute from the
-    # live source-rule state for the next_due month (ADR-0043).
+    # live source-rule state for the next_due month (ADR-0045).
     from budget_planner.services.recurring_formula import (  # noqa: PLC0415
         resolve_rule_amount,
     )
@@ -467,9 +467,9 @@ def promote_recurring(
                 last_promoted_date=due_date,
             )
         if match is not None:
-            # ADR-0044: soft-consume the override by stamping the new txn id
+            # ADR-0046: soft-consume the override by stamping the new txn id
             # instead of deleting the row. Keeps the override visible to
-            # historical reads (formula compute per ADR-0043).
+            # historical reads (formula compute per ADR-0045).
             recurring_repo.mark_override_promoted(conn, match.id, txn_id=txn.id)
         updated_rule = recurring_repo.find_rule(conn, rule_id, include_deleted=True)
         audit_svc.write_audit(

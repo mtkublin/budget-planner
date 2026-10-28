@@ -673,7 +673,7 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 - Pre-overlay projection remains reachable via `include_budget_overlay=False` for the pure planned+recurring regression tests. `forecast` router + home mini-chart adopt the default (`True`) with no API change.
 - Tests pin: single-category unaccounted spread, zero-residual skip when planned+recurring ≥ budget, cross-month boundary distribution, zero-length-window skip (last-day-of-month `today`), overlay-off parity with pre-overlay series, deterministic re-run equivalence.
 
-### ✅ T-128 [S] Recurring override soft-consume on promotion → ADR-0044
+### ✅ T-130 [S] Recurring override soft-consume on promotion → ADR-0046
 - Migration `0009_recurring_override_promoted_fk.sql`: add nullable `recurring_rule_overrides.promoted_to_txn_id INTEGER REFERENCES transactions(id) DEFERRABLE INITIALLY DEFERRED` + index `ix_recurring_overrides_promoted(rule_id, promoted_to_txn_id)`. Additive, no table rebuild.
 - Domain: `RecurringOverride.promoted_to_txn_id: int | None = None`.
 - Repository: `list_overrides(..., include_consumed: bool = False)` default-filters consumed rows; new `list_overrides_all` + new audit-free `mark_override_promoted(conn, override_id, txn_id)`.
@@ -681,7 +681,7 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 - Formula compute: `services/recurring_formula.compute_formula_amount` + `rt_expand` load overrides via `list_overrides_all` so historical overrides stay visible after B's promotion.
 - Tests: pin "A's May = formula(B.override) *after* B's May promoted"; pin that `list_overrides` default still hides consumed; pin that consumed override still appears in `expand` output for its canonical month.
 
-### ✅ T-127 [M] Recurring formula amount → ADR-0043
+### ✅ T-129 [M] Recurring formula amount → ADR-0045
 - Migration `0008_recurring_amount_formula.sql`: add nullable `amount_formula TEXT`, rebuild `recurring_rules` to relax CHECK (`amount_formula IS NOT NULL OR default_amount <> 0`); FK pragma off during rebuild via `FK_OFF_MIGRATIONS = {7, 8}`.
 - Domain: `AmountFormula(coefficient_bps, source_category_ids)`; `RecurringRule.amount_formula` defaulted `None`; `NewRecurringRule.amount_formula`; `PatchRecurringRule.amount_formula` via `_UNCHANGED` sentinel.
 - Service `services/recurring_formula.py`: `parse_percent_to_bps`, `build_formula`, `compute_formula_amount`, `resolve_rule_amount`, `rt_expand`, `validate_formula_sources`. Pure cycle guard: skip formula sources at compute, reject at save.

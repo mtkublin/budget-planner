@@ -1,4 +1,4 @@
-"""Unit tests for formula-derived recurring amounts (ADR-0043)."""
+"""Unit tests for formula-derived recurring amounts (ADR-0045)."""
 
 from __future__ import annotations
 

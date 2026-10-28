@@ -1,14 +1,14 @@
-# ADR-0044: Recurring Overrides — Soft-Consume on Promotion (Not Delete)
+# ADR-0046: Recurring Overrides — Soft-Consume on Promotion (Not Delete)
 
 - **Status**: Accepted
 - **Date**: 2026-10-28
-- **Amends**: [ADR-0038](0038-recurring-standalone-lifecycle.md) §Promotion-flow step 6e; cross-references [ADR-0043](0043-recurring-formula-amount.md) (formula amounts depend on this).
+- **Amends**: [ADR-0038](0038-recurring-standalone-lifecycle.md) §Promotion-flow step 6e; cross-references [ADR-0045](0045-recurring-formula-amount.md) (formula amounts depend on this).
 
 ## Context
 
 ADR-0038 established that a `recurring_rule_overrides` row applies to exactly one promotion whose `due_date = occurrence_date`, then **the row is deleted** as part of the promotion transaction. The deletion keeps the overrides table sparse and prevents stale overrides from re-applying to a later occurrence that happens to cycle back to the same date.
 
-ADR-0043 introduced formula-derived recurring amounts: rule A's amount is a percentage of the summed monthly amounts of other recurring rules in selected categories. The formula compute path reuses `services.recurring.expand(source_rule, overrides, month_start, month_end)` to materialise each source rule's monthly occurrences, including any overrides on those occurrences.
+ADR-0045 introduced formula-derived recurring amounts: rule A's amount is a percentage of the summed monthly amounts of other recurring rules in selected categories. The formula compute path reuses `services.recurring.expand(source_rule, overrides, month_start, month_end)` to materialise each source rule's monthly occurrences, including any overrides on those occurrences.
 
 Composing the two produces a defect: once source rule B's May occurrence is promoted (its override is consumed and the row deleted), formula compute for A can no longer see the override. If A's May gets promoted **after** B's May, A locks in `B.default_amount × coefficient` instead of the override-adjusted amount B actually paid. If A's May gets promoted **before** B's May, A is correct — but promotion order is a user action, not a system invariant, and the discrepancy is silent.
 
@@ -35,7 +35,7 @@ CREATE INDEX ix_recurring_overrides_promoted
 
 ### Repository contract
 
-- `list_overrides(conn, rule_id, *, include_consumed: bool = False)` — default **excludes** consumed overrides so pre-ADR-0044 callers (promote lookup, override UI, skip-and-advance) see the same world they always have.
+- `list_overrides(conn, rule_id, *, include_consumed: bool = False)` — default **excludes** consumed overrides so pre-ADR-0046 callers (promote lookup, override UI, skip-and-advance) see the same world they always have.
 - `list_overrides_all(conn, rule_id)` — includes consumed overrides. Used by `services.recurring.expand` and formula compute paths that need historical visibility.
 - `mark_override_promoted(conn, override_id, txn_id)` — new audit-free helper (service pairs the audit entry with the promotion rule mutation, matching ADR-0038's single-logical-advance pattern).
 - `delete_override(conn, rule_id, occurrence_date)` — retained for admin flows and skip-and-advance's ephemeral skip override; **no longer called from `promote_recurring`**.
@@ -74,10 +74,10 @@ This is now stable regardless of when A was promoted vs. when B was promoted. Th
 - **Audit chatter unchanged.** Promotion still emits one logical `update` audit entry on the rule; the override mutation is audit-free (same pattern as `set_next_due` + `set_inactive`).
 - **Admin / debugging:** `promoted_to_txn_id` makes the "which txn consumed this override" question a one-column lookup, replacing today's "find a txn with matching `promoted_from_recurring_rule_id + promoted_from_recurring_date`" join. Nice side-effect.
 - **FK integrity:** `promoted_to_txn_id` is `DEFERRABLE INITIALLY DEFERRED` to match the project's existing FK style and to permit transaction-insert + override-mark ordering within the single promotion `BEGIN/COMMIT` without constraint ordering fragility.
-- **Follow-up — hard delete on rule removal:** when `recurring_rules.deleted_at` is set, orphaned consumed overrides can be hard-deleted or cascade-null'd. Out of scope for ADR-0044; tracked as a v2 cleanup task.
+- **Follow-up — hard delete on rule removal:** when `recurring_rules.deleted_at` is set, orphaned consumed overrides can be hard-deleted or cascade-null'd. Out of scope for ADR-0046; tracked as a v2 cleanup task.
 
 ## Alternatives Considered
 
-- **Freeze A's amount at B's promotion time** (reactive write — on every B promotion, scan every A referencing B's category and rewrite A's `default_amount` snapshot). Rejected: breaks the "formula is live" invariant from ADR-0043, requires reverse-dependency index, and still doesn't help if A hasn't been promoted yet.
+- **Freeze A's amount at B's promotion time** (reactive write — on every B promotion, scan every A referencing B's category and rewrite A's `default_amount` snapshot). Rejected: breaks the "formula is live" invariant from ADR-0045, requires reverse-dependency index, and still doesn't help if A hasn't been promoted yet.
 - **Store a copy of B's amount on A's transaction at A's promotion time** (lazy materialisation on A's promote). Rejected: works only for the single moment A is promoted; forecast / budget / ledger-row renders between B's May promotion and A's May promotion still see wrong value.
 - **Read historical values from `transactions.promoted_from_recurring_*` columns** (bypass overrides entirely post-promotion). Rejected: couples the formula service to transaction storage, breaks the current "expand(rule, overrides, ...)" pure-function surface, and still requires special-case handling for A's May *before* B's May promotes.

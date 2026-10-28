@@ -46,5 +46,5 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0040 | [Modal Dismissal Fires on Form Submit Only, Not Side-Effect HTMX Requests](0040-modal-dismissal-scope.md) (amends ADR-0030 §5) |
 | 0041 | [Budget "Period" is Last-Anchor-Income to Next-Anchor-Income, Not Calendar Month](0041-budget-period-anchor-window.md) (amends ADR-0025 §F4.6, ADR-0039) |
 | 0042 | [Forecast — Budget Overlay for Unaccounted Expected Spend](0042-forecast-budget-overlay.md) (supersedes ADR-0015 §Alternatives in part) |
-| 0043 | [Recurring Rules — Formula-Derived Amount (Percentage of Other Rules)](0043-recurring-formula-amount.md) (amends ADR-0013, ADR-0038) |
-| 0044 | [Recurring Overrides — Soft-Consume on Promotion (Not Delete)](0044-recurring-override-soft-consume.md) (amends ADR-0038 §Promotion-flow step 6e) |
+| 0045 | [Recurring Rules — Formula-Derived Amount (Percentage of Other Rules)](0045-recurring-formula-amount.md) (amends ADR-0013, ADR-0038) |
+| 0046 | [Recurring Overrides — Soft-Consume on Promotion (Not Delete)](0046-recurring-override-soft-consume.md) (amends ADR-0038 §Promotion-flow step 6e) |

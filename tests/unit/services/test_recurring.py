@@ -551,7 +551,7 @@ def test_promote_overridden_amount_merges(conn: sqlite3.Connection, world: dict[
     txn = rec_svc.promote_recurring(conn, rule_id, rec_svc.PromotionEdits())
     assert txn.amount == 250_000
     assert txn.description == "rent + utilities"
-    # ADR-0044: default list hides consumed; history retains it.
+    # ADR-0046: default list hides consumed; history retains it.
     assert recurring_repo.list_overrides(conn, rule_id) == []
     historical = recurring_repo.list_overrides_all(conn, rule_id)
     assert len(historical) == 1

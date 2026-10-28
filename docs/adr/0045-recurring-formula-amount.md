@@ -1,4 +1,4 @@
-# ADR-0043: Recurring Rules — Formula-Derived Amount (Percentage of Other Rules)
+# ADR-0045: Recurring Rules — Formula-Derived Amount (Percentage of Other Rules)
 
 - **Status**: Accepted
 - **Date**: 2026-10-27

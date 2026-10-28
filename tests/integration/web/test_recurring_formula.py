@@ -1,4 +1,4 @@
-"""Integration tests for formula-derived recurring amount (ADR-0043).
+"""Integration tests for formula-derived recurring amount (ADR-0045).
 
 Covers:
 - Formula sum uses other recurring rules' amounts in the same month.
@@ -87,7 +87,7 @@ class TestComputeFormulaAmount:
         income_category_a: int,
     ) -> None:
         # A formula rule in the source category: should be skipped at compute
-        # time (ADR-0043 cycle guard). The compute still returns 0 instead of
+        # time (ADR-0045 cycle guard). The compute still returns 0 instead of
         # recursing or raising.
         make_rule(
             account_id=account_id,
@@ -136,7 +136,7 @@ class TestOverrideSoftConsume:
         account_id: int,
         income_category_a: int,
     ) -> None:
-        """ADR-0044: consumed overrides stay visible to formula compute."""
+        """ADR-0046: consumed overrides stay visible to formula compute."""
         b_id = make_rule(
             account_id=account_id,
             category_id=income_category_a,
@@ -164,7 +164,7 @@ class TestOverrideSoftConsume:
         pre = formula_svc.compute_formula_amount(conn, formula, 2026, 5, exclude_rule_id=None)
         assert pre == 144_000  # 12% of 12 000.00
 
-        # Promote B → override is soft-consumed (ADR-0044).
+        # Promote B → override is soft-consumed (ADR-0046).
         b_txn = recurring_svc.promote_recurring(conn, b_id, recurring_svc.PromotionEdits())
         assert b_txn.amount == 12_000_00
 
