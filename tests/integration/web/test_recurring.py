@@ -481,6 +481,32 @@ def test_recurring_delete_soft_deactivates(
         conn.close()
 
 
+def test_recurring_delete_returns_empty_body_and_triggers_ledger_stale(
+    client: TestClient, ctx: dict[str, int]
+) -> None:
+    """Delete returns an empty body + HX-Trigger so the row vanishes from
+    the Ledger Recurring tab (hx-swap=outerHTML) and the table re-fetches."""
+    r = client.post(f"/recurring/{ctx['rule']}/deactivate")
+    assert r.status_code == 200
+    assert r.text == ""
+    triggers = json.loads(r.headers["HX-Trigger"])
+    assert "ledger-stale" in triggers
+    assert "forecast-stale" in triggers
+
+
+def test_recurring_delete_hides_from_ledger_view(client: TestClient, ctx: dict[str, int]) -> None:
+    """ADR-0038 §Ledger-UI: deactivated rules are not 'live' and must not
+    appear in the Ledger Recurring tab."""
+    before = client.get("/ledger?view=recurring")
+    assert f'id="recurring-{ctx["rule"]}"' in before.text
+
+    client.post(f"/recurring/{ctx['rule']}/deactivate")
+
+    after = client.get("/ledger?view=recurring")
+    assert after.status_code == 200
+    assert f'id="recurring-{ctx["rule"]}"' not in after.text
+
+
 def test_recurring_overrides_new_form_renders(
     client: TestClient, ctx: dict[str, int], _migrated: Settings
 ) -> None:

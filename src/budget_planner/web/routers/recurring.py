@@ -466,28 +466,17 @@ def _effective_amount_for_render(
 
 
 @router.post("/{rule_id}/deactivate")
-def deactivate_rule(
-    rule_id: int, request: Request, conn: sqlite3.Connection = Depends(get_db)
-) -> Response:
+def deactivate_rule(rule_id: int, conn: sqlite3.Connection = Depends(get_db)) -> Response:
     rule = recurring_repo.find_rule(conn, rule_id)
     if rule is None:
         return Response(status_code=404, content="not found")
     recurring_repo.deactivate_rule(conn, rule_id)
-    updated = recurring_repo.find_rule(conn, rule_id)
-    assert updated is not None
-    acc = accounts_repo.find_by_id(conn, updated.account_id, include_deleted=True)
-    cat = categories_repo.find_by_id(conn, updated.category_id, include_deleted=True)
-    html = render(
-        request,
-        "partials/recurring/_row.html",
-        rule=updated,
-        overrides=recurring_repo.list_overrides(conn, rule_id),
-        account=acc,
-        category=cat,
-        effective_amount_minor=_effective_amount_for_render(conn, updated),
-    )
-    trigger(html, "forecast-stale", "ledger-stale")
-    return html
+    # Empty body + ledger-stale trigger removes the row from the Ledger
+    # Recurring tab (hx-swap="outerHTML") and re-fetches the table so
+    # inactive rules disappear from view. Mirrors transactions/delete.
+    resp = Response(content="", media_type="text/html")
+    trigger(resp, "ledger-stale", "forecast-stale")
+    return resp
 
 
 @router.get("/{rule_id}/overrides/new", response_class=HTMLResponse)
