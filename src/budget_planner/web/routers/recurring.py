@@ -377,6 +377,55 @@ def _formula_prefill(rule: Any) -> tuple[str, list[dict[str, Any]]]:
     return "formula", rows
 
 
+# ---------------------------------------------------------------------------
+# T-R41 — Formula preview (ADR-0056 §4). Registered BEFORE `/{rule_id}` so
+# FastAPI's int-path validator does not swallow the literal `formula` segment.
+# ---------------------------------------------------------------------------
+@router.post("/formula/preview", response_class=HTMLResponse)
+async def formula_preview(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+) -> Response:
+    """Return the live-preview chip or inline error for a draft formula.
+
+    No DB write; shares the save-path primitives via
+    ``services.recurring_formula.preview``. Accepts the same
+    ``terms[i][field]`` form shape as the create / update routes.
+    """
+    form = await request.form()
+    draft_rule_id_raw = str(form.get("draft_rule_id", ""))
+    draft_rule_id: int | None = None
+    if draft_rule_id_raw:
+        parsed = _parse_int(draft_rule_id_raw)
+        if parsed is None:
+            return Response(status_code=422, content="invalid draft_rule_id")
+        draft_rule_id = parsed
+    term_inputs = _parse_terms_from_form(form)
+    drafts: list[formula_svc.DraftTerm] = []
+    for row in term_inputs:
+        try:
+            cat_ids = tuple(int(v) for v in row.get("source_category_ids", ()))
+        except (TypeError, ValueError):
+            return Response(status_code=422, content="invalid source_category_ids")
+        drafts.append(
+            formula_svc.DraftTerm(
+                sign=str(row.get("sign", "+")),
+                coefficient_percent=str(row.get("coefficient_percent", "")),
+                source_category_ids=cat_ids,
+            )
+        )
+    today = dt.date.today()  # noqa: DTZ011 — date-only anchor
+    result = formula_svc.preview(conn, today, draft_rule_id, drafts)
+    status = 200 if isinstance(result, formula_svc.PreviewOk) else 422
+    return render(
+        request,
+        "partials/recurring/_formula_preview.html",
+        result=result,
+        is_ok=isinstance(result, formula_svc.PreviewOk),
+        status_code=status,
+    )
+
+
 @router.get("/{rule_id}/edit", response_class=HTMLResponse)
 def edit_form(
     rule_id: int, request: Request, conn: sqlite3.Connection = Depends(get_db)
