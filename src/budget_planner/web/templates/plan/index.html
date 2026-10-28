@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "_partials/components/_segmented.html" import segmented %}
+{% from "_partials/components/_button.html" import button %}
+{% from "_partials/components/_amount.html" import amount %}
+{% from "_partials/components/_pill.html" import category_pill %}
+{% from "_partials/components/_progress_bar.html" import progress_bar %}
+{% block title %}Plan · Rising Dough{% endblock %}
+{% block main %}
+  {% set titles = {'budget': 'October budget', 'year': 'Budget ' ~ year, 'forecast': 'Projected balance', 'analytics': 'Where it went'} %}
+  <header class="rd-screen-header">
+    <div class="rd-screen-header__title">
+      <div class="rd-eyebrow">Plan</div>
+      <h1>{{ titles.get(tab, 'Plan') }}</h1>
+    </div>
+    <div class="rd-screen-header__actions">
+      {{ segmented([('budget', 'Budget'), ('year', 'Year'), ('forecast', 'Forecast'), ('analytics', 'Analytics')], tab, name='tab', base_href='/plan') }}
+      <span class="rd-btn rd-btn--sm" style="font-family: var(--font-mono)">{{ today.strftime('%B %Y') }}</span>
+    </div>
+  </header>
+
+  {% if tab == 'budget' %}
+    {% include "plan/_budget_tab.html" %}
+  {% elif tab == 'year' %}
+    {% include "plan/_year_tab.html" %}
+  {% elif tab == 'forecast' %}
+    {% include "plan/_forecast_tab.html" %}
+  {% else %}
+    {% include "plan/_analytics_tab.html" %}
+  {% endif %}
+{% endblock %}

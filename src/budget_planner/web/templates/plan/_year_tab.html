@@ -1,0 +1,21 @@
+{% from "_partials/components/_heatmap_cell.html" import heatmap_cell %}
+<section>
+  <p class="text-muted">Year heatmap · 12 months × categories. Each cell is a planned amount; one-off and recurring tiers overlay the base. Click a cell to edit.</p>
+  <table class="rd-table" style="margin-top: 1rem">
+    <caption class="sr-only">Yearly budget heatmap · 12 months × categories</caption>
+    <thead>
+      <tr>
+        <th scope="col">Category</th>
+        {% for m in range(1, 13) %}
+          <th scope="col" class="num">{{ ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1] }}</th>
+        {% endfor %}
+        <th scope="col" class="num">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td colspan="14" class="text-muted" style="padding: 1rem">Heatmap renders once the Year endpoint lands (ADR-0056 §2 / T-R31). Phase 1 placeholder.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>

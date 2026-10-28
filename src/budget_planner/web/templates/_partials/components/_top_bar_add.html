@@ -1,0 +1,8 @@
+{# top_bar_add(context="actual", shortcut="n") — adaptive label by context. #}
+{%- macro top_bar_add(context="actual", shortcut="n") -%}
+  {%- set labels = {'actual': '+ Add', 'planned': '+ Planned entry', 'recurring': '+ Recurring rule'} -%}
+  <button class="rd-btn rd-btn--primary" data-rd-add data-context="{{ context }}">
+    <span>{{ labels.get(context, '+ Add') }}</span>
+    <kbd>{{ shortcut }}</kbd>
+  </button>
+{%- endmacro -%}

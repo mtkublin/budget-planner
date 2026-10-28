@@ -36,8 +36,14 @@ def test_shortcuts_partial_in_base(client: TestClient) -> None:
 def test_palette_js_loaded(client: TestClient) -> None:
     soup = _soup(client)
     scripts = [str(s.get("src", "")) for s in soup.find_all("script")]
-    assert any(src.endswith("js/palette.js") for src in scripts)
-    assert any(src.endswith("js/shortcuts.js") for src in scripts)
+
+    # Rising Dough v2 appends cache-busting ?v=rd1 — strip the query before checking.
+    def _bare(src: str) -> str:
+        return src.split("?", 1)[0]
+
+    bare = [_bare(s) for s in scripts]
+    assert any(src.endswith("js/palette.js") for src in bare)
+    assert any(src.endswith("js/shortcuts.js") for src in bare)
 
 
 def test_palette_nav_items_match_nav_partial(client: TestClient) -> None:
@@ -52,6 +58,10 @@ def test_palette_nav_items_match_nav_partial(client: TestClient) -> None:
         el["data-shortcut"] for el in soup.select("#command-palette .palette-item[data-shortcut]")
     }
     assert palette_shortcuts, "palette has no shortcut items"
-    allowed = nav_shortcuts | {"n", "?"}
+    # Rising Dough v2 collapses Budget + Forecast + Analytics into /plan.
+    # Palette may still expose their legacy chords ('g b', 'g f', 'g a' for
+    # analytics) during the transition — accept them as action chords.
+    v1_action_chords = {"g b", "g f", "g a"}
+    allowed = nav_shortcuts | {"n", "?"} | v1_action_chords
     extra = palette_shortcuts - allowed
     assert not extra, f"palette shortcuts not in nav + actions: {extra}"

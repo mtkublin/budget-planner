@@ -1,0 +1,31 @@
+{# segmented(items, active_key, name="tab", mode="link")
+   items = [(key, label, count|None), ...]
+   mode = "link" renders <a>; "hx" renders button hx-get. #}
+{%- macro segmented(items, active_key, name="tab", mode="link", base_href=None, hx_target=None) -%}
+  <div class="rd-segmented" role="tablist">
+    {%- for item in items -%}
+      {%- set key = item[0] -%}
+      {%- set label = item[1] -%}
+      {%- set count = item[2] if (item|length) > 2 else none -%}
+      {%- set active = (key == active_key) -%}
+      {%- if mode == 'hx' -%}
+        <button class="rd-segmented__item{% if active %} rd-segmented__item--active{% endif %}"
+                role="tab"
+                aria-selected="{{ 'true' if active else 'false' }}"
+                hx-get="{{ base_href }}?{{ name }}={{ key }}"
+                hx-target="{{ hx_target }}">
+          <span>{{ label }}</span>
+          {%- if count is not none %}<span class="rd-count">{{ count }}</span>{% endif -%}
+        </button>
+      {%- else -%}
+        <a class="rd-segmented__item{% if active %} rd-segmented__item--active{% endif %}"
+           role="tab"
+           aria-selected="{{ 'true' if active else 'false' }}"
+           href="{{ base_href }}?{{ name }}={{ key }}">
+          <span>{{ label }}</span>
+          {%- if count is not none %}<span class="rd-count">{{ count }}</span>{% endif -%}
+        </a>
+      {%- endif -%}
+    {%- endfor -%}
+  </div>
+{%- endmacro -%}

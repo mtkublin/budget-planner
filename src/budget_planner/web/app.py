@@ -93,6 +93,9 @@ _ROUTER_NAMES: tuple[str, ...] = (
     "analytics",
     "settings",
     "ledger",
+    "today",
+    "plan",
+    "dev_components",
 )
 
 

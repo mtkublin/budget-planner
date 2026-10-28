@@ -1,0 +1,62 @@
+{% from "_partials/components/_amount.html" import amount %}
+{% from "_partials/components/_pill.html" import category_pill %}
+{% from "_partials/components/_progress_bar.html" import progress_bar %}
+
+{% set budget = (summary.totals.budgeted_minor|int) / 100.0 %}
+{% set spent = (summary.totals.spent_minor|int) / 100.0 %}
+{% set remaining = budget - spent %}
+{% set spent_pct = (100.0 * spent / budget) if budget > 0 else 0 %}
+{% set per_day = (remaining / (summary.days_until_next_income or 1)) %}
+
+<section class="rd-period">
+  <div>
+    <div class="rd-eyebrow">Period</div>
+    <div class="rd-period__range">month of {{ today.strftime('%B %Y') }}</div>
+    <div class="text-muted" style="font-size: 0.85rem; margin-top: 0.25rem;">anchor: {{ summary.anchor_category_name or '—' }} · <a class="link-muted" href="/settings">change</a></div>
+  </div>
+  <div class="rd-period__bar">
+    <span style="width: {{ [spent_pct, 100]|min }}%"></span>
+  </div>
+  <div class="rd-period__amt">
+    {{ "%.2f"|format(per_day) }}
+    <small>{{ base_ccy }} / day · {{ summary.days_until_next_income }} days left</small>
+  </div>
+</section>
+
+<table class="rd-table">
+  <caption class="sr-only">Budget by category for {{ today.strftime('%B %Y') }}</caption>
+  <thead>
+    <tr>
+      <th scope="col">Category</th>
+      <th scope="col" class="num">Planned</th>
+      <th scope="col" class="num">Actual</th>
+      <th scope="col">Used</th>
+      <th scope="col" class="num">Remaining</th>
+      <th scope="col"><span class="sr-only">Actions</span></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in summary.lines %}
+      {% set p = (row.budgeted_minor|int) / 100.0 %}
+      {% set a = (row.spent_minor|int) / 100.0 %}
+      {% set r = p - a %}
+      {% set used = (100.0 * a / p) if p > 0 else 0 %}
+      <tr>
+        <td>{{ category_pill(row.category_name, direction='expense') }}</td>
+        <td class="num">{{ "%.2f"|format(p) }}</td>
+        <td class="num">{{ "%.2f"|format(a) }}</td>
+        <td>{{ progress_bar(used, over=(a > p)) }}</td>
+        <td class="num"><span class="{% if r < 0 %}rd-amount rd-amount--expense{% endif %}">{{ "%.2f"|format(r) }}</span></td>
+        <td class="rd-actions"><a class="rd-btn rd-btn--sm rd-btn--ghost" href="/budget/overrides/new?category_id={{ row.category_id }}">⋯</a></td>
+      </tr>
+    {% endfor %}
+    <tr>
+      <td><strong>Total</strong></td>
+      <td class="num"><strong>{{ "%.2f"|format(budget) }}</strong></td>
+      <td class="num"><strong>{{ "%.2f"|format(spent) }}</strong></td>
+      <td></td>
+      <td class="num"><strong>{{ "%.2f"|format(remaining) }}</strong></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>

@@ -1,0 +1,13 @@
+{# pace_tag(kind, label=None) — ADR-0053 §1 / ADR-0059. #}
+{%- macro pace_tag(kind, label=None) -%}
+  {%- set cls = 'rd-pace' -%}
+  {%- if kind == 'tight' or kind == 'pacing_high' %}{% set cls = cls + ' rd-pace--tight' %}
+  {%- elif kind == 'overdue' or kind == 'over_budget' %}{% set cls = cls + ' rd-pace--overdue' %}
+  {%- endif %}
+  {%- set labels = {'on_track': 'On track', 'tight': 'Tight', 'overdue': 'Overdue', 'pacing_high': 'Tight', 'over_budget': 'Over budget'} -%}
+  <span class="{{ cls }}">{{ label or labels.get(kind, kind) }}</span>
+{%- endmacro -%}
+
+{%- macro overdue_chip(count) -%}
+  <span class="rd-overdue">!{{ count }}</span>
+{%- endmacro -%}

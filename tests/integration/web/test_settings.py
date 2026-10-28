@@ -101,11 +101,9 @@ def test_categories_crud_from_drawer(client: TestClient) -> None:
 
 
 def test_settings_nav_link_opens_drawer_via_htmx(client: TestClient) -> None:
-    """The Settings rail entry must drive the drawer, not a page navigation."""
-    response = client.get("/")
+    """Rising Dough v2 — Settings is a page link (no drawer) per ADR-0051 §1."""
+    response = client.get("/today")
     soup = _soup(response.text)
-    footer = soup.select_one("nav ul.rail-list--footer a")
+    footer = soup.select_one(".rd-rail__footer .rd-nav__link")
     assert footer is not None
     assert footer.get("href") == "/settings"
-    assert footer.get("hx-get") == "/settings"
-    assert footer.get("hx-target") == "#drawer-root"

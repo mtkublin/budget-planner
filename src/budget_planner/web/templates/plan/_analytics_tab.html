@@ -1,0 +1,27 @@
+{% from "_partials/components/_pill.html" import category_pill %}
+{% from "_partials/components/_progress_bar.html" import progress_bar %}
+<div style="display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 1.5rem;">
+  <section class="rd-panel">
+    <header class="rd-panel__head">
+      <h2 class="rd-panel__title">Spend by category</h2>
+      <span class="text-muted">— PLN actual</span>
+    </header>
+    <table class="rd-table">
+      <caption class="sr-only">Spend by category</caption>
+      <thead><tr><th scope="col">Category</th><th scope="col"><span class="sr-only">Bar</span></th><th scope="col" class="num">Month</th><th scope="col" class="num">vs 12-mo avg</th></tr></thead>
+      <tbody>
+        <tr><td colspan="4" class="text-muted" style="padding: 1rem">Analytics bundle endpoint lands in Phase 4 (T-R43).</td></tr>
+      </tbody>
+    </table>
+  </section>
+  <section style="display: grid; gap: 1.5rem;">
+    <div class="rd-panel">
+      <header class="rd-panel__head"><h2 class="rd-panel__title">Income vs expense</h2></header>
+      <div style="padding: 1.25rem; text-align: center; color: var(--mute);">Bars · placeholder</div>
+    </div>
+    <div class="rd-panel">
+      <header class="rd-panel__head"><h2 class="rd-panel__title">Largest single items</h2></header>
+      <div style="padding: 1.25rem; color: var(--mute);">Top 3 · placeholder</div>
+    </div>
+  </section>
+</div>

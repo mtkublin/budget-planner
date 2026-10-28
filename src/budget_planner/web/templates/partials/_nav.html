@@ -1,58 +1,34 @@
 {% set path = request.url.path %}
 {% macro navlink(href, label, shortcut, extra_paths=()) -%}
-  {# WHY: Jinja ``set`` inside ``for`` does not escape the loop scope, so we
-     use a namespace to track the active state across ``extra_paths``. #}
   {% set ns = namespace(is_current=(href == '/' and path == '/') or (href != '/' and path.startswith(href))) %}
   {%- if not ns.is_current -%}
     {%- for alt in extra_paths -%}
-      {%- if path.startswith(alt) %}{% set ns.is_current = true %}
+      {%- if alt == '/' and path == '/' %}{% set ns.is_current = true %}
+      {%- elif alt != '/' and path.startswith(alt) %}{% set ns.is_current = true %}
       {% endif -%}
     {%- endfor -%}
   {%- endif %}
-  <li>
+  <li class="rd-nav__item">
     <a href="{{ href }}"
-       class="rail-item{% if ns.is_current %} rail-item--current{% endif %}"
+       class="rd-nav__link"
        data-shortcut="{{ shortcut }}"
-       {% if ns.is_current %}aria-current="page"{% endif %}>{{ label }}</a>
+       {% if ns.is_current %}aria-current="page"{% endif %}>
+      <span>{{ label }}</span>
+      <span class="rd-nav__shortcut">{{ shortcut }}</span>
+    </a>
   </li>
 {%- endmacro %}
-{% macro drawerlink(href, label, shortcut, extra_paths=()) -%}
-  {% set ns = namespace(is_current=path.startswith(href)) %}
-  {%- if not ns.is_current -%}
-    {%- for alt in extra_paths -%}
-      {%- if path.startswith(alt) %}{% set ns.is_current = true %}
-      {% endif -%}
-    {%- endfor -%}
-  {%- endif %}
-  <li>
-    <a href="{{ href }}"
-       class="rail-item{% if ns.is_current %} rail-item--current{% endif %}"
-       data-shortcut="{{ shortcut }}"
-       hx-get="{{ href }}"
-       hx-target="#drawer-root"
-       hx-swap="innerHTML"
-       {% if ns.is_current %}aria-current="page"{% endif %}>{{ label }}</a>
-  </li>
-{%- endmacro %}
-<nav aria-label="Primary navigation" class="rail-nav">
-  <a href="/" class="rail-wordmark">
-    <span class="rail-wordmark__name">Budget Planner</span>
-    <span class="rail-wordmark__kicker">local-first</span>
-  </a>
-  <ul class="rail-list">
-    {# T-064: Ledger is its own route. ``extra_paths`` keeps the active state
-       on the legacy /transactions, /planned, /recurring entry points so the
-       rail still highlights correctly until T-070 redirects them to /ledger. #}
-    {{ navlink('/', 'Overview', 'g o') }}
+<a href="/today" class="rd-wordmark">Rising Dough</a>
+<nav aria-label="Primary navigation">
+  <ul class="rd-nav">
+    {{ navlink('/today', 'Today', 'g o', extra_paths=('/',)) }}
     {{ navlink('/ledger', 'Ledger', 'g l', extra_paths=('/transactions', '/planned', '/recurring')) }}
+    {{ navlink('/plan', 'Plan', 'g p', extra_paths=('/budget', '/forecast', '/analytics')) }}
     {{ navlink('/accounts', 'Accounts', 'g a') }}
-    {{ navlink('/budget', 'Budget', 'g b') }}
-    {{ navlink('/forecast', 'Forecast', 'g f') }}
   </ul>
-  <ul class="rail-list rail-list--footer">
-    {# T-067: Settings opens the drawer via HTMX; `href` is kept as a graceful
-       fallback for no-JS and for navigation tests. Active state also fires on
-       /categories while the standalone page coexists until T-070. #}
-    {{ drawerlink('/settings', 'Settings', 'g s', extra_paths=('/categories',)) }}
-  </ul>
+  <div class="rd-rail__footer">
+    <ul class="rd-nav">
+      {{ navlink('/settings', 'Settings', 'g s', extra_paths=('/categories',)) }}
+    </ul>
+  </div>
 </nav>

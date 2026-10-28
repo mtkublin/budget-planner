@@ -1,0 +1,5 @@
+/* Rising Dough — font loading.
+ * v1 shim: load from Google Fonts CDN with `font-display: swap`.
+ * Self-hosted woff2 (ADR-0050 §3) deferred to a follow-up; swap the
+ * @import for @font-face blocks against /static/fonts/*.woff2 later. */
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');

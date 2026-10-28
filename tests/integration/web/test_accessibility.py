@@ -37,6 +37,9 @@ _ROUTES = (
     "/ledger",
     "/ledger?view=planned",
     "/ledger?view=recurring",
+    # Rising Dough v2 surfaces (ADR-0051 §1).
+    "/today",
+    "/plan",
 )
 
 

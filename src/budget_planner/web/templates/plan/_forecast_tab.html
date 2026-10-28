@@ -1,0 +1,27 @@
+<section>
+  <p class="text-muted">
+    <strong>NOW:</strong> --- · <strong>HORIZON:</strong> --- · PLN budget overlay on
+  </p>
+  <figure style="margin-top: 1rem; padding: 1.5rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card);">
+    <figcaption class="rd-eyebrow">Projected balance</figcaption>
+    <svg viewBox="0 0 600 240" role="img" aria-labelledby="forecast-caption" style="width: 100%; height: 240px;">
+      <title id="forecast-caption">Monthly projection</title>
+      <path d="M0 180 L50 170 L100 160 L150 140 L200 100 L250 95 L300 80 L350 70 L400 65 L450 60 L500 65 L550 75 L600 90"
+            fill="none" stroke="var(--accent)" stroke-width="2"/>
+      <path d="M0 180 L50 170 L100 160 L150 140 L200 100 L250 95 L300 80 L350 70 L400 65 L450 60 L500 65 L550 75 L600 90 L600 240 L0 240 Z"
+            fill="var(--accent-soft)" opacity="0.6"/>
+    </svg>
+    <details>
+      <summary>Monthly table</summary>
+      <table class="rd-table">
+        <caption class="sr-only">Monthly projection fallback</caption>
+        <thead><tr><th scope="col">Month</th><th scope="col" class="num">Income</th><th scope="col" class="num">Expenses</th><th scope="col" class="num">Net</th><th scope="col" class="num">End of month</th></tr></thead>
+        <tbody>
+          {% for i in range(12) %}
+          <tr><td>Month {{ i+1 }}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </details>
+  </figure>
+</section>

@@ -64,38 +64,43 @@ def test_home_renders(client: TestClient, seeded: None) -> None:
 
 
 def test_nav_links_present(client: TestClient) -> None:
-    """Four-tab rail + Settings affordance (ADR-0023).
+    """Rising Dough v2 rail — ADR-0051 §1 IA.
 
-    After T-064 Ledger points at /ledger; Settings opens the drawer at
-    /settings (T-067). The macro's ``extra_paths`` keep the active state
-    accurate on legacy /transactions, /planned, /recurring routes.
+    Nav collapses v1 Budget + Forecast + Analytics into /plan (tabs).
+    Legacy /transactions, /planned, /recurring still 302 but the rail no
+    longer links to them directly.
     """
-    r = client.get("/")
+    r = client.get("/today")
     assert r.status_code == 200
     soup = BeautifulSoup(r.text, "html.parser")
     hrefs = {a["href"] for a in soup.select("nav a")}
-    for path in ("/", "/ledger", "/accounts", "/budget", "/forecast", "/settings"):
+    for path in ("/today", "/ledger", "/plan", "/accounts", "/settings"):
         assert path in hrefs, f"nav missing {path}"
     assert "/transactions" not in hrefs
+    assert "/budget" not in hrefs
+    assert "/forecast" not in hrefs
 
 
-def test_nav_has_five_primary_items_plus_settings(client: TestClient) -> None:
-    r = client.get("/")
+def test_nav_has_four_primary_items_plus_settings(client: TestClient) -> None:
+    r = client.get("/today")
     soup = BeautifulSoup(r.text, "html.parser")
-    primary = soup.select("nav ul.rail-list:not(.rail-list--footer) a")
-    footer = soup.select("nav ul.rail-list--footer a")
-    assert len(primary) == 5, f"expected 5 primary rail items, got {len(primary)}"
+    rail = soup.select_one(".rd-rail")
+    assert rail is not None
+    primary = rail.select("nav > ul.rd-nav .rd-nav__link")
+    footer = rail.select(".rd-rail__footer .rd-nav__link")
+    assert len(primary) == 4, f"expected 4 primary rail items, got {len(primary)}"
     assert len(footer) == 1, f"expected 1 footer rail item (Settings), got {len(footer)}"
 
 
 def test_shell_slots_present(client: TestClient) -> None:
-    """T-061: base shell exposes drawer-root + modal-root for later tasks."""
-    r = client.get("/")
+    """Rising Dough v2 base shell exposes drawer-root + modal-root + toast-root."""
+    r = client.get("/today")
     soup = BeautifulSoup(r.text, "html.parser")
     assert soup.find(id="drawer-root") is not None
     assert soup.find(id="modal-root") is not None
-    assert soup.select_one(".app-shell__rail") is not None
-    assert soup.select_one(".app-shell__main") is not None
+    assert soup.find(id="toast-root") is not None
+    assert soup.select_one(".rd-rail") is not None
+    assert soup.select_one(".rd-main") is not None
 
 
 def test_fortune_shows_base_total(client: TestClient, seeded: None) -> None:

@@ -93,7 +93,9 @@ def test_planned_budget_column_present(client: TestClient, seeded: int) -> None:
 
 
 def test_forecast_nav_link_present(client: TestClient, seeded: int) -> None:
+    """Rising Dough v2 collapses Forecast under /plan?tab=forecast — the rail now
+    exposes 'Plan' and the Forecast page is reachable via the Plan hub."""
     r = client.get("/forecast")
     assert r.status_code == 200
-    assert 'href="/forecast"' in r.text
-    assert ">Forecast<" in r.text
+    assert 'href="/plan"' in r.text
+    assert ">Plan<" in r.text
