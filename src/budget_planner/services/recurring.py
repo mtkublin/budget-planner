@@ -424,6 +424,15 @@ def promote_recurring(
     amount = edits.amount_minor if edits.amount_minor is not None else default_amount
     description = edits.description if edits.description is not None else default_description
 
+    # ADR-0047: formulas may resolve to zero or negative when term sums
+    # cancel. User-explicit edits (``edits.amount_minor``) take precedence,
+    # so the guard only trips on live-formula resolution.
+    if rule.amount_formula is not None and edits.amount_minor is None and amount <= 0:
+        raise ValidationError(
+            "formula resolved to a non-positive amount — "
+            "edit the formula or override this occurrence"
+        )
+
     category = categories_repo.find_by_id(conn, rule.category_id, include_deleted=True)
     if category is None:  # pragma: no cover - FK guarantees existence
         raise ValidationError(f"category {rule.category_id} not found")

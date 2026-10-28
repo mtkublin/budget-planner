@@ -1,11 +1,12 @@
 {% from "_partials/combobox.html" import combobox %}
-{# ADR-0045 — Recurring rule form with fixed-vs-formula amount source.
+{# ADR-0047 — Recurring rule form with fixed-vs-formula amount source.
 
-   `amount_source` ∈ {fixed, formula}. The two sub-sections are mutually
-   visible; the inactive one carries `hidden` + `aria-hidden="true"` so form
-   submission still sends its (ignored) values but the UI only shows the
-   active variant. A small JS block flips the toggle inline — no HTMX round
-   trip, no slide-over disruption (ADR-0040). #}
+   Formula branch supports a linear combination of signed terms. Each term
+   has a sign (+/−), coefficient %, and a source-category checkbox grid.
+   JS appends / removes terms by cloning a template row. Field names use
+   indexed shape `terms[i][sign]`, `terms[i][coefficient_percent]`,
+   `terms[i][source_category_ids]` so the server-side parser (regex) can
+   handle hole-tolerant indices after row removal. #}
 {% set is_formula = amount_source == "formula" %}
 {% set rule_account = (accounts|selectattr('id', 'equalto', rule.account_id)|first) if rule else none %}
 <form hx-post="{{ action }}"
@@ -62,7 +63,7 @@
                value="formula"
                data-amount-source-radio
                {% if is_formula %}checked{% endif %}>
-        Formula (% of other rules)
+        Formula (linear combination of other rules)
       </label>
     </div>
     <div data-amount-source-panel="fixed"
@@ -78,36 +79,57 @@
     </div>
     <div data-amount-source-panel="formula"
          {% if not is_formula %}hidden aria-hidden="true"{% endif %}>
-      <label>
-        Coefficient (%)
-        <input type="text"
-               name="coefficient_percent"
-               value="{{ coefficient_percent }}"
-               inputmode="decimal"
-               data-numeric
-               placeholder="e.g. 12">
-      </label>
-      <fieldset class="form-stack__group">
-        <legend>Source categories</legend>
-        {% if source_categories %}
-          <ul class="form-stack__checklist">
-            {% for cat in source_categories %}
-              <li>
-                <label>
-                  <input type="checkbox"
-                         name="source_category_ids"
-                         value="{{ cat.id }}"
-                         {% if cat.id in selected_source_ids %}checked{% endif %}>
-                  {{ cat.name }}
-                  <span class="text-muted text-sm">({{ cat.direction.value }})</span>
-                </label>
-              </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="text-muted text-sm">No eligible categories.</p>
-        {% endif %}
-      </fieldset>
+      <ul class="form-stack__terms" data-terms-list>
+        {% for term in terms %}
+          <li class="form-stack__term" data-term-row>
+            <div class="form-stack__term-head">
+              <label class="form-stack__radio">
+                <input type="radio"
+                       name="terms[{{ loop.index0 }}][sign]"
+                       value="+"
+                       {% if term.sign == "+" %}checked{% endif %}>
+                +
+              </label>
+              <label class="form-stack__radio">
+                <input type="radio"
+                       name="terms[{{ loop.index0 }}][sign]"
+                       value="-"
+                       {% if term.sign == "-" %}checked{% endif %}>
+                −
+              </label>
+              <label class="form-stack__term-coef">
+                Coefficient (%)
+                <input type="text"
+                       name="terms[{{ loop.index0 }}][coefficient_percent]"
+                       value="{{ term.coefficient_percent }}"
+                       inputmode="decimal"
+                       data-numeric
+                       placeholder="e.g. 12">
+              </label>
+              <button type="button" data-term-remove class="btn-ghost btn-ghost--sm">Remove</button>
+            </div>
+            {% if source_categories %}
+              <ul class="form-stack__checklist">
+                {% for cat in source_categories %}
+                  <li>
+                    <label>
+                      <input type="checkbox"
+                             name="terms[{{ loop.index0 }}][source_category_ids]"
+                             value="{{ cat.id }}"
+                             {% if cat.id in term.source_category_ids %}checked{% endif %}>
+                      {{ cat.name }}
+                      <span class="text-muted text-sm">({{ cat.direction.value }})</span>
+                    </label>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p class="text-muted text-sm">No eligible categories.</p>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+      <button type="button" data-term-add class="btn-ghost btn-ghost--sm">+ Add term</button>
     </div>
   </fieldset>
   <label>
@@ -128,16 +150,57 @@
     <button type="submit" class="btn-accent">Save</button>
   </div>
 </form>
+<template data-term-template>
+  <li class="form-stack__term" data-term-row>
+    <div class="form-stack__term-head">
+      <label class="form-stack__radio">
+        <input type="radio" name="terms[__IDX__][sign]" value="+" checked>
+        +
+      </label>
+      <label class="form-stack__radio">
+        <input type="radio" name="terms[__IDX__][sign]" value="-">
+        −
+      </label>
+      <label class="form-stack__term-coef">
+        Coefficient (%)
+        <input type="text"
+               name="terms[__IDX__][coefficient_percent]"
+               value=""
+               inputmode="decimal"
+               data-numeric
+               placeholder="e.g. 12">
+      </label>
+      <button type="button" data-term-remove class="btn-ghost btn-ghost--sm">Remove</button>
+    </div>
+    {% if source_categories %}
+      <ul class="form-stack__checklist">
+        {% for cat in source_categories %}
+          <li>
+            <label>
+              <input type="checkbox"
+                     name="terms[__IDX__][source_category_ids]"
+                     value="{{ cat.id }}">
+              {{ cat.name }}
+              <span class="text-muted text-sm">({{ cat.direction.value }})</span>
+            </label>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </li>
+</template>
 <script>
   (function () {
     var form = document.currentScript && document.currentScript.previousElementSibling;
-    if (!form || !form.matches('[data-recurring-form]')) {
-      form = document.querySelector('[data-recurring-form]');
+    while (form && !form.matches('[data-recurring-form]')) {
+      form = form.previousElementSibling;
     }
+    if (!form) form = document.querySelector('[data-recurring-form]');
     if (!form) return;
+
     var radios = form.querySelectorAll('[data-amount-source-radio]');
     var panels = form.querySelectorAll('[data-amount-source-panel]');
-    function sync() {
+    function syncPanels() {
       var selected = form.querySelector('[data-amount-source-radio]:checked');
       var value = selected ? selected.value : 'fixed';
       panels.forEach(function (panel) {
@@ -151,7 +214,42 @@
         }
       });
     }
-    radios.forEach(function (r) { r.addEventListener('change', sync); });
-    sync();
+    radios.forEach(function (r) { r.addEventListener('change', syncPanels); });
+    syncPanels();
+
+    var list = form.querySelector('[data-terms-list]');
+    var addBtn = form.querySelector('[data-term-add]');
+    var tpl = form.parentElement.querySelector('[data-term-template]')
+            || document.querySelector('[data-term-template]');
+
+    function reindex() {
+      if (!list) return;
+      var rows = list.querySelectorAll('[data-term-row]');
+      rows.forEach(function (row, idx) {
+        row.querySelectorAll('[name^="terms["]').forEach(function (el) {
+          el.name = el.name.replace(/terms\[\d+\]/, 'terms[' + idx + ']');
+        });
+      });
+    }
+    function addTerm() {
+      if (!list || !tpl) return;
+      var frag = tpl.content ? tpl.content.cloneNode(true) : null;
+      if (!frag) return;
+      var nextIdx = list.querySelectorAll('[data-term-row]').length;
+      frag.querySelectorAll('[name]').forEach(function (el) {
+        el.name = el.name.replace(/__IDX__/g, String(nextIdx));
+      });
+      list.appendChild(frag);
+    }
+    function removeTerm(evt) {
+      var btn = evt.target.closest('[data-term-remove]');
+      if (!btn || !list) return;
+      var row = btn.closest('[data-term-row]');
+      if (!row) return;
+      row.remove();
+      reindex();
+    }
+    if (addBtn) addBtn.addEventListener('click', addTerm);
+    if (list) list.addEventListener('click', removeTerm);
   })();
 </script>
