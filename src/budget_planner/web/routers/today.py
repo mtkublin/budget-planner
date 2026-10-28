@@ -12,12 +12,13 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 from budget_planner.config import Settings
 from budget_planner.services import (
     budget as budget_service,
     fortune as fortune_service,
+    today as today_service,
 )
 from budget_planner.web.deps import get_db, get_settings_dep
 from budget_planner.web.rendering import render
@@ -71,37 +72,66 @@ def today(
     )
 
 
-@router.get("/afford", response_class=HTMLResponse)
+def _parse_amount_arg(raw: str) -> int | None:
+    """Parse the ``amount=`` query arg into minor units.
+
+    Accepts either a pure integer (minor units — ADR-0056 §3) or a decimal
+    major-unit value for backwards-compat with the Jinja form that posts
+    ``step="0.01"``. Returns ``None`` on invalid input so the router can
+    surface a 422.
+    """
+    stripped = (raw or "").strip()
+    if stripped == "":
+        return 0
+    # Minor-unit path: integer in, integer out.
+    if stripped.lstrip("-").isdigit():
+        try:
+            return int(stripped)
+        except ValueError:  # pragma: no cover — isdigit already guards
+            return None
+    # Backwards-compat: decimal major units (e.g. "250.00").
+    try:
+        major = float(stripped)
+    except (TypeError, ValueError):
+        return None
+    return round(major * 100)
+
+
+@router.get("/today/afford", response_class=HTMLResponse)
 def afford(
     request: Request,
     amount: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
-) -> HTMLResponse:
+) -> Response:
     """ADR-0056 §3 — HTMX preview for the Can-I-afford input.
 
-    Pure arithmetic: delta vs. per-day-left; no DB write.
+    Returns the ``today/_afford_preview.html`` fragment with the recomputed
+    per-day figure + signed delta + pace tag. Pure read; no DB write.
     """
+    amount_minor = _parse_amount_arg(amount)
+    if amount_minor is None or amount_minor < 0:
+        return Response(status_code=422, content="invalid amount")
     today_d = datetime.now(ZoneInfo(settings.display_timezone)).date()
-    summary = budget_service.month_summary(conn, today_d.year, today_d.month, today=today_d)
-    days_left = summary.days_until_next_income or 1
-    remaining_minor = max(0, summary.totals.budgeted_minor - summary.totals.spent_minor)
-    left_per_day = remaining_minor // days_left
-
-    try:
-        amount_minor = round(float(amount or "0") * 100)
-    except (TypeError, ValueError):
-        amount_minor = 0
-
-    new_remaining = max(0, remaining_minor - amount_minor)
-    new_left_per_day = new_remaining // max(1, days_left - 1 if amount_minor else days_left)
-    delta = new_left_per_day - left_per_day
-
+    result = today_service.afford(conn, today_d, amount_minor)
     return render(
         request,
         "today/_afford_preview.html",
+        result=result,
         amount_minor=amount_minor,
-        new_left_per_day=new_left_per_day,
-        delta=delta,
+        new_left_per_day=result.per_day_minor,
+        delta=result.delta_minor,
         base_ccy=settings.base_currency,
     )
+
+
+# Alias so the legacy template `/afford` hx-get keeps working during the
+# v2 handoff (same handler, same semantics). Phase 7 cleanup drops this.
+@router.get("/afford", response_class=HTMLResponse)
+def afford_alias(
+    request: Request,
+    amount: str = "",
+    conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
+) -> Response:
+    return afford(request, amount, conn, settings)
