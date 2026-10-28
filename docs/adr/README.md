@@ -59,3 +59,6 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0054 | [v2 Rising Dough — Charts Move From Plotly to Server-Rendered SVG](0054-v2-charts-plotly-to-server-svg.md) (supersedes ADR-0002 §Plotly) |
 | 0055 | [v2 Rising Dough — Responsive Layer and Mobile Shell](0055-v2-responsive-layer-mobile-first.md) (supersedes ADR-0023 §"no mobile adaptive nav") |
 | 0056 | [v2 Rising Dough — Inline Interactions, Live Previews, and Backend Additions](0056-v2-inline-interactions-and-backend-additions.md) (amends ADR-0026) |
+| 0057 | [v2 — Archived categories on recurring rules (allow, mute, block creation)](0057-v2-archived-categories-on-recurring-rules.md) (amends ADR-0048) |
+| 0058 | [v2 — UI language: English chrome, user data as-typed](0058-v2-ui-language-english-chrome.md) (amends ADR-0051) |
+| 0059 | [v2 — Pace-tag rule for Today hero and pace_tag macro](0059-v2-pace-tag-rule.md) (amends ADR-0041) |
