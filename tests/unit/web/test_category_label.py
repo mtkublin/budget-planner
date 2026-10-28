@@ -35,16 +35,18 @@ def test_resolve_unknown_direction_falls_back_to_adjust() -> None:
     assert _resolve_category_color(None, None) == "var(--adjust)"
 
 
-def test_category_label_wraps_name_in_span() -> None:
+def test_category_label_wraps_name_in_pill() -> None:
     html = str(_category_label(_Cat(name="Food", direction=Direction.EXPENSE)))
-    assert 'class="cat-name"' in html
+    assert 'class="pill cat-pill"' in html
     assert "color: var(--expense)" in html
+    assert "color-mix(in oklab, var(--expense) 16%, transparent)" in html
     assert ">Food<" in html
 
 
 def test_category_label_uses_override_hex() -> None:
     html = str(_category_label(_Cat(name="Rent", direction=Direction.EXPENSE, color="#aabbcc")))
     assert "color: #aabbcc" in html
+    assert "color-mix(in oklab, #aabbcc 16%, transparent)" in html
 
 
 def test_category_label_handles_none() -> None:

@@ -130,19 +130,20 @@ def _category_label_parts(
     direction: Direction | str | None,
     color: str | None,
 ) -> Markup:
-    """Render a coloured category name span from scalar fields.
+    """Render a category pill (background wash + foreground hue) from scalars.
 
-    ADR-0048 — used by templates where only ``name`` + ``direction`` +
-    ``color`` are available (budget service projections). Returns empty
-    Markup when ``name`` is falsy so callers can fall back to an em-dash
-    or similar on the template side.
+    ADR-0048 — matches the ``.pill`` shape used by ``direction_badge`` so the
+    category identity reads as a chip, not plain text. Background is a 16%
+    oklab wash of the resolved hue; foreground is the hue itself. The hue is
+    the override hex when set, otherwise ``var(--income|--expense|…)``.
     """
     if not name:
         return Markup("")
     css_color = _resolve_category_color(direction, color)
     safe_name = escape(name)
+    style = f"background: color-mix(in oklab, {css_color} 16%, transparent); color: {css_color}"
     return Markup(  # noqa: S704
-        f'<span class="cat-name" style="color: {css_color}">{safe_name}</span>'
+        f'<span class="pill cat-pill" style="{style}">{safe_name}</span>'
     )
 
 

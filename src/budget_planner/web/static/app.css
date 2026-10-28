@@ -432,11 +432,16 @@ a { color: inherit; }
 .pill-transit { background: color-mix(in oklab, var(--transit) 16%, transparent); color: var(--transit); }
 .pill-adjust  { background: color-mix(in oklab, var(--adjust) 16%, transparent);  color: var(--adjust); }
 
-/* ---- Category name (ADR-0048) ----
- * Colour defaults to the direction palette and may be overridden per
- * category via an inline `color:` style. Weight nudged so the colour reads
- * as identity, not emphasis — the row's accent spine still owns hover. */
-.cat-name { font-weight: 500; color: inherit; }
+/* ---- Category pill (ADR-0048) ----
+ * Matches the ``.pill`` shape used by direction_badge — background is a 16%
+ * oklab wash of the resolved hue, foreground is the hue itself. User-authored
+ * names are rendered as-written, so uppercase + letter-spacing are relaxed
+ * compared to the direction pill (which encodes a bounded enum). */
+.cat-pill {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
 
 /* ---- Category form — color picker + reset (ADR-0048) ---- */
 .cat-color-field {
