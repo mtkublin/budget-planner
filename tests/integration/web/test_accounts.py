@@ -567,3 +567,19 @@ def test_utilization_bar_has_progressbar_role(client: TestClient, _migrated: Set
     assert bar.get("aria-valuemin") == "0"
     assert bar.get("aria-valuemax") == "100"
     assert bar.get("aria-valuenow") is not None
+
+
+# ---------------------------------------------------------------------------
+# T-R42 — GET /accounts/last-checked (ADR-0056 §6)
+# ---------------------------------------------------------------------------
+def test_last_checked_empty(client: TestClient) -> None:
+    r = client.get("/accounts/last-checked")
+    assert r.status_code == 200
+    assert 'data-rows="0"' in r.text
+
+
+def test_last_checked_with_accounts(client: TestClient, acc_id: int) -> None:
+    r = client.get("/accounts/last-checked")
+    assert r.status_code == 200
+    assert 'data-rows="1"' in r.text
+    assert 'data-source="none"' in r.text
