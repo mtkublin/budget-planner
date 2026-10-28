@@ -69,7 +69,11 @@ def drawer(
             if c.direction is Direction.INCOME and c.deleted_at is None
         ]
         context["current_anchor_id"] = preferences_svc.get_income_anchor_category_id(conn)
-    return render(request, "settings/_drawer.html", **context)
+    # Rising Dough v2 — Settings is a full page (ADR-0051 §7). The template
+    # extends base.html and reuses the existing panel fragments.
+    hx = request.headers.get("HX-Request") == "true"
+    tmpl = "settings/_drawer.html" if hx else "settings/index.html"
+    return render(request, tmpl, **context)
 
 
 @router.get("/close", response_class=HTMLResponse)

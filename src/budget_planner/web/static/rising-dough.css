@@ -604,6 +604,89 @@ kbd.rd-kbd {
 .rd-heat--recurring{ outline: 1px solid var(--adjust); }
 .rd-heat--unset    { color: var(--mute); background: var(--sunk); }
 
+/* ─── Legacy `.ledger` table ↦ Rising Dough look ──────────────────── */
+.ledger {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.ledger th {
+  text-align: left;
+  padding: 0.65rem 0.9rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--mute);
+  font-weight: 500;
+  border-bottom: 1px solid var(--line);
+}
+
+.ledger td {
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.ledger .text-right,
+.ledger th.text-right,
+.ledger td.text-right {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.ledger-scroll { overflow-x: auto; }
+
+/* Category chip inside legacy ledger rows ↦ pill. */
+.ledger .category-chip,
+.ledger .category-pill {
+  display: inline-flex;
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--radius-pill);
+  background: var(--expense-soft);
+  color: var(--expense);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ─── Legacy `.panel` card ↦ Rising Dough look ────────────────────── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 1.25rem 1.5rem;
+}
+.panel__hero { font-family: var(--font-display); font-size: 1.5rem; }
+
+/* ─── Legacy segmented control ↦ rd-segmented ─────────────────────── */
+.segmented {
+  display: inline-flex;
+  gap: 0.25rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  padding: 0.2rem;
+}
+
+.segmented__btn {
+  padding: 0.35rem 0.9rem;
+  font-size: 0.85rem;
+  color: var(--mute);
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: inherit;
+}
+
+.segmented__btn--active,
+.segmented__btn[aria-current="page"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
 /* ─── Last-checked chip ───────────────────────────────────────────── */
 .rd-checked {
   display: inline-flex;

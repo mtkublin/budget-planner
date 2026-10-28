@@ -66,6 +66,7 @@ def _card_context(conn: sqlite3.Connection, account_id: int) -> dict[str, Any]:
         "stats": stats,
         "series": series,
         "sparkline_points": sparkline,
+        "sparkline_values": series_values,
         "sparkline_area_points": sparkline_area,
         "sparkline_width": _SPARKLINE_WIDTH,
         "sparkline_height": _SPARKLINE_HEIGHT,

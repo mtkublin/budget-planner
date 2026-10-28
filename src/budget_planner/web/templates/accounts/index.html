@@ -1,22 +1,88 @@
 {% extends "base.html" %}
-{% block title %}Accounts · Budget Planner{% endblock %}
+{% from "_partials/components/_amount.html" import amount %}
+{% from "_partials/components/_sparkline.html" import sparkline %}
+{% block title %}Accounts · Rising Dough{% endblock %}
 {% block main %}
-  <header class="mb-10 flex items-end justify-between gap-6">
-    <div>
-      <h1 class="font-serif text-5xl leading-none">Accounts</h1>
-      <p class="text-muted mt-2">{{ cards|length }} accounts</p>
+  <header class="rd-screen-header">
+    <div class="rd-screen-header__title">
+      <div class="rd-eyebrow">Accounts · {{ cards|length }}</div>
+      <h1>Net worth</h1>
     </div>
-    <button hx-get="/accounts/new"
-            hx-target="#modal-root"
-            hx-swap="innerHTML"
-            class="btn-accent">+ New account</button>
+    <div class="rd-screen-header__actions">
+      <button class="rd-btn rd-btn--primary"
+              hx-get="/accounts/new"
+              hx-target="#modal-root"
+              hx-swap="innerHTML">+ New account</button>
+    </div>
   </header>
-  {% include "partials/accounts/_fortune_split.html" %}
-  <section id="accounts-grid"
-           class="grid gap-6 grid-cols-[repeat(auto-fit,minmax(320px,1fr))]">
-    {% for card in cards %}
-      {% include "partials/accounts/_card.html" %}
-    {% endfor %}
+
+  <section style="display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 2rem; align-items: baseline; margin-bottom: 1.75rem;">
+    <div>
+      <div style="font-family: var(--font-display); font-size: clamp(2rem, 1.4rem + 2vw, 3rem); font-weight: 500;">
+        {{ "%.2f"|format(fortune.net_base / 100.0) }}
+        <small style="font-family: var(--font-mono); font-size: 0.4em; color: var(--mute);">{{ base_ccy }}</small>
+      </div>
+      <div style="font-size: 0.85rem; margin-top: 0.25rem; color: var(--mute);">
+        All balances in base currency {{ base_ccy }}. No FX conversions needed today.
+      </div>
+    </div>
+    <div>
+      <div class="rd-eyebrow">Assets</div>
+      <div style="font-family: var(--font-mono); font-size: 1.25rem; margin-top: 0.25rem;">{{ "%.2f"|format(fortune.assets_base / 100.0) }}</div>
+    </div>
+    <div>
+      <div class="rd-eyebrow">Liabilities</div>
+      <div style="font-family: var(--font-mono); font-size: 1.25rem; margin-top: 0.25rem; color: var(--expense);">{{ "%.2f"|format(fortune.liabilities_base / 100.0) }}</div>
+    </div>
   </section>
+
+  <table class="rd-table">
+    <caption class="sr-only">Accounts — balance, trend, last checked</caption>
+    <thead>
+      <tr>
+        <th scope="col">Account</th>
+        <th scope="col">Trend</th>
+        <th scope="col">Checked</th>
+        <th scope="col" class="num">Txns</th>
+        <th scope="col" class="num">Balance</th>
+        <th scope="col"><span class="sr-only">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for card in cards %}
+        {% set a = card.account %}
+        <tr id="account-{{ a.id }}">
+          <td class="rd-desc">
+            {{ a.name }}
+            {%- if a.is_liability %} <span class="rd-pill rd-pill--expense">credit card · liability</span>{%- endif %}
+            <small>{{ a.type or 'account' }}</small>
+          </td>
+          <td>{{ sparkline(card.sparkline_values) }}</td>
+          <td>
+            {% if card.snapshots and card.snapshots[0].taken_at %}
+              <span class="rd-checked">{{ card.snapshots[0].taken_at.strftime('%d %b') }}</span>
+            {% else %}
+              <span class="rd-checked rd-checked--stale">never</span>
+            {% endif %}
+          </td>
+          <td class="num">{{ card.stats.txn_count }}</td>
+          <td class="num">
+            <span class="rd-amount {% if card.balance < 0 %}rd-amount--expense{% endif %}">
+              {{ "%.2f"|format(card.balance / 100.0) }} <span class="rd-amount__currency">{{ a.currency }}</span>
+            </span>
+          </td>
+          <td class="rd-actions">
+            <button class="rd-btn rd-btn--sm"
+                    hx-get="/accounts/{{ a.id }}/reconcile"
+                    hx-target="#modal-root"
+                    hx-swap="innerHTML">Reconcile</button>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p style="margin-top: 1rem; font-size: 0.8rem; color: var(--mute);">
+    "Checked" shows when the balance was last compared with the bank. Snapshots live inside the reconcile panel instead of a collapsed list per card.
+  </p>
   <div id="modal-root"></div>
 {% endblock %}

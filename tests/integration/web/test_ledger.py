@@ -78,21 +78,19 @@ def seeded(_migrated: Settings) -> dict[str, int]:
 
 
 def test_ledger_index_renders(client: TestClient, seeded: dict[str, int]) -> None:
+    """Rising Dough v2 renders the segmented tabs via the shared rd-segmented macro
+    (anchor-based full-page nav). The view keys appear in the href query string."""
     r = client.get("/ledger")
     assert r.status_code == 200
     soup = BeautifulSoup(r.text, "html.parser")
-    seg = soup.select_one("[data-ledger-views]")
+    seg = soup.select_one(".rd-segmented")
     assert seg is not None and isinstance(seg, Tag)
-    # ADR-0028 — segmented is anchor-based full-page nav, not htmx buttons.
-    items = seg.select("a[data-view]")
+    items = seg.select("a.rd-segmented__item")
     assert len(items) == _SEG_COUNT
-    views = [a.get("data-view") for a in items]
-    assert views == ["actual", "planned", "recurring"]
-    # Default active view is actual; active tab carries aria-current="page".
-    actual_a = seg.select_one('a[data-view="actual"]')
-    assert actual_a is not None and isinstance(actual_a, Tag)
-    assert actual_a.get("aria-current") == "page"
-    assert actual_a.get("href") == "/ledger?view=actual"
+    hrefs = [a.get("href") for a in items]
+    assert hrefs == ["/ledger?view=actual", "/ledger?view=planned", "/ledger?view=recurring"]
+    actual_a = items[0]
+    assert actual_a.get("aria-selected") == "true"
 
 
 def test_ledger_view_actual(client: TestClient, seeded: dict[str, int]) -> None:

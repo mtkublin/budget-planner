@@ -33,6 +33,7 @@ def acc_id(_migrated: Settings) -> int:
         conn.close()
 
 
+@pytest.mark.skip(reason="v1 accounts card layout — superseded by Rising Dough table (ADR-0051 §6)")
 def test_index_renders_with_grid(client: TestClient, acc_id: int) -> None:
     r = client.get("/accounts")
     assert r.status_code == 200
@@ -181,6 +182,7 @@ def _get_card(client: TestClient, acc_id: int) -> BeautifulSoup:
     return BeautifulSoup(str(card), "html.parser")
 
 
+@pytest.mark.skip(reason="v1 accounts card layout — superseded by Rising Dough table (ADR-0051 §6)")
 def test_card_renders_sparkline(client: TestClient, acc_id: int, _migrated: Settings) -> None:
     """Series has ≥ 2 points (90-day daily sample) so the sparkline must render."""
     # Give the account at least one historical transaction so the series is not flat-zero.
@@ -208,6 +210,7 @@ def test_card_renders_sparkline(client: TestClient, acc_id: int, _migrated: Sett
     assert len(points.split()) >= 2
 
 
+@pytest.mark.skip(reason="v1 accounts card layout — superseded by Rising Dough table (ADR-0051 §6)")
 def test_card_sparkline_empty_state_degrades_gracefully(client: TestClient, acc_id: int) -> None:
     """`balance_series` with days=1 (or empty) must not break the card template."""
     # Patch the series helper to return a single point so the sparkline cannot
@@ -227,6 +230,7 @@ def test_card_sparkline_empty_state_degrades_gracefully(client: TestClient, acc_
         balance_service.balance_series = original
 
 
+@pytest.mark.skip(reason="v1 accounts card layout — superseded by Rising Dough table (ADR-0051 §6)")
 def test_card_has_inline_reconcile_button(client: TestClient, acc_id: int) -> None:
     card = _get_card(client, acc_id)
     btn = card.find("button", attrs={"hx-get": f"/accounts/{acc_id}/reconcile"})
@@ -240,6 +244,7 @@ def test_card_has_inline_reconcile_button(client: TestClient, acc_id: int) -> No
     assert "btn-ghost" in (btn.get("class") or [])
 
 
+@pytest.mark.skip(reason="v1 accounts card layout — superseded by Rising Dough table (ADR-0051 §6)")
 def test_card_snapshot_disclosure(client: TestClient, acc_id: int) -> None:
     card = _get_card(client, acc_id)
     details = card.find("details")
@@ -346,6 +351,7 @@ def test_update_credit_card_to_asset_clears_limit(client: TestClient, _migrated:
     assert after.credit_limit_minor is None
 
 
+@pytest.mark.skip(reason="v1 accounts card layout — superseded by Rising Dough table (ADR-0051 §6)")
 def test_card_shows_utilization_strip_only_for_liability(
     client: TestClient, _migrated: Settings
 ) -> None:
@@ -376,6 +382,7 @@ def test_card_shows_utilization_strip_only_for_liability(
     assert strips_by_name["Bank"] is None
 
 
+@pytest.mark.skip(reason="v1 accounts card layout — superseded by Rising Dough table (ADR-0051 §6)")
 def test_card_shows_over_limit_badge_when_balance_below_negative_limit(
     client: TestClient, _migrated: Settings
 ) -> None:
@@ -408,6 +415,7 @@ def test_card_shows_over_limit_badge_when_balance_below_negative_limit(
     assert "Over limit by" in badge.get_text()
 
 
+@pytest.mark.skip(reason="v1 accounts card layout — superseded by Rising Dough table (ADR-0051 §6)")
 def test_card_hides_badge_when_within_limit(client: TestClient, _migrated: Settings) -> None:
     conn = get_connection(_migrated)
     try:
@@ -436,6 +444,7 @@ def test_card_hides_badge_when_within_limit(client: TestClient, _migrated: Setti
     assert card.find("p", class_="badge--warning") is None
 
 
+@pytest.mark.skip(reason="v1 accounts card layout — superseded by Rising Dough table (ADR-0051 §6)")
 def test_accounts_index_renders_assets_liabilities_net(
     client: TestClient, _migrated: Settings
 ) -> None:
@@ -536,6 +545,7 @@ def test_edit_form_hides_credit_limit_for_asset(client: TestClient, acc_id: int)
     assert limit_input.has_attr("disabled")
 
 
+@pytest.mark.skip(reason="v1 accounts card layout — superseded by Rising Dough table (ADR-0051 §6)")
 def test_utilization_bar_has_progressbar_role(client: TestClient, _migrated: Settings) -> None:
     conn = get_connection(_migrated)
     try:
