@@ -8,7 +8,7 @@ Entry: Phase 1 exit criteria met.
 
 Exit: every macro in ADR-0053 §1 ships; `/dev/components` renders them all; visual-regression baseline covers D/T/M; stylelint rule in CI.
 
-Tasks: T-R11..T-R24.
+Tasks: T-R11..T-R24 + T-R61, T-R62.
 
 - T-R11 amount
 - T-R12 category_pill
@@ -24,5 +24,7 @@ Tasks: T-R11..T-R24.
 - T-R22 period_header
 - T-R23 `/dev/components` population
 - T-R24 primitive VR baselines
+- T-R61 toast macro + Undo wiring
+- T-R62 `?` cheatsheet modal
 
 ADR references: 0053, 0048, 0028, 0052.

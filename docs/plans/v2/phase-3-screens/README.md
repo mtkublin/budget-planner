@@ -8,7 +8,7 @@ Entry: Phase 2 exit criteria met.
 
 Exit: every screen passes the visual-audit sweep; keyboard shortcuts route correctly; new canonical routes resolve; legacy routes 302.
 
-Tasks: T-R25..T-R39.
+Tasks: T-R25..T-R39 + T-R65..T-R67 + T-R69..T-R70.
 
 - T-R25 Today
 - T-R26 Ledger · Actual
@@ -25,6 +25,11 @@ Tasks: T-R25..T-R39.
 - T-R37 Settings · Preferences
 - T-R38 Add entry modal (Fixed / Formula)
 - T-R39 Reconcile slide-over reskin
+- T-R65 Create account overlay reskin
+- T-R66 Create category overlay reskin
+- T-R67 Accounts ⋯ menu
+- T-R69 Ledger bulk-select toolbar
+- T-R70 "Recently deleted" surface
 
 ADR references: 0051, 0053, 0056, 0038, 0043, 0048, 0023 (prior IA — superseded).
 

@@ -58,11 +58,22 @@ The only new leaves: `charts.py` (SVG geometry), six new endpoints (ADR-0056 §6
 
 ## Phased delivery
 
-### Phase 1 — Foundations (T-R01..T-R10)
+### Phase 0 — Open decisions (T-R71..T-R73)
+
+Goal: resolve the three outstanding handoff `docs/07-open-items.md` decisions as ADR amendments before any Phase 1 work lands. Each decision gates at least one Phase 3 screen.
+
+Entry: v1 CI green; ADRs 0050..0056 Accepted.
+
+Exit:
+- T-R71 Accepted ADR on archived-categories-on-rules behaviour.
+- T-R72 Accepted ADR (or explicit note in ADR-0051) on UI language (English chrome, user category names).
+- T-R73 Accepted amendment on the pace-tag rule.
+
+### Phase 1 — Foundations (T-R01..T-R10, T-R63, T-R64)
 
 Goal: tokens, fonts, Tailwind v4, product rename, base shell with the new nav skeleton. The app still renders v1 screens afterwards — only shell + brand changed.
 
-Entry: v1 CI green on `main`; ADRs 0050..0056 Accepted.
+Entry: Phase 0 exit criteria met.
 
 Exit criteria:
 - `src/budget_planner/web/static/tokens.css` matches `docs/application_redesign_handoff/tokens.css` byte-for-byte; pre-commit diff hook asserts.
@@ -70,12 +81,14 @@ Exit criteria:
 - Three variable `woff2` files served from `/static/fonts/`; critical weight preloaded; `fonts.css` imports before `app.css`.
 - Wordmark reads "Rising Dough" on every page; package names unchanged (`budget_planner`); `grep -r "Budget Planner" src/budget_planner/web/templates` returns only CHANGELOG-style historical refs.
 - Nav skeleton renders Today · Ledger · Plan · Accounts · Settings at desktop; routes still 302 to v1 handlers until Phase 3.
+- Keyboard shortcut map (`static/js/shortcuts.js`) handles every ADR-0051 shortcut; input-guards prevent capture inside form controls.
+- View Transitions feature-detected in `base.html`; `prefers-reduced-motion` disables.
 - `/dev/components` renders empty placeholders (one per planned macro) so Phase 2 has a target.
 - `just ci` green; 90%+ coverage; `frontend-visual-audit` baseline captured at D/T/M for a canary page (`/dev/components`).
 
-### Phase 2 — Component primitives (T-R11..T-R24)
+### Phase 2 — Component primitives (T-R11..T-R24, T-R61, T-R62)
 
-Goal: 13 Jinja macros + `/dev/components` reference page + stylelint rules asserting no hard-coded colours outside `tokens.css`.
+Goal: 15 Jinja macros (13 ADR-0053 + toast + cheatsheet) + `/dev/components` reference page + stylelint rules asserting no hard-coded colours outside `tokens.css`.
 
 Entry: Phase 1 exit criteria met.
 
@@ -86,7 +99,7 @@ Exit criteria:
 - Stylelint custom rule rejects hard-coded `oklch`/`rgb`/`hsl` outside `tokens.css` and `fonts.css`.
 - Jinja macros have unit coverage via Jinja fixtures (parse + rendered output assertions).
 
-### Phase 3 — Screen rebuild (T-R25..T-R39)
+### Phase 3 — Screen rebuild (T-R25..T-R39, T-R65..T-R67, T-R69..T-R70)
 
 Goal: every v2 screen renders from primitives against the design mocks.
 
@@ -109,6 +122,11 @@ Order within phase (ADR-0051 reading order):
 13. **Settings · Preferences** (T-R37).
 14. **Add entry modal** (T-R38) — Fixed / Formula paths.
 15. **Reconcile slide-over reskin** (T-R39).
+16. **Create account overlay reskin** (T-R65).
+17. **Create category overlay reskin** (T-R66).
+18. **Accounts ⋯ menu** (T-R67).
+19. **Ledger bulk-select toolbar** (T-R69).
+20. **"Recently deleted" surface** (T-R70).
 
 Exit criteria (per screen):
 - Visual-regression baseline matches at D/T/M.
@@ -127,7 +145,7 @@ Exit criteria:
 - `HX-Trigger` events documented in `routers/README.md` HTMX event table (if not already present).
 - No new persistence tables; migrations folder unchanged.
 
-### Phase 5 — Charts (T-R47..T-R50)
+### Phase 5 — Charts (T-R47..T-R50, T-R68)
 
 Goal: Plotly removed; SVG rendering drives Forecast + Analytics; data-table fallback on every chart.
 
@@ -139,6 +157,7 @@ Exit criteria:
 - `/plan/forecast` and `/plan/analytics` render on-brand SVG; data table fallback inside `<details>` on each `<figure>`.
 - `role="img" aria-labelledby` on every chart; keyboard users reach the data table via the next tab stop.
 - Bundle delta: `static/tailwind.css` + JS footprint drops ≥ 1.5 MB.
+- `sparkline()` helper lands in `charts.py`; Accounts table renders inline SVG trend per row (T-R68).
 
 ### Phase 6 — Responsive layer (T-R51..T-R56)
 
@@ -172,24 +191,35 @@ Exit criteria:
 ## Rollout order and dependencies (compressed)
 
 ```
+Phase 0  (sequential, blocks everything):
+   T-R71 archived-categories ADR · T-R72 UI language ADR · T-R73 pace-tag rule ADR
+            │
+            ▼
 Phase 1  (sequential within, blocks everything):
    T-R01 Tailwind v4 upgrade → T-R02 tokens.css import → T-R03 fonts → T-R04 base shell
    → T-R05 wordmark rename → T-R06 nav skeleton → T-R07 /dev/components stub
    → T-R08 stylelint config → T-R09 visual-regression baseline canary → T-R10 CI green
+   plus parallel: T-R63 View Transitions · T-R64 shortcut map
             │
             ▼
 Phase 2  (parallel within):
    T-R11..T-R24 — one macro per task + stylelint rule + unit tests
+   plus: T-R61 toast · T-R62 cheatsheet
             │
             ├────────── parallel ──────────┐
             ▼                              ▼
 Phase 3 screens                    Phase 4 backend
-   T-R25..T-R39 one per screen        T-R40..T-R46 one per endpoint
+   T-R25..T-R39                       T-R40..T-R46
+   plus T-R65 create account         (one per endpoint)
+   plus T-R66 create category
+   plus T-R67 accounts ⋯ menu
+   plus T-R69 bulk toolbar
+   plus T-R70 Recently deleted
             │                              │
             └────────── join ──────────────┘
                         │
                         ▼
-Phase 5 charts (T-R47..T-R50)
+Phase 5 charts (T-R47..T-R50, T-R68 sparkline)
                         │
                         ▼
 Phase 6 responsive (T-R51..T-R56)

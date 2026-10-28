@@ -6,6 +6,30 @@
 
 ---
 
+## Phase 0 — Open decisions (T-R71..T-R73)
+
+> Three handoff `docs/07-open-items.md` decisions must land as ADR amendments or explicit resolutions **before Phase 1 kickoff**. They gate Phase 3 screen rebuilds.
+
+### ◻ T-R71 [S] ADR amendment — archived categories on existing recurring rules
+- Resolve handoff §07 "Whether archived categories can be used on existing recurring rules."
+- Amend ADR-0048 or write a new ADR specifying behaviour: block archive if any live recurring rule points at it, or allow archive + show warning in UI.
+- Blocks T-R28 (Ledger · Recurring) and T-R35 (Settings · Categories archive).
+- File: `phase-0-decisions/T-R71-archived-categories-on-rules.md`.
+
+### ◻ T-R72 [S] UI language decision
+- Resolve handoff §07 "Polish labels: mockups are in English with Polish category names; confirm UI language."
+- Either (a) commit to English chrome + user-controlled category names (current v1 state) or (b) introduce an i18n layer. Capture in a new ADR.
+- Blocks every Phase 3 screen rebuild (strings live in templates).
+- File: `phase-0-decisions/T-R72-ui-language.md`.
+
+### ◻ T-R73 [S] Pace-tag rule confirmation
+- Resolve handoff §07 "Today pace tag reads 'On track' as in the current app although spend is 71% of plan; confirm the pace rule."
+- Document the pace-tag formula (expected-progress-at-today vs. actual-progress) in an amendment to ADR-0041 or ADR-0051.
+- Blocks T-R25 (Today) and T-R14 (`pace_tag` macro semantics).
+- File: `phase-0-decisions/T-R73-pace-tag-rule.md`.
+
+---
+
 ## Phase 1 — Foundations (T-R01..T-R10)
 
 Owner: web platform. All tasks block Phase 2+.
@@ -74,6 +98,19 @@ Owner: web platform. All tasks block Phase 2+.
 - `just ci` green; coverage ≥ 90%; `tailwind-check` + `stylelint` + `token-diff` hooks all pass.
 - Dated line in `docs/CHANGELOG.md`.
 - File: `phase-1-foundations/T-R10-phase1-ci-gate.md`.
+
+### ◻ T-R63 [P] View Transitions wiring → T-R04
+- Feature-detect `document.startViewTransition` in `base.html`; wire HTMX `hx-swap="... transition:true"` global default for tab changes + promote-in-place.
+- `prefers-reduced-motion` disables (ADR-0050 §5).
+- Reference: ADR-0056 §7.
+- File: `phase-1-foundations/T-R63-view-transitions.md`.
+
+### ◻ T-R64 [P] Keyboard shortcut map → T-R06
+- Dedicated `static/js/shortcuts.js` module registering `g o/l/p/a/s`, `n`, `/`, `[`, `]`, `?`, `⎋`.
+- Input-guard against `<input>` / `<textarea>` / `[contenteditable]`.
+- Opens the cheatsheet modal (T-R62) on `?`.
+- Reference: ADR-0051 §1, handoff §Keyboard.
+- File: `phase-1-foundations/T-R64-shortcut-map.md`.
 
 ---
 
@@ -152,6 +189,19 @@ Owner: `web/templates/_partials/components/`. Mostly parallel within phase.
 - Regenerate baselines at D/T/M for `/dev/components`.
 - Commit baselines; `just test-visual` green.
 - File: `phase-2-primitives/T-R24-primitives-vr-baselines.md`.
+
+### ◻ T-R61 [P] `toast` macro + Undo wiring → T-R10
+- `_partials/components/_toast.html` with variants info / success / destructive.
+- `#toast-root` consumer in `base.html`; HTMX `HX-Trigger: {"toast": {...}}` dispatches render; auto-dismiss 4 s; Undo button posts to the write's inverse endpoint.
+- Covers "Promoted księgowa · Undo" per handoff §Interactions.
+- Reference: ADR-0053 (add row to §1), ADR-0056 §1.
+- File: `phase-2-primitives/T-R61-toast-macro.md`.
+
+### ◻ T-R62 [P] `?` cheatsheet modal → T-R10, T-R64
+- `_partials/components/_cheatsheet.html` listing every shortcut from ADR-0051 §1 + ADR-0056.
+- Opens via `?` keybinding (T-R64) or Settings link on mobile.
+- Reference: handoff §Keyboard, ADR-0056 §9.
+- File: `phase-2-primitives/T-R62-cheatsheet-modal.md`.
 
 ---
 
@@ -235,6 +285,35 @@ Owner: `web/templates/{today,ledger,plan,accounts,settings}/`.
 - Reference: handoff §Reconcile slide-over, ADR-0011.
 - File: `phase-3-screens/T-R39-reconcile-reskin.md`.
 
+### ◻ T-R65 [S] Create account overlay reskin → T-R24, T-R34
+- Rebuild handoff screen 2c: name · currency (immutable, filterable combobox) · free-text type · opening balance + as-of date · liability toggle · credit-limit (conditional per ADR-0030 §6).
+- Reuses existing POST endpoints; close affordance per ADR-0030.
+- Reference: handoff §Create account, ADR-0024, ADR-0030.
+- File: `phase-3-screens/T-R65-create-account-overlay.md`.
+
+### ◻ T-R66 [S] Create category overlay reskin → T-R24, T-R35
+- Rebuild handoff screen 2d: name · direction (Expense / Income only — ADR-0023 scope) · colour (direction default or 10 swatches) · live preview of pill + badge.
+- Reference: handoff §Create category, ADR-0048, ADR-0023.
+- File: `phase-3-screens/T-R66-create-category-overlay.md`.
+
+### ◻ T-R67 [S] Accounts ⋯ menu → T-R24, T-R34
+- Row ⋯ opens popover with Edit · Snapshot · Delete per handoff §Accounts "described, not drawn".
+- Edit opens the Create-account overlay (T-R65) pre-filled; Snapshot posts to existing `/accounts/{id}/snapshots`; Delete soft-deletes via existing endpoint with `hx-confirm`.
+- Reference: ADR-0051 §6.
+- File: `phase-3-screens/T-R67-accounts-row-menu.md`.
+
+### ◻ T-R69 [S] Ledger bulk-select toolbar → T-R26, T-R27
+- Row checkbox + sticky header toolbar on selection: Export CSV · Export Parquet · Bulk delete (Actual + Planned only).
+- Reuses existing export endpoints (F1.4) with current filter + selected row ids.
+- Reference: handoff §Ledger · Actual "Bulk actions and export appear as a toolbar when rows are selected."
+- File: `phase-3-screens/T-R69-ledger-bulk-toolbar.md`.
+
+### ◻ T-R70 [S] "Recently deleted" surface → T-R26
+- Row ⋯ menu + `/ledger?view=recently-deleted` segmented-control extra tab (or dedicated panel) lists archived transactions + categories with Restore action.
+- Reuses soft-delete repository helpers (ADR-0019, ADR-0022).
+- Reference: handoff §Ledger · Actual "Deleted = archived; restorable from ⋯ or 'Recently deleted'."
+- File: `phase-3-screens/T-R70-recently-deleted.md`.
+
 ---
 
 ## Phase 4 — Backend additions (T-R40..T-R46) — parallel-safe with Phase 3
@@ -304,6 +383,13 @@ Owner: `routers/` + `services/`.
 - Verify bundle delta ≥ 1.5 MB.
 - Reference: ADR-0054.
 - File: `phase-5-charts/T-R50-plotly-removal.md`.
+
+### ◻ T-R68 [S] `sparkline()` helper + Accounts trend column → T-R47, T-R34
+- Add `sparkline(points)` to `src/budget_planner/web/charts.py` — narrow-aspect `line_area` variant with no axes.
+- Service helper `services.accounts.trend(account_id, days=30)` returns daily balance points.
+- Accounts table row renders inline SVG sparkline (handoff screen 1j shows it).
+- Reference: ADR-0054 §Follow-ups, handoff §Accounts.
+- File: `phase-5-charts/T-R68-sparkline-accounts.md`.
 
 ---
 

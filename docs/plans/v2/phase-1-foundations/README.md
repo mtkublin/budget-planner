@@ -8,7 +8,7 @@ Entry: v1 CI green on `main`; ADRs 0050..0056 Accepted.
 
 Exit: see `../implementation_plan.md` §Phase 1.
 
-Tasks: T-R01..T-R10. Order:
+Tasks: T-R01..T-R10 + T-R63, T-R64. Order:
 
 1. T-R01 Tailwind v4 upgrade — baseline shift, everything hangs off this.
 2. T-R02 tokens pipeline — tokens.css + `@theme`.
@@ -20,5 +20,7 @@ Tasks: T-R01..T-R10. Order:
 8. T-R08 stylelint custom rules.
 9. T-R09 visual-regression canary baseline.
 10. T-R10 Phase-1 CI gate + CHANGELOG line.
+11. T-R63 View Transitions wiring (parallel after T-R04).
+12. T-R64 keyboard shortcut map (parallel after T-R06).
 
 ADR references: 0050, 0051, 0052, 0027.
