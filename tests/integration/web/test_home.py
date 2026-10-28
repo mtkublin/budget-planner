@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from bs4 import BeautifulSoup, Tag
@@ -25,6 +26,7 @@ from budget_planner.repositories import (
     recurring as recurring_repo,
     transactions as transactions_repo,
 )
+from budget_planner.services import preferences as preferences_service
 
 
 @pytest.fixture
@@ -488,3 +490,48 @@ def test_month_panel_renders_committed_subline(client: TestClient, _migrated: Se
     assert "committed" in committed.get_text(" ", strip=True)
     # Zero-committed renders as data-committed="0".
     assert committed.get("data-committed") == "0"
+
+
+# ---------------------------------------------------------------------------
+# ADR-0041 — Overview Month panel days-left mirrors Budget period cutoff.
+# ---------------------------------------------------------------------------
+
+
+def test_month_panel_days_left_uses_period_cutoff(client: TestClient, _migrated: Settings) -> None:
+    """Overview 'This month' banner reports days until next income anchor,
+    not the end-of-month residual (ADR-0041 F4.6 alignment)."""
+    today = datetime.now(ZoneInfo(_migrated.display_timezone)).date()
+    next_income = today + timedelta(days=5)
+    conn = get_connection(_migrated)
+    try:
+        acc = accounts_repo.create(
+            conn, NewAccount(name="Main", currency="PLN", opening_balance=100000)
+        )
+        salary = categories_repo.create(
+            conn, NewCategory(name="Salary", direction=Direction.INCOME)
+        )
+        groceries = categories_repo.create(
+            conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+        )
+        budgets_repo.set_default(conn, NewBudgetDefault(category_id=groceries.id, amount=100_000))
+        preferences_service.set_income_anchor_category_id(conn, 1, salary.id)
+        planned_repo.create(
+            conn,
+            NewPlannedTransaction(
+                operation_date=next_income,
+                category_id=salary.id,
+                account_id=acc.id,
+                amount=500_000,
+                description="Salary",
+            ),
+        )
+    finally:
+        conn.close()
+
+    r = client.get("/")
+    assert r.status_code == 200
+    soup = BeautifulSoup(r.text, "html.parser")
+    panel = soup.find(id="budget-card")
+    assert isinstance(panel, Tag)
+    caption = panel.get_text(" ", strip=True)
+    assert "5 days left" in caption, caption
