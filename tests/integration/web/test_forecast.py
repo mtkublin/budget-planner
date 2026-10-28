@@ -73,14 +73,23 @@ def test_monthly_table_row_count(client: TestClient, seeded: int) -> None:
     assert r.text.count('data-month="') == 5
 
 
-def test_plotly_json_shape(client: TestClient, seeded: int) -> None:
-    r = client.get("/forecast/view?horizon_months=1")
+def test_plotly_json_shape_monthly_granularity(client: TestClient, seeded: int) -> None:
+    r = client.get("/forecast/view?horizon_months=4")
     start = r.text.find('data-plotly="') + len('data-plotly="')
     end = r.text.find('"', start)
     payload = html.unescape(r.text[start:end])
     spec = json.loads(payload)
     assert "data" in spec and isinstance(spec["data"], list)
     assert spec["data"][0]["type"] == "scatter"
+    # 4 months -> 4 X-axis points (one per month EOM), not daily.
+    assert len(spec["data"][0]["x"]) == 4
+    assert spec["data"][0]["mode"] == "lines+markers"
+
+
+def test_planned_budget_column_present(client: TestClient, seeded: int) -> None:
+    r = client.get("/forecast")
+    assert r.status_code == 200
+    assert ">Planned budget<" in r.text
 
 
 def test_forecast_nav_link_present(client: TestClient, seeded: int) -> None:

@@ -11,6 +11,7 @@ import httpx
 import pytest
 
 from budget_planner.domain.accounts import NewAccount
+from budget_planner.domain.budgets import NewBudgetDefault, NewBudgetOneOffOverride
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Cadence, Direction
 from budget_planner.domain.fx import NewFxRate
@@ -18,6 +19,7 @@ from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.domain.recurring import NewRecurringRule
 from budget_planner.repositories import (
     accounts,
+    budgets as budgets_repo,
     categories,
     fx as fx_repo,
     planned,
@@ -200,7 +202,6 @@ def test_end_balance_matches_daily_eom(conn: sqlite3.Connection, world: dict[str
             TODAY,
             forecast_svc.horizon_days_for_months(TODAY, 2),
             "PLN",
-            include_budget_overlay=False,
         )
     eom_nov = next(d for d in daily.days if d.on_date == date(2026, 11, 30))
     nov = _row_for(monthly, date(2026, 11, 1))
@@ -244,3 +245,121 @@ def test_fx_conversion_on_foreign_account(conn: sqlite3.Connection, world: dict[
 def test_negative_horizon_months_raises(conn: sqlite3.Connection) -> None:
     with _dead_client() as http, pytest.raises(ValueError, match="horizon_months"):
         forecast_svc.forecast_monthly(conn, http, TODAY, 0, "PLN")
+
+
+def test_planned_budget_sums_default_budget_across_expense_cats(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["groceries"], amount=50_000))
+    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["rent"], amount=300_000))
+    with _dead_client() as http:
+        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 2, "PLN")
+    for row in monthly.months:
+        assert row.planned_budget_base_minor == 350_000
+
+
+def test_planned_budget_one_off_override_wins_for_that_month(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["groceries"], amount=50_000))
+    budgets_repo.set_one_off(
+        conn,
+        NewBudgetOneOffOverride(
+            category_id=world["groceries"], year=2026, month=11, amount=120_000
+        ),
+    )
+    with _dead_client() as http:
+        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 3, "PLN")
+    oct_row = _row_for(monthly, date(2026, 10, 1))
+    nov_row = _row_for(monthly, date(2026, 11, 1))
+    dec_row = _row_for(monthly, date(2026, 12, 1))
+    assert oct_row.planned_budget_base_minor == 50_000
+    assert nov_row.planned_budget_base_minor == 120_000
+    assert dec_row.planned_budget_base_minor == 50_000
+
+
+def test_net_subtracts_planned_budget(conn: sqlite3.Connection, world: dict[str, int]) -> None:
+    planned.create(
+        conn,
+        NewPlannedTransaction(
+            operation_date=date(2026, 11, 15),
+            category_id=world["salary"],
+            account_id=world["a1"],
+            amount=800_000,
+            description="payday",
+        ),
+    )
+    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["groceries"], amount=50_000))
+    with _dead_client() as http:
+        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 2, "PLN")
+    nov = _row_for(monthly, date(2026, 11, 1))
+    assert nov.income_base_minor == 800_000
+    assert nov.expense_base_minor == 0
+    assert nov.planned_budget_base_minor == 50_000
+    assert nov.net_base_minor == 800_000 - 0 - 50_000
+
+
+def test_planned_budget_zero_when_no_budgets_set(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    _ = world
+    with _dead_client() as http:
+        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 2, "PLN")
+    for row in monthly.months:
+        assert row.planned_budget_base_minor == 0
+
+
+def test_planned_budget_ignores_income_categories(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["salary"], amount=999_999))
+    with _dead_client() as http:
+        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 2, "PLN")
+    for row in monthly.months:
+        assert row.planned_budget_base_minor == 0
+
+
+def test_planned_budget_clamped_when_committed_exceeds_resolved(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    # Budget 10_000 but a 50_000 grocery expense committed this month -> clamp to 0.
+    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["groceries"], amount=10_000))
+    planned.create(
+        conn,
+        NewPlannedTransaction(
+            operation_date=date(2026, 10, 30),
+            category_id=world["groceries"],
+            account_id=world["a1"],
+            amount=50_000,
+            description="big grocery run",
+        ),
+    )
+    with _dead_client() as http:
+        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 1, "PLN")
+    row = _row_for(monthly, date(2026, 10, 1))
+    assert row.planned_budget_base_minor == 0
+
+
+def test_current_month_eom_absorbs_remaining_budget_overlay(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    _ = world
+    # Budget 100_000 PLN for groceries this month, no planned/actual spending yet.
+    # Overlay should distribute the 100_000 across remaining days, dropping EOM
+    # by exactly that amount vs. the pre-overlay projection.
+    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["groceries"], amount=100_000))
+    with _dead_client() as http:
+        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 1, "PLN")
+    with _dead_client() as http:
+        pre_overlay = forecast_svc.forecast(
+            conn,
+            http,
+            TODAY,
+            forecast_svc.horizon_days_for_months(TODAY, 1),
+            "PLN",
+            include_budget_overlay=False,
+        )
+    oct_row = _row_for(monthly, date(2026, 10, 1))
+    pre_eom = pre_overlay.days[-1].totals_base_minor
+    assert oct_row.end_balance_base_minor == pre_eom - 100_000
+    assert oct_row.planned_budget_base_minor == 100_000
