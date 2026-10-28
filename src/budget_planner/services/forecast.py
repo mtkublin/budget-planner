@@ -25,8 +25,12 @@ import logging
 import sqlite3
 from dataclasses import dataclass
 from decimal import ROUND_HALF_EVEN, Decimal
+from typing import TYPE_CHECKING
 
 import httpx
+
+if TYPE_CHECKING:
+    from budget_planner.services import budget as budget_svc
 
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.enums import Direction
@@ -636,6 +640,21 @@ def horizon_days_for_months(today: dt.date, horizon_months: int) -> int:
     return (end_date - today).days
 
 
+def _current_month_budget_totals(
+    conn: sqlite3.Connection,
+    today: dt.date,
+) -> budget_svc.MonthTotals | None:
+    """Return ``month_summary(today).totals`` or ``None`` if no live categories.
+
+    Reuses the Budget page math so the Forecast table's current-month row
+    stays in lockstep with Budget + Overview (ADR-0039 + ADR-0041).
+    """
+    from budget_planner.services import budget as budget_svc  # noqa: PLC0415
+
+    summary = budget_svc.month_summary(conn, today.year, today.month, today=today)
+    return summary.totals
+
+
 def _planned_budget_per_month(
     conn: sqlite3.Connection,
     today: dt.date,
@@ -830,11 +849,20 @@ def forecast_monthly(
     for d in series.days:
         eom_by_month[d.on_date.replace(day=1)] = d.totals_base_minor
 
+    current_month = today.replace(day=1)
+    current_month_totals = _current_month_budget_totals(conn, today)
+
     rows: list[MonthlyPoint] = []
     for offset in range(horizon_months):
         month = _month_offset(today, offset)
         income, expense = flows.get(month, (0, 0))
-        planned_budget = planned_budget_by_month[month]
+        if month == current_month and current_month_totals is not None:
+            # Current fiscal period reuses services.budget.month_summary so the
+            # Forecast table lines up with the Budget page + Overview panel.
+            expense = current_month_totals.committed_minor
+            planned_budget = max(current_month_totals.remaining_minor, 0)
+        else:
+            planned_budget = planned_budget_by_month[month]
         rows.append(
             MonthlyPoint(
                 month=month,

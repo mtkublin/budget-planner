@@ -25,7 +25,7 @@ from budget_planner.repositories import (
     planned,
     recurring,
 )
-from budget_planner.services import forecast as forecast_svc
+from budget_planner.services import budget as budget_svc, forecast as forecast_svc
 
 _API = "https://api.frankfurter.app"
 
@@ -338,6 +338,67 @@ def test_planned_budget_clamped_when_committed_exceeds_resolved(
         monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 1, "PLN")
     row = _row_for(monthly, date(2026, 10, 1))
     assert row.planned_budget_base_minor == 0
+
+
+def test_current_month_row_mirrors_budget_month_summary(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    """Current-row Expenses + Planned budget must equal month_summary totals."""
+    # Budget 500_000 for groceries, 300_000 recurring rent -> both expense cats.
+    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["groceries"], amount=500_000))
+    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["rent"], amount=300_000))
+    # Planned grocery expense inside anchor window (Oct 29).
+    planned.create(
+        conn,
+        NewPlannedTransaction(
+            operation_date=date(2026, 10, 29),
+            category_id=world["groceries"],
+            account_id=world["a1"],
+            amount=70_000,
+            description="groceries",
+        ),
+    )
+    # Recurring rent monthly, next_due inside Oct.
+    recurring.create_rule(
+        conn,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=date(2026, 10, 25),
+            category_id=world["rent"],
+            account_id=world["a1"],
+            default_amount=300_000,
+            default_description="rent",
+        ),
+    )
+    summary = budget_svc.month_summary(conn, TODAY.year, TODAY.month, today=TODAY)
+    with _dead_client() as http:
+        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 2, "PLN")
+    oct_row = _row_for(monthly, date(2026, 10, 1))
+    assert oct_row.expense_base_minor == summary.totals.committed_minor
+    assert oct_row.planned_budget_base_minor == max(summary.totals.remaining_minor, 0)
+
+
+def test_future_month_row_keeps_calendar_logic(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    """Future rows use calendar-month flows + residual-budget math."""
+    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["groceries"], amount=100_000))
+    planned.create(
+        conn,
+        NewPlannedTransaction(
+            operation_date=date(2026, 11, 10),
+            category_id=world["groceries"],
+            account_id=world["a1"],
+            amount=30_000,
+            description="nov groceries",
+        ),
+    )
+    with _dead_client() as http:
+        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 2, "PLN")
+    nov = _row_for(monthly, date(2026, 11, 1))
+    assert nov.expense_base_minor == 30_000  # calendar-month event sum
+    # Resolved 100_000 - already-committed 30_000 = residual 70_000.
+    assert nov.planned_budget_base_minor == 70_000
 
 
 def test_current_month_eom_absorbs_remaining_budget_overlay(
