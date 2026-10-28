@@ -142,6 +142,37 @@ def _validate_cadence(value: str) -> Cadence | None:
         return None
 
 
+def _resolve_dest_account(  # noqa: PLR0911 — flat validation surface mirroring transactions router
+    conn: sqlite3.Connection,
+    *,
+    dest_account_id_raw: str,
+    category: Any,
+    source_account: Any,
+) -> tuple[int | None, dict[str, str]]:
+    """Validate the destination account input (mirrors transactions router).
+
+    Transits (``direction=transit``) require a destination with matching
+    currency; non-transit categories ignore any posted value.
+    """
+    if not dest_account_id_raw:
+        if category is not None and category.direction == Direction.TRANSIT:
+            return None, {"dest_account_id": "transit requires destination account"}
+        return None, {}
+    if category is None or category.direction != Direction.TRANSIT:
+        return None, {}
+    parsed = _parse_int(dest_account_id_raw)
+    if parsed is None:
+        return None, {"dest_account_id": "invalid destination"}
+    dest = accounts_repo.find_by_id(conn, parsed)
+    if dest is None:
+        return None, {"dest_account_id": "unknown destination"}
+    if source_account is not None and dest.currency != source_account.currency:
+        return None, {"dest_account_id": "cross-currency transit not supported"}
+    if source_account is not None and dest.id == source_account.id:
+        return None, {"dest_account_id": "destination must differ from source"}
+    return parsed, {}
+
+
 def _resolve_amount_inputs(  # noqa: PLR0911 — branchy validation surface
     conn: sqlite3.Connection,
     *,
@@ -234,6 +265,7 @@ async def create_rule(
     start_date = str(form.get("start_date", ""))
     category_id_raw = str(form.get("category_id", ""))
     account_id_raw = str(form.get("account_id", ""))
+    dest_account_id_raw = str(form.get("dest_account_id", ""))
     default_amount = str(form.get("default_amount", ""))
     default_description = str(form.get("default_description", ""))
     day_of_month = str(form.get("day_of_month", ""))
@@ -267,6 +299,13 @@ async def create_rule(
         errors["account_id"] = "unknown account"
     if cat is None:
         errors["category_id"] = "unknown category"
+    dest_id, dest_errors = _resolve_dest_account(
+        conn,
+        dest_account_id_raw=dest_account_id_raw,
+        category=cat,
+        source_account=acc,
+    )
+    errors.update(dest_errors)
     minor, formula, amount_errors = _resolve_amount_inputs(
         conn,
         amount_source=amount_source,
@@ -295,6 +334,7 @@ async def create_rule(
             start_date=start,
             category_id=category_id,
             account_id=account_id,
+            dest_account_id=dest_id,
             default_amount=minor,
             default_description=default_description,
             day_of_month=_parse_int(day_of_month),
@@ -388,6 +428,7 @@ async def update_rule_handler(
     start_date = str(form.get("start_date", ""))
     category_id_raw = str(form.get("category_id", ""))
     account_id_raw = str(form.get("account_id", ""))
+    dest_account_id_raw = str(form.get("dest_account_id", ""))
     default_amount = str(form.get("default_amount", ""))
     default_description = str(form.get("default_description", ""))
     amount_source = str(form.get("amount_source", "fixed"))
@@ -398,6 +439,7 @@ async def update_rule_handler(
     except ValueError:
         return Response(status_code=422, content="invalid account/category")
     acc = accounts_repo.find_by_id(conn, account_id)
+    cat = categories_repo.find_by_id(conn, category_id)
     c = _validate_cadence(cadence)
     start = _parse_date(start_date)
     errors: dict[str, str] = {}
@@ -407,6 +449,15 @@ async def update_rule_handler(
         errors["start_date"] = "invalid date"
     if acc is None:
         errors["account_id"] = "unknown account"
+    if cat is None:
+        errors["category_id"] = "unknown category"
+    dest_id, dest_errors = _resolve_dest_account(
+        conn,
+        dest_account_id_raw=dest_account_id_raw,
+        category=cat,
+        source_account=acc,
+    )
+    errors.update(dest_errors)
     minor, formula, amount_errors = _resolve_amount_inputs(
         conn,
         amount_source=amount_source,
@@ -436,6 +487,7 @@ async def update_rule_handler(
             start_date=start,
             category_id=category_id,
             account_id=account_id,
+            dest_account_id=dest_id,
             default_amount=minor,
             default_description=default_description,
             amount_formula=formula,

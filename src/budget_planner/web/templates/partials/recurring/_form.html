@@ -46,6 +46,13 @@
       selected_value=rule.account_id if rule else "",
       required=True) }}
   </label>
+  <label>
+    <span>Dest (transit)</span>
+    {{ combobox(name="dest_account_id", items=accounts,
+      value_attr="id", label_attr="name",
+      selected_value=rule.dest_account_id if (rule and rule.dest_account_id) else "",
+      placeholder="— none —") }}
+  </label>
   <fieldset class="form-stack__group" data-amount-source-group>
     <legend>Amount</legend>
     <div class="form-stack__radio-row">

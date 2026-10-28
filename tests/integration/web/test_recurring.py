@@ -153,6 +153,163 @@ def test_create_unknown_account(client: TestClient, ctx: dict[str, int]) -> None
     assert r.status_code == 422
 
 
+def test_create_transit_persists_dest_account(
+    client: TestClient, _migrated: Settings, ctx: dict[str, int]
+) -> None:
+    """Transit recurring rule must round-trip dest_account_id from the form."""
+    conn = get_connection(_migrated)
+    try:
+        dest = accounts_repo.create(conn, NewAccount(name="Savings", currency="PLN"))
+        transit_cat = next(
+            c for c in categories_repo.list_all(conn) if c.direction == Direction.TRANSIT
+        )
+    finally:
+        conn.close()
+    r = client.post(
+        "/recurring",
+        data={
+            "cadence": "monthly",
+            "start_date": "2026-02-01",
+            "category_id": transit_cat.id,
+            "account_id": ctx["acc"],
+            "dest_account_id": dest.id,
+            "default_amount": "100",
+        },
+    )
+    assert r.status_code == 200, r.text
+    conn = get_connection(_migrated)
+    try:
+        rules = recurring_repo.list_rules(conn)
+        created = next(r for r in rules if r.category_id == transit_cat.id)
+    finally:
+        conn.close()
+    assert created.dest_account_id == dest.id
+
+
+def test_create_transit_without_dest_rejected(
+    client: TestClient, _migrated: Settings, ctx: dict[str, int]
+) -> None:
+    conn = get_connection(_migrated)
+    try:
+        transit_cat = next(
+            c for c in categories_repo.list_all(conn) if c.direction == Direction.TRANSIT
+        )
+    finally:
+        conn.close()
+    r = client.post(
+        "/recurring",
+        data={
+            "cadence": "monthly",
+            "start_date": "2026-02-01",
+            "category_id": transit_cat.id,
+            "account_id": ctx["acc"],
+            "dest_account_id": "",
+            "default_amount": "100",
+        },
+    )
+    assert r.status_code == 422
+    assert "destination" in r.text.lower()
+
+
+def test_create_transit_cross_currency_rejected(
+    client: TestClient, _migrated: Settings, ctx: dict[str, int]
+) -> None:
+    conn = get_connection(_migrated)
+    try:
+        eur_acc = accounts_repo.create(conn, NewAccount(name="EUR", currency="EUR"))
+        transit_cat = next(
+            c for c in categories_repo.list_all(conn) if c.direction == Direction.TRANSIT
+        )
+    finally:
+        conn.close()
+    r = client.post(
+        "/recurring",
+        data={
+            "cadence": "monthly",
+            "start_date": "2026-02-01",
+            "category_id": transit_cat.id,
+            "account_id": ctx["acc"],
+            "dest_account_id": eur_acc.id,
+            "default_amount": "100",
+        },
+    )
+    assert r.status_code == 422
+    assert "currenc" in r.text.lower()
+
+
+def test_update_transit_persists_dest_account(
+    client: TestClient, _migrated: Settings, ctx: dict[str, int]
+) -> None:
+    conn = get_connection(_migrated)
+    try:
+        dest = accounts_repo.create(conn, NewAccount(name="Savings", currency="PLN"))
+        transit_cat = next(
+            c for c in categories_repo.list_all(conn) if c.direction == Direction.TRANSIT
+        )
+        rule = recurring_repo.create_rule(
+            conn,
+            NewRecurringRule(
+                cadence=Cadence.MONTHLY,
+                start_date=date(2026, 1, 1),
+                category_id=transit_cat.id,
+                account_id=ctx["acc"],
+                dest_account_id=dest.id,
+                default_amount=10000,
+            ),
+        )
+        new_dest = accounts_repo.create(conn, NewAccount(name="Brokerage", currency="PLN"))
+    finally:
+        conn.close()
+    r = client.post(
+        f"/recurring/{rule.id}",
+        data={
+            "cadence": "monthly",
+            "start_date": "2026-03-01",
+            "category_id": transit_cat.id,
+            "account_id": ctx["acc"],
+            "dest_account_id": new_dest.id,
+            "default_amount": "250",
+        },
+    )
+    assert r.status_code == 200, r.text
+    conn = get_connection(_migrated)
+    try:
+        updated = recurring_repo.find_rule(conn, rule.id)
+    finally:
+        conn.close()
+    assert updated is not None
+    assert updated.dest_account_id == new_dest.id
+
+
+def test_edit_transit_form_prefills_dest(
+    client: TestClient, _migrated: Settings, ctx: dict[str, int]
+) -> None:
+    conn = get_connection(_migrated)
+    try:
+        dest = accounts_repo.create(conn, NewAccount(name="Savings", currency="PLN"))
+        transit_cat = next(
+            c for c in categories_repo.list_all(conn) if c.direction == Direction.TRANSIT
+        )
+        rule = recurring_repo.create_rule(
+            conn,
+            NewRecurringRule(
+                cadence=Cadence.MONTHLY,
+                start_date=date(2026, 1, 1),
+                category_id=transit_cat.id,
+                account_id=ctx["acc"],
+                dest_account_id=dest.id,
+                default_amount=10000,
+            ),
+        )
+    finally:
+        conn.close()
+    r = client.get(f"/recurring/{rule.id}/edit")
+    assert r.status_code == 200
+    # Hidden combobox value carries the dest account id.
+    assert 'name="dest_account_id"' in r.text
+    assert f'value="{dest.id}"' in r.text
+
+
 def test_edit(client: TestClient, ctx: dict[str, int]) -> None:
     r = client.get(f"/recurring/{ctx['rule']}/edit")
     assert r.status_code == 200
