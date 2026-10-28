@@ -61,6 +61,112 @@ def index() -> RedirectResponse:
     return RedirectResponse(url="/ledger?view=planned", status_code=302)
 
 
+# ---------------------------------------------------------------------------
+# T-R45 — Batch promote-due (ADR-0056 §6, ADR-0012). Registered BEFORE
+# the dynamic `/{planned_id}` paths.
+# ---------------------------------------------------------------------------
+def _hx_trigger_payload(payload: dict[str, object]) -> str:
+    import json  # noqa: PLC0415
+
+    return json.dumps(payload)
+
+
+@router.post("/batch/promote-due", response_class=HTMLResponse)
+def planned_batch_promote_due(conn: sqlite3.Connection = Depends(get_db)) -> Response:
+    """Promote every unpromoted planned row with ``operation_date <= today``."""
+    today = date.today()  # noqa: DTZ011
+    try:
+        result = planned_service.batch_promote_due(conn, today)
+    except (
+        planned_service.AlreadyPromotedError,
+        planned_service.CannotPromoteDeletedError,
+        planned_service.UnsupportedDirectionError,
+        planned_service.ValidationError,
+    ) as exc:
+        return Response(status_code=422, content=str(exc))
+    resp = Response(status_code=204)
+    resp.headers["HX-Trigger"] = _hx_trigger_payload(
+        {
+            "toast": {
+                "variant": "success",
+                "message": f"Promoted {len(result.promoted_txn_ids)} planned row(s)",
+                "undo_url": "/planned/batch/undo",
+                "undo_payload": {
+                    "promoted_txn_ids": list(result.promoted_txn_ids),
+                    "promoted_planned_ids": list(result.promoted_planned_ids),
+                },
+            },
+            "ledger-stale": True,
+            "forecast-stale": True,
+            "balance-stale": True,
+            "today-stale": True,
+        }
+    )
+    return resp
+
+
+@router.post("/batch/undo", response_class=HTMLResponse)
+async def planned_batch_undo(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+) -> Response:
+    """Reverse a prior batch planned promote.
+
+    Soft-deletes each promoted transaction and clears the corresponding
+    ``promoted_to_txn_id`` on each planned row (so the row re-appears as
+    "unpromoted" in Upcoming).
+    """
+    from budget_planner.repositories import transactions as transactions_repo  # noqa: PLC0415
+    from budget_planner.repositories._shared import transaction as db_transaction  # noqa: PLC0415
+
+    form = await request.form()
+    try:
+        txn_ids = [int(v) for v in str(form.get("promoted_txn_ids", "")).split(",") if v]
+        planned_ids = [int(v) for v in str(form.get("promoted_planned_ids", "")).split(",") if v]
+    except ValueError:
+        return Response(status_code=422, content="invalid id list")
+
+    with db_transaction(conn):
+        for txn_id in txn_ids:
+            transactions_repo.soft_delete(conn, txn_id)
+        for pid in planned_ids:
+            # Replay audit: find the entry right before the batch stamping
+            # (operation="update" with prev_json carrying the pre-batch state)
+            # and restore ``promoted_to_txn_id``.
+            row = conn.execute(
+                """
+                SELECT prev_json FROM audit_log
+                WHERE entity_type = 'planned_transaction' AND entity_id = ?
+                  AND operation = 'update'
+                ORDER BY id DESC LIMIT 1
+                """,
+                (pid,),
+            ).fetchone()
+            if row is None or row["prev_json"] is None:
+                continue
+            import json  # noqa: PLC0415
+
+            prev = json.loads(row["prev_json"])
+            prev_txn_id = prev.get("promoted_to_txn_id")
+            conn.execute(
+                "UPDATE planned_transactions SET promoted_to_txn_id = ?, "
+                "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+                "WHERE id = ?",
+                (prev_txn_id, pid),
+            )
+    resp = Response(status_code=204)
+    resp.headers["HX-Trigger"] = _hx_trigger_payload(
+        {
+            "toast": {"variant": "info", "message": "Undone"},
+            "ledger-stale": True,
+            "forecast-stale": True,
+            "balance-stale": True,
+            "today-stale": True,
+        }
+    )
+    return resp
+
+
 @router.get("/table", response_class=HTMLResponse)
 def table_fragment(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLResponse:
     """Legacy fragment alias (T-064).
