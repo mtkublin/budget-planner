@@ -18,8 +18,12 @@ from datetime import date
 import pytest
 from fastapi.testclient import TestClient
 
-from budget_planner.domain.enums import Direction
-from budget_planner.domain.recurring import AmountFormula
+from budget_planner.domain.enums import Direction, OverrideState
+from budget_planner.domain.recurring import (
+    AmountFormula,
+    NewRecurringOverride,
+    PatchRecurringRule,
+)
 from budget_planner.repositories import (
     recurring as recurring_repo,
 )
@@ -122,6 +126,61 @@ class TestRepositoryRoundTrip:
         assert loaded.amount_formula is not None
         assert loaded.amount_formula.coefficient_bps == 1250
         assert loaded.amount_formula.source_category_ids == (1, 2, 3)
+
+
+class TestOverrideSoftConsume:
+    def test_formula_sees_override_before_and_after_consume(
+        self,
+        conn: sqlite3.Connection,
+        make_rule: Callable[..., int],
+        account_id: int,
+        income_category_a: int,
+    ) -> None:
+        """ADR-0044: consumed overrides stay visible to formula compute."""
+        b_id = make_rule(
+            account_id=account_id,
+            category_id=income_category_a,
+            amount=10_000_00,
+            start_date=date(2026, 5, 1),
+        )
+        # Pin B.next_due to May 1 so promote consumes the May override.
+        recurring_repo.update_rule(conn, b_id, PatchRecurringRule(next_due=date(2026, 5, 1)))
+        recurring_repo.upsert_override(
+            conn,
+            NewRecurringOverride(
+                rule_id=b_id,
+                occurrence_date=date(2026, 5, 1),
+                state=OverrideState.OVERRIDDEN,
+                amount_override=12_000_00,  # bonus month
+            ),
+        )
+
+        formula = AmountFormula(
+            coefficient_bps=1200,
+            source_category_ids=(income_category_a,),
+        )
+
+        # Pre-promote: formula compute sees the override.
+        pre = formula_svc.compute_formula_amount(conn, formula, 2026, 5, exclude_rule_id=None)
+        assert pre == 144_000  # 12% of 12 000.00
+
+        # Promote B → override is soft-consumed (ADR-0044).
+        b_txn = recurring_svc.promote_recurring(conn, b_id, recurring_svc.PromotionEdits())
+        assert b_txn.amount == 12_000_00
+
+        # Default list hides consumed; _all retains with promoted_to_txn_id.
+        assert recurring_repo.list_overrides(conn, b_id) == []
+        historical = recurring_repo.list_overrides_all(conn, b_id)
+        assert len(historical) == 1
+        assert historical[0].promoted_to_txn_id == b_txn.id
+
+        # Post-promote: formula compute STILL sees B's May override.
+        post = formula_svc.compute_formula_amount(conn, formula, 2026, 5, exclude_rule_id=None)
+        assert post == 144_000
+
+        # June (no override) reverts to B.default_amount: 12% of 10 000.00.
+        june = formula_svc.compute_formula_amount(conn, formula, 2026, 6, exclude_rule_id=None)
+        assert june == 120_000
 
 
 class TestPromoteRecurring:

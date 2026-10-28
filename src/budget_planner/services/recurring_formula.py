@@ -136,7 +136,9 @@ def compute_formula_amount(
                 rule.id,
             )
             continue
-        overrides = recurring_repo.list_overrides(conn, rule.id)
+        # ADR-0044: formula compute must see consumed overrides so B's May
+        # override still counts after B's May was promoted.
+        overrides = recurring_repo.list_overrides_all(conn, rule.id)
         for occ in expand(rule, overrides, start, end):
             total_minor += occ.amount
     return _apply_coefficient(total_minor, formula.coefficient_bps)

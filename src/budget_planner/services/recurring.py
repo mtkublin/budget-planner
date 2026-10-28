@@ -467,7 +467,10 @@ def promote_recurring(
                 last_promoted_date=due_date,
             )
         if match is not None:
-            recurring_repo.delete_override(conn, rule_id, due_date)
+            # ADR-0044: soft-consume the override by stamping the new txn id
+            # instead of deleting the row. Keeps the override visible to
+            # historical reads (formula compute per ADR-0043).
+            recurring_repo.mark_override_promoted(conn, match.id, txn_id=txn.id)
         updated_rule = recurring_repo.find_rule(conn, rule_id, include_deleted=True)
         audit_svc.write_audit(
             conn,

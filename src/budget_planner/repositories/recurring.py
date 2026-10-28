@@ -53,7 +53,7 @@ def _formula_from_json(raw: str | None) -> AmountFormula | None:
 
 _OVERRIDE_COLUMNS = (
     "id, rule_id, occurrence_date, state, amount_override, description_override, "
-    "date_override, created_at"
+    "date_override, created_at, promoted_to_txn_id"
 )
 
 
@@ -129,6 +129,7 @@ def _row_to_override(row: sqlite3.Row) -> RecurringOverride:
             date.fromisoformat(row["date_override"]) if row["date_override"] is not None else None
         ),
         created_at=parse_dt_required(row["created_at"]),
+        promoted_to_txn_id=row["promoted_to_txn_id"],
     )
 
 
@@ -321,13 +322,48 @@ def soft_delete_rule(conn: sqlite3.Connection, rule_id: int) -> None:
     )
 
 
-def list_overrides(conn: sqlite3.Connection, rule_id: int) -> list[RecurringOverride]:
-    rows = conn.execute(
-        f"SELECT {_OVERRIDE_COLUMNS} FROM recurring_rule_overrides "
-        "WHERE rule_id = ? ORDER BY occurrence_date ASC",
-        (rule_id,),
-    ).fetchall()
+def list_overrides(
+    conn: sqlite3.Connection,
+    rule_id: int,
+    *,
+    include_consumed: bool = False,
+) -> list[RecurringOverride]:
+    """List overrides for a rule.
+
+    Default excludes consumed overrides (ADR-0044) so pre-ADR-0044 callers
+    (promote lookup, override UI, skip-and-advance) see only live rows.
+    Formula compute paths (ADR-0043) call ``list_overrides_all`` to include
+    historical rows that still need to materialise their canonical month.
+    """
+    sql = f"SELECT {_OVERRIDE_COLUMNS} FROM recurring_rule_overrides WHERE rule_id = ?"
+    if not include_consumed:
+        sql += " AND promoted_to_txn_id IS NULL"
+    sql += " ORDER BY occurrence_date ASC"
+    rows = conn.execute(sql, (rule_id,)).fetchall()
     return [_row_to_override(r) for r in rows]
+
+
+def list_overrides_all(conn: sqlite3.Connection, rule_id: int) -> list[RecurringOverride]:
+    """List every override for a rule, consumed or not (ADR-0044)."""
+    return list_overrides(conn, rule_id, include_consumed=True)
+
+
+def mark_override_promoted(
+    conn: sqlite3.Connection,
+    override_id: int,
+    *,
+    txn_id: int,
+) -> None:
+    """Stamp ``promoted_to_txn_id = txn_id`` on an override (ADR-0044 step 6e).
+
+    Audit-free: the orchestrating promotion service writes a single
+    ``update`` audit entry on the rule mutation, matching the pattern used
+    by ``set_next_due`` / ``set_inactive``.
+    """
+    conn.execute(
+        "UPDATE recurring_rule_overrides SET promoted_to_txn_id = ? WHERE id = ?",
+        (txn_id, override_id),
+    )
 
 
 def upsert_override(conn: sqlite3.Connection, data: NewRecurringOverride) -> RecurringOverride:
@@ -418,7 +454,9 @@ __all__ = [
     "delete_override",
     "find_rule",
     "list_overrides",
+    "list_overrides_all",
     "list_rules",
+    "mark_override_promoted",
     "set_inactive",
     "set_next_due",
     "soft_delete_rule",

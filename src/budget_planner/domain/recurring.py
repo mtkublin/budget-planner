@@ -127,7 +127,14 @@ class PatchRecurringRule:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class RecurringOverride:
-    """Persisted sparse override for a single occurrence of a rule."""
+    """Persisted sparse override for a single occurrence of a rule.
+
+    `promoted_to_txn_id` is `None` while the override is unconsumed; on
+    promotion (ADR-0038 step 6e as amended by ADR-0044) the service stamps
+    the id of the `transactions` row that consumed the override instead
+    of deleting the row. Historical reads (formula compute, ADR-0043) keep
+    seeing the override via `list_overrides_all`.
+    """
 
     id: int
     rule_id: int
@@ -137,6 +144,7 @@ class RecurringOverride:
     description_override: str | None
     date_override: date | None
     created_at: datetime
+    promoted_to_txn_id: int | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
