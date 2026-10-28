@@ -28,8 +28,8 @@ Per month in `[today.month, today.month + horizon_months - 1]` returns:
 
 - `month` (first-of-month `date`)
 - `income_base_minor` — sum of signed income events landing in the month (base currency)
-- `expense_base_minor` — sum of (absolute) expense events in the month (base currency)
-- `planned_budget_base_minor` — `Σ max(resolve_budget(cat, m) − spent_so_far(cat, m) − committed_future(cat, m), 0)` across live expense categories. Residual-only, clamped at zero (matches the ADR-0042 overlay math exactly). Current month subtracts actual spending + already-committed future events; future months only subtract committed events in that calendar month.
+- `expense_base_minor` — for the **current calendar-month row**, `totals.committed_minor` from `services.budget.month_summary` (anchor-window `[today, next_income_date)`, ADR-0041). For **future rows**, sum of (absolute) expense events landing in that calendar month.
+- `planned_budget_base_minor` — for the **current calendar-month row**, `max(totals.remaining_minor, 0)` from the same `month_summary` call so the Forecast table lines up with the Budget page's "remaining" and the Overview panel's "committed (recurring + planned)" math. For **future rows**, `Σ max(resolve_budget(cat, m) − spent_so_far(cat, m) − committed_future(cat, m), 0)` across live expense categories (ADR-0042 math).
 - `net_base_minor` — `income - expense - planned_budget`
 - `end_balance_base_minor` — projected total fortune at end of month, computed by `forecast()` with the ADR-0042 **budget overlay enabled**, so the current-month row absorbs both the remaining planned events and the synthetic residual-budget spend distributed across the rest of the horizon.
 
