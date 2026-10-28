@@ -23,7 +23,7 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0017 | [Pre-commit Stack & Using Ruff Instead of Black](0017-precommit-ruff-instead-of-black.md) |
 | 0018 | [CI — Single Matrix Row (Python 3.12 + Ubuntu)](0018-ci-single-matrix-row.md) |
 | 0019 | [Soft Delete + Polymorphic Audit Log](0019-soft-delete-and-audit-log.md) |
-| 0020 | [Import Deferred to v2, Export in v1](0020-import-deferred-export-v1.md) |
+| 0020 | [Import Deferred to a later version, Export in v1](0020-import-deferred-export-v1.md) |
 | 0021 | [Functional Style, No Gratuitous OOP](0021-functional-style-no-oop.md) |
 | 0022 | [Repository Layer: Soft-Delete + Audit Discipline](0022-repository-layer-soft-delete-audit-discipline.md) |
 | 0023 | [UX Redesign — Information Architecture Consolidation + Interaction Model](0023-ux-redesign-information-architecture.md) |
@@ -35,12 +35,12 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0029 | [SQLite Connection Threading — `check_same_thread=False`, Per-Request Connection](0029-sqlite-connection-threading.md) |
 | 0030 | [Shared Form Interaction Primitives](0030-shared-form-interaction-primitives.md) |
 | 0031 | [Budget Page Composition v2: Income Anchor to Settings, Explicit "+ Rule" Create Affordance](0031-budget-page-composition-v2.md) |
-| 0032 | [v2 Remote Deployment — Scaleway Stardust Warsaw + Scaleway Object Storage](0032-v2-remote-deployment-scaleway-stardust-warsaw.md) |
-| 0033 | [v2 Authentication — Single-User Passkey (WebAuthn) + Fallback Password](0033-v2-auth-single-user-passkey.md) |
-| 0034 | [v2 SQLite Durability — Continuous Replication via Litestream to Scaleway Object Storage](0034-v2-sqlite-replication-litestream.md) |
-| 0035 | [v2 Infrastructure as Code — Terraform (Scaleway Provider) + Cloud-Init Bootstrap](0035-v2-infrastructure-as-code-terraform.md) |
-| 0036 | [v2 Reverse Proxy & TLS — Caddy with Automatic HTTPS](0036-v2-reverse-proxy-caddy-auto-tls.md) |
-| 0037 | [v2 Deployment Pipeline — GitHub Actions SSH Deploy with Immutable Image Tags](0037-v2-github-actions-deploy-pipeline.md) |
+| 0032 | [v3 Remote Deployment — Scaleway Stardust Warsaw + Scaleway Object Storage](0032-v3-remote-deployment-scaleway-stardust-warsaw.md) (renumbered v2 → v3 on 2026-10-28) |
+| 0033 | [v3 Authentication — Single-User Passkey (WebAuthn) + Fallback Password](0033-v3-auth-single-user-passkey.md) (renumbered v2 → v3 on 2026-10-28) |
+| 0034 | [v3 SQLite Durability — Continuous Replication via Litestream to Scaleway Object Storage](0034-v3-sqlite-replication-litestream.md) (renumbered v2 → v3 on 2026-10-28) |
+| 0035 | [v3 Infrastructure as Code — Terraform (Scaleway Provider) + Cloud-Init Bootstrap](0035-v3-infrastructure-as-code-terraform.md) (renumbered v2 → v3 on 2026-10-28) |
+| 0036 | [v3 Reverse Proxy & TLS — Caddy with Automatic HTTPS](0036-v3-reverse-proxy-caddy-auto-tls.md) (renumbered v2 → v3 on 2026-10-28) |
+| 0037 | [v3 Deployment Pipeline — GitHub Actions SSH Deploy with Immutable Image Tags](0037-v3-github-actions-deploy-pipeline.md) (renumbered v2 → v3 on 2026-10-28) |
 | 0038 | [Recurring Rules — Standalone Lifecycle with `next_due` + Direct Promotion](0038-recurring-standalone-lifecycle.md) (supersedes ADR-0013; amends ADR-0012) |
 | 0039 | [Budget "Left to Spend per Day" Includes Recurring Commitments](0039-budget-daily-spend-includes-recurring.md) (amends ADR-0025 §F4.6, ADR-0038) |
 | 0040 | [Modal Dismissal Fires on Form Submit Only, Not Side-Effect HTMX Requests](0040-modal-dismissal-scope.md) (amends ADR-0030 §5) |
@@ -52,3 +52,10 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0047 | [Recurring Formula — Linear Combination of Terms + Chained Formulas](0047-recurring-formula-linear-combination-and-chaining.md) (supersedes ADR-0045 §Decision) |
 | 0048 | [Category Color Coding — Per-Category Override with Direction Default](0048-category-color-coding.md) (amends ADR-0023; extends F1.6) |
 | 0049 | [Budget Monthly Summary — Surface Analytics Columns (Avg/mo, YTD avg, Δ prev)](0049-budget-monthly-summary-analytics-columns.md) (amends ADR-0031 §Monthly summary; surfaces F4.5) |
+| 0050 | [v2 Rising Dough — Product Rename and Visual Direction](0050-v2-rising-dough-rename-and-visual-direction.md) (supersedes ADR-0023 §Design direction; amends ADR-0048) |
+| 0051 | [v2 Rising Dough — Information Architecture (Today · Ledger · Plan · Accounts · Settings)](0051-v2-information-architecture-rising-dough.md) (supersedes ADR-0023 §Information architecture) |
+| 0052 | [v2 Rising Dough — Tailwind v4 Migration, `@theme` Tokens, and Self-Hosted Fonts](0052-v2-tailwind-v4-tokens-and-font-hosting.md) (amends ADR-0027) |
+| 0053 | [v2 Rising Dough — Component System and Jinja Macro Inventory](0053-v2-component-system-and-jinja-macros.md) |
+| 0054 | [v2 Rising Dough — Charts Move From Plotly to Server-Rendered SVG](0054-v2-charts-plotly-to-server-svg.md) (supersedes ADR-0002 §Plotly) |
+| 0055 | [v2 Rising Dough — Responsive Layer and Mobile Shell](0055-v2-responsive-layer-mobile-first.md) (supersedes ADR-0023 §"no mobile adaptive nav") |
+| 0056 | [v2 Rising Dough — Inline Interactions, Live Previews, and Backend Additions](0056-v2-inline-interactions-and-backend-additions.md) (amends ADR-0026) |

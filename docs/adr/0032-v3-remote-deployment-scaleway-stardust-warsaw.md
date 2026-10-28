@@ -1,9 +1,9 @@
-# ADR-0032: v2 Remote Deployment — Scaleway Stardust in Warsaw + Scaleway Object Storage
+# ADR-0032: v3 Remote Deployment — Scaleway Stardust in Warsaw + Scaleway Object Storage
 
 - **Status**: Proposed
-- **Date**: 2026-10-27
+- **Date**: 2026-10-27 (renumbered v2 → v3 on 2026-10-28; v2 slot reassigned to the Rising Dough redesign)
 - **Related**: ADR-0003 (SQLite only in v1), ADR-0005 (single user, no auth, 127.0.0.1), ADR-0027 (frontend toolchain)
-- **Supersedes**: nothing. **Amends**: ADR-0005 (v1 bound to `127.0.0.1`; v2 binds to a container inside a hardened VM behind TLS reverse proxy).
+- **Supersedes**: nothing. **Amends**: ADR-0005 (v1 bound to `127.0.0.1`; v3 binds to a container inside a hardened VM behind TLS reverse proxy).
 - **Depends on**: ADR-0033 (auth), ADR-0034 (Litestream replication), ADR-0035 (Terraform IaC), ADR-0036 (Caddy TLS), ADR-0037 (GHA deploy pipeline).
 
 ## Context
@@ -21,7 +21,7 @@ The verdict section of that workbook (Scenarios!H12) ranked **Scaleway Stardust 
 
 ## Decision
 
-v2 deploys Budget Planner to **one Scaleway Stardust `STARDUST1-S` instance in region `pl-waw` zone `pl-waw-1`** running the app in Docker behind **Caddy** as the TLS-terminating reverse proxy. Durable state (SQLite WAL + snapshots) is **replicated continuously by Litestream** to a **Scaleway Object Storage bucket in `pl-waw`**. All Scaleway resources are provisioned by **Terraform** using the official `scaleway/scaleway` provider.
+v3 deploys Rising Dough to **one Scaleway Stardust `STARDUST1-S` instance in region `pl-waw` zone `pl-waw-1`** running the app in Docker behind **Caddy** as the TLS-terminating reverse proxy. Durable state (SQLite WAL + snapshots) is **replicated continuously by Litestream** to a **Scaleway Object Storage bucket in `pl-waw`**. All Scaleway resources are provisioned by **Terraform** using the official `scaleway/scaleway` provider.
 
 ### 1. Compute
 
@@ -41,7 +41,7 @@ v2 deploys Budget Planner to **one Scaleway Stardust `STARDUST1-S` instance in r
   1. `app` — FastAPI/uvicorn container.
   2. `litestream` — official `litestream/litestream:0.3` sidecar replicating `/data/budget.db` to Scaleway Object Storage. See ADR-0034.
   3. `caddy` — reverse proxy, auto-TLS via Let's Encrypt (ACME HTTP-01). See ADR-0036.
-- **Shared volume**: `/data` (host-mounted, mode 0700, owned by `app` uid) holds the SQLite file and Litestream metadata. Not an attached Scaleway Block Volume in v2 (10 GB local SSD is sufficient; a Block Volume costs extra and introduces a failure domain that Litestream already covers).
+- **Shared volume**: `/data` (host-mounted, mode 0700, owned by `app` uid) holds the SQLite file and Litestream metadata. Not an attached Scaleway Block Volume in v3 (10 GB local SSD is sufficient; a Block Volume costs extra and introduces a failure domain that Litestream already covers).
 
 ### 3. Durable state (SQLite via Litestream)
 
@@ -59,7 +59,7 @@ v2 deploys Budget Planner to **one Scaleway Stardust `STARDUST1-S` instance in r
 
 ### 5. Access control
 
-- Internet exposure requires auth. v2 adds **single-user passkey (WebAuthn) authentication** as the primary mechanism, with a **fallback long random password** stored in a password manager for emergency access and WebAuthn credential recovery. See ADR-0033.
+- Internet exposure requires auth. v3 adds **single-user passkey (WebAuthn) authentication** as the primary mechanism, with a **fallback long random password** stored in a password manager for emergency access and WebAuthn credential recovery. See ADR-0033.
 - Rate limiting on auth endpoints (`slowapi`) + `fail2ban` jail watching Caddy's access log for repeated auth failures.
 - The `user_id = 1` scaffold (ADR-0005) is reused; auth hangs a session on that single user.
 
@@ -82,7 +82,7 @@ v2 deploys Budget Planner to **one Scaleway Stardust `STARDUST1-S` instance in r
   - Secrets kept in GitHub Actions encrypted secrets store. The deploy key has `authorized_keys` restricted to `command="/usr/local/bin/deploy-budget-planner"` + `no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty`.
 - See ADR-0037 for the pipeline topology and rollback shape.
 
-### 8. Observability (minimal, v2 scope)
+### 8. Observability (minimal, v3 scope)
 
 - Structured JSON logs on stdout from the app container; captured by `journalctl` + rotated by the host.
 - `/health` liveness + `/ready` readiness endpoints (readiness pings the DB).

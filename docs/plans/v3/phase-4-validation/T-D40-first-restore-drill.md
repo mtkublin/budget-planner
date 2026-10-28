@@ -51,7 +51,7 @@ Litestream replication is only as good as the restore. The first drill proves th
 
 ```sh
 # After full drill run:
-cat docs/plans/v2/runbooks/restore-log.md | tail -3
+cat docs/plans/v3/runbooks/restore-log.md | tail -3
 ```
 
 Expect: today's dated row with `ok` and matching counts.

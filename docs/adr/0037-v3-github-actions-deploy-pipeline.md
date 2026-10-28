@@ -1,8 +1,8 @@
-# ADR-0037: v2 Deployment Pipeline — GitHub Actions SSH Deploy with Immutable Image Tags
+# ADR-0037: v3 Deployment Pipeline — GitHub Actions SSH Deploy with Immutable Image Tags
 
 - **Status**: Proposed
-- **Date**: 2026-10-27
-- **Related**: ADR-0018 (CI matrix), ADR-0032 (v2 remote deployment), ADR-0035 (Terraform), ADR-0034 (Litestream)
+- **Date**: 2026-10-27 (renumbered v2 → v3 on 2026-10-28)
+- **Related**: ADR-0018 (CI matrix), ADR-0032 (v3 remote deployment), ADR-0035 (Terraform), ADR-0034 (Litestream)
 
 ## Context
 
@@ -39,7 +39,7 @@ PR → ci.yml  (test + lint + typecheck)
 Three workflows, three concerns:
 
 - `.github/workflows/ci.yml` — unchanged from v1 (`just ci`). Runs on PRs and pushes.
-- `.github/workflows/build.yml` — on push to `main` with CI green, builds a multi-arch (`linux/amd64` only in v2) Docker image, pushes to `ghcr.io/<owner>/budget-planner` tagged `:sha-<short>`, `:main`, and (on release tag) `:vX.Y.Z`.
+- `.github/workflows/build.yml` — on push to `main` with CI green, builds a multi-arch (`linux/amd64` only in v3) Docker image, pushes to `ghcr.io/<owner>/budget-planner` tagged `:sha-<short>`, `:main`, and (on release tag) `:vX.Y.Z`.
 - `.github/workflows/deploy.yml` — on `build.yml` success, requires manual approval of the GitHub Actions environment named `prod`. Deploys via SSH.
 
 ### 2. Image tagging

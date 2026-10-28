@@ -1,8 +1,8 @@
-# ADR-0034: v2 SQLite Durability — Continuous Replication via Litestream to Scaleway Object Storage
+# ADR-0034: v3 SQLite Durability — Continuous Replication via Litestream to Scaleway Object Storage
 
 - **Status**: Proposed
-- **Date**: 2026-10-27
-- **Related**: ADR-0003 (SQLite only in v1), ADR-0029 (SQLite connection threading), ADR-0032 (v2 remote deployment)
+- **Date**: 2026-10-27 (renumbered v2 → v3 on 2026-10-28)
+- **Related**: ADR-0003 (SQLite only in v1), ADR-0029 (SQLite connection threading), ADR-0032 (v3 remote deployment)
 - **Amends**: ADR-0003 (adds an off-host durability layer; SQLite remains the single OLTP store).
 
 ## Context
@@ -91,7 +91,7 @@ Restores the latest known-good state (or `-timestamp 2026-11-15T08:00:00Z` for p
 
 ### 5. Drill schedule and acceptance
 
-- **First drill** = part of Phase 4 acceptance. Must succeed before v2 is declared live.
+- **First drill** = part of Phase 4 acceptance. Must succeed before v3 is declared live.
 - **Monthly drill** afterwards. The drill is: provision a scratch Stardust VM via `terraform workspace new drill-YYYY-MM` + `terraform apply -var env=drill`, restore from the primary bucket (read-only credential), verify `PRAGMA integrity_check` + audit log count, destroy. Logged in `docs/runbooks/restore-log.md`.
 - **Automation**: the monthly drill is driven by a scheduled GitHub Actions workflow that provisions, restores, verifies, and tears down. If it fails, the workflow opens a GitHub issue titled `restore-drill-failure-YYYY-MM`.
 

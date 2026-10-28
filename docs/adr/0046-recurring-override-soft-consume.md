@@ -70,11 +70,11 @@ This is now stable regardless of when A was promoted vs. when B was promoted. Th
 
 ## Consequences
 
-- **Table grows unbounded.** One override row per promoted recurring occurrence. At v1 single-user scale this is bounded by `#active_rules × months_lived` — tens to low thousands over a decade. Acceptable; v2 can prune on `recurring_rules.deleted_at IS NOT NULL` cascade.
+- **Table grows unbounded.** One override row per promoted recurring occurrence. At v1 single-user scale this is bounded by `#active_rules × months_lived` — tens to low thousands over a decade. Acceptable; a later cleanup can prune on `recurring_rules.deleted_at IS NOT NULL` cascade.
 - **Audit chatter unchanged.** Promotion still emits one logical `update` audit entry on the rule; the override mutation is audit-free (same pattern as `set_next_due` + `set_inactive`).
 - **Admin / debugging:** `promoted_to_txn_id` makes the "which txn consumed this override" question a one-column lookup, replacing today's "find a txn with matching `promoted_from_recurring_rule_id + promoted_from_recurring_date`" join. Nice side-effect.
 - **FK integrity:** `promoted_to_txn_id` is `DEFERRABLE INITIALLY DEFERRED` to match the project's existing FK style and to permit transaction-insert + override-mark ordering within the single promotion `BEGIN/COMMIT` without constraint ordering fragility.
-- **Follow-up — hard delete on rule removal:** when `recurring_rules.deleted_at` is set, orphaned consumed overrides can be hard-deleted or cascade-null'd. Out of scope for ADR-0046; tracked as a v2 cleanup task.
+- **Follow-up — hard delete on rule removal:** when `recurring_rules.deleted_at` is set, orphaned consumed overrides can be hard-deleted or cascade-null'd. Out of scope for ADR-0046; tracked as a later cleanup task.
 
 ## Alternatives Considered
 

@@ -1,12 +1,12 @@
-# ADR-0036: v2 Reverse Proxy & TLS — Caddy with Automatic HTTPS
+# ADR-0036: v3 Reverse Proxy & TLS — Caddy with Automatic HTTPS
 
 - **Status**: Proposed
-- **Date**: 2026-10-27
-- **Related**: ADR-0032 (v2 remote deployment), ADR-0033 (auth), ADR-0035 (Terraform IaC)
+- **Date**: 2026-10-27 (renumbered v2 → v3 on 2026-10-28)
+- **Related**: ADR-0032 (v3 remote deployment), ADR-0033 (auth), ADR-0035 (Terraform IaC)
 
 ## Context
 
-The v2 topology (ADR-0032) terminates TLS on the host, not at the application. The reverse proxy must:
+The v3 topology (ADR-0032) terminates TLS on the host, not at the application. The reverse proxy must:
 
 - Issue and renew certificates automatically (zero manual steps for cert management).
 - Terminate HTTP/HTTPS and forward to the app container on a Unix socket or loopback TCP.
@@ -118,7 +118,7 @@ ${hostname} {
 
 - JSON access logs in `/var/log/caddy/access.log`, rotated by Caddy itself.
 - The host mounts `/var/log/caddy` into `fail2ban` so the `caddy-auth` jail can read 401s on `/auth/*`.
-- `journalctl -u docker` captures stderr for operational tailing; no centralised log store in v2.
+- `journalctl -u docker` captures stderr for operational tailing; no centralised log store in v3.
 
 ### 5. Certificate storage
 

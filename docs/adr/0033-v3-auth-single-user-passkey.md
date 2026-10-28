@@ -1,13 +1,13 @@
-# ADR-0033: v2 Authentication — Single-User Passkey (WebAuthn) + Fallback Password
+# ADR-0033: v3 Authentication — Single-User Passkey (WebAuthn) + Fallback Password
 
 - **Status**: Proposed
-- **Date**: 2026-10-27
-- **Related**: ADR-0005 (single user, no auth, user_id scaffolded), ADR-0032 (v2 remote deployment)
+- **Date**: 2026-10-27 (renumbered v2 → v3 on 2026-10-28)
+- **Related**: ADR-0005 (single user, no auth, user_id scaffolded), ADR-0032 (v3 remote deployment)
 - **Amends**: ADR-0005. The server now authenticates every request; the single `user_id = 1` scaffold becomes the identity attached to each session.
 
 ## Context
 
-ADR-0032 exposes Budget Planner on the public internet. Public exposure with zero auth is a non-starter for an app holding financial history. The constraint set is specific:
+ADR-0032 exposes Rising Dough on the public internet. Public exposure with zero auth is a non-starter for an app holding financial history. The constraint set is specific:
 
 - Exactly one user ever.
 - The user is technical and has access to a password manager and modern browsers (Chrome, Safari, Firefox) with WebAuthn support on at least one device.
@@ -93,7 +93,7 @@ Public routes exempt from `AuthRequiredMiddleware`: `/health`, `/ready`, `/auth/
 
 ### Follow-ups
 
-- A later ADR may add a hardware security key as a required second credential alongside the platform passkey, if the threat model shifts. Not required for v2.
+- A later ADR may add a hardware security key as a required second credential alongside the platform passkey, if the threat model shifts. Not required for v3.
 
 ## Alternatives Considered
 

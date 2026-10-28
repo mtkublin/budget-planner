@@ -1,6 +1,6 @@
 # Runbooks
 
-Operational procedures for v2. Each runbook is a check-list the operator (or an automation) runs when something needs doing. All runbooks are created in Phase 4 (T-D46) and must be re-executed at least once before Phase 4 is marked complete.
+Operational procedures for v3. Each runbook is a check-list the operator (or an automation) runs when something needs doing. All runbooks are created in Phase 4 (T-D46) and must be re-executed at least once before Phase 4 is marked complete.
 
 | Runbook | Trigger |
 |---|---|

@@ -179,7 +179,7 @@ Local setup runs both `uv sync` (Python) and `npm ci` (Node dev toolchain) throu
 
 ### 3.8 Out of Scope for v1
 
-- CSV import from banks (deferred to v2, pluggable parser pattern).
+- CSV import from banks (deferred past v1; not scheduled for v2 or v3 either; see [ADR-0020](adr/0020-import-deferred-export-v1.md)).
 - Multi-user authentication.
 - Cross-currency transits.
 - ML/trend-based forecasting.
@@ -198,11 +198,81 @@ Local setup runs both `uv sync` (Python) and `npm ci` (Node dev toolchain) throu
 
 ---
 
-## 5. v2 — Remote Deployment Scope (added 2026-10-27)
+## 5. v2 — Rising Dough Redesign Scope (added 2026-10-28)
 
-v2 keeps v1's functional surface unchanged and layers a hardened public-internet deployment on top. Full plan: `docs/plans/v2/`. Decisions: ADR-0032..ADR-0037.
+v2 keeps v1's functional surface and data model unchanged and layers a full UI/UX redesign on top, codenamed **Rising Dough**. The product is renamed Rising Dough and adopts the editorial / Swiss design system defined in `docs/application_redesign_handoff/`. Full plan: `docs/plans/v2/`. Decisions: ADR-0050..ADR-0056 (to be minted — see the plan).
 
-### 5.1 Deployment target
+### 5.1 Scope
+
+- Rename **Budget Planner → Rising Dough** (wordmark only; package name, DB name, repo name all stay `budget_planner`).
+- New information architecture: top-level nav **Today · Ledger · Plan · Accounts** with Settings pinned at the bottom. Replaces v1 **Overview · Ledger · Accounts · Budget** + separate Forecast + settings drawer.
+- Design system: OKLCH warm-neutral palette with one accent (indigo H265), hairline elevation, three typefaces (Newsreader display, Hanken Grotesk body, IBM Plex Mono numerals), tabular numerals everywhere money appears.
+- Rebuilt screens: Today, Ledger (Actual · Planned · Recurring), Plan (Budget · Year · Forecast · Analytics), Accounts, Settings (Categories · Currency & FX · Preferences), Reconcile slide-over, Add-entry modal (Fixed / Formula), Create account, Create category.
+- Responsive to **mobile**: ≤ 640px uses a bottom tab bar with a centre `+ Add` sheet; between 641 and 1099 the sidebar collapses to a top bar; ≥ 1100 keeps the left rail.
+- Settings becomes a dedicated page (`/settings`) with its own tabs — the v1 slide-over drawer is retired.
+- The floating Quick-add FAB is removed; **+ Add** lives in the top bar (desktop) / centre tab (mobile).
+- Jinja macros for every new primitive: `amount`, `category_pill`, `direction_badge`, `pace_tag`, `overdue_chip`, `table_row`, `heatmap_cell`, `segmented_bar`.
+- Charts switch from **Plotly to Jinja-rendered SVG** on the Forecast and Analytics surfaces (smaller bundle, on-brand, accessible with data-table fallbacks).
+- Server-rendered inline interactions: **promote-in-place** on Upcoming / Ledger rows, cell edit popover on Plan · Year, "can I afford" live preview on Today, formula-term live preview on Add.
+- Backend additions implied by the design (see §5.4).
+- Deferred: command palette (`⌘K`), dark mode, hover-only row-action visibility on Recurring, additional currency examples. These are explicitly out of v2 scope per the handoff `docs/application_redesign_handoff/docs/07-open-items.md`.
+
+### 5.2 Non-functional
+
+- **Toolchain upgrade**: Tailwind v4 with design tokens in CSS (`@theme` block fed by `tokens.css`). Self-hosted variable `woff2` fonts (Newsreader, Hanken Grotesk, IBM Plex Mono).
+- **Accessibility**: WCAG 2.1 AA preserved — contrast figures from `docs/application_redesign_handoff/docs/01-visual-direction.md`, no colour-only state cues, `prefers-reduced-motion` respected, data-table equivalents for every chart.
+- **Visual regression**: baseline images regenerated at desktop (1440) · tablet (1024) · mobile (375) viewports for every rebuilt screen. CI remains opt-in per ADR-0027; the v2 release gate runs the suite manually.
+- **Routes**: v1 URL shape (`/`, `/ledger`, `/budget`, `/accounts`, `/forecast`, `/categories`, `/transactions`, `/planned`, `/recurring`, `/settings`) is **preserved** by server-side 302 redirects to the new IA for one release before cleanup. New canonical routes: `/today`, `/ledger?view=actual|planned|recurring`, `/plan?tab=budget|year|forecast|analytics`, `/accounts`, `/settings?tab=categories|fx|prefs`.
+
+### 5.3 Data model
+
+- Zero schema changes required by the redesign itself. The design is a presentational re-skin + IA consolidation.
+- Soft-delete, audit log, categories, accounts, transactions, planned, recurring rules, overrides, budget tiers, FX cache all keep their v1 shapes.
+
+### 5.4 Backend additions
+
+| Endpoint | Purpose | Notes |
+|---|---|---|
+| `GET /today/afford?amount=` | Returns recomputed left-per-day given an input purchase | Debounced live preview; pure service call. |
+| `POST /recurring/formula/preview` | Returns computed value for a draft formula term list | Used by Add-entry formula builder; validates cycles / non-positive before save. |
+| `GET /accounts/last-checked` | Latest snapshot or reconcile date per account | Powers the "last checked" column on Accounts. |
+| `GET /plan/analytics` | Spend by category for selected period + 12-month averages + income-vs-expense + largest items | Replaces Plotly-backed `/analytics` with server-rendered SVG + table. |
+| `POST /categories/{id}/archive` + `POST /categories/{id}/restore` | Archive / restore category | Soft-delete via existing repository helper. |
+| `POST /recurring/batch/promote-due` | Promote every rule due today or overdue | Returns a toast with Undo (soft-delete makes undo safe). |
+
+All endpoints follow the existing router → service → repository → SQL stack. No new persistence tables.
+
+### 5.5 Deliverables
+
+- All v2 ADRs (0050..0056) Accepted.
+- `docs/plans/v2/` phases 1–7 complete with `✅` on every task (see `tasks.md`).
+- `/today`, `/ledger`, `/plan`, `/accounts`, `/settings` all render the Rising Dough design at desktop + tablet + mobile viewports with no `horizontalScroll` / overflow findings from `frontend-visual-audit`.
+- Visual-regression baselines regenerated and committed.
+- The wordmark "Rising Dough" shipping in the header; `budget_planner` package name retained.
+- Dated entry in `docs/CHANGELOG.md` on first merge of §5 scope.
+
+### 5.6 Non-goals for v2
+
+Explicitly out of v2 scope (require ADR before promotion):
+
+- Dark mode or additional themes.
+- `⌘K` command palette (kept as design reference only — see handoff screen 1m).
+- CSV import from banks (still deferred — ADR-0020).
+- Any schema change.
+- Remote deployment, authentication, infrastructure, monitoring — those live in v3 (§6).
+- Multi-user authentication.
+
+### 5.7 Dependencies on v3
+
+v2 ships against the local `127.0.0.1` server (ADR-0005). v3 (§6) picks up the redesigned app and makes it internet-reachable. v3 depends on v2 shipping; v2 does not depend on v3.
+
+---
+
+## 6. v3 — Remote Deployment Scope (added 2026-10-27 as v2; renumbered to v3 on 2026-10-28)
+
+v3 keeps the v2-redesigned functional surface unchanged and layers a hardened public-internet deployment on top. Full plan: `docs/plans/v3/`. Decisions: ADR-0032..ADR-0037.
+
+### 6.1 Deployment target
 
 - **Compute**: Scaleway Stardust `STARDUST1-S` in region `pl-waw` zone `pl-waw-1` (Warsaw).
 - **Durability**: Scaleway Object Storage bucket `budget-planner-prod-pl-waw` with Litestream continuous replication.
@@ -210,7 +280,7 @@ v2 keeps v1's functional surface unchanged and layers a hardened public-internet
 - **DNS**: operator-owned domain, A + AAAA records managed by Terraform.
 - **Server bind**: inside the container, `0.0.0.0:8000` (Caddy terminates TLS and proxies to it). ADR-0005's `127.0.0.1` constraint applies only to v1 local use.
 
-### 5.2 Authentication (new)
+### 6.2 Authentication (new)
 
 - **Primary**: single-user passkey (WebAuthn) via `py_webauthn`. Multiple credentials per device, named by the user.
 - **Fallback**: long random password (bcrypt-hashed, Terraform-generated at provisioning) for break-glass and first-passkey registration.
@@ -218,13 +288,13 @@ v2 keeps v1's functional surface unchanged and layers a hardened public-internet
 - **CSRF**: `__Host-csrf` cookie + `X-CSRF-Token` header enforced on all state-changing routes.
 - **Rate limit + jail**: 3 attempts / 15 min on fallback-login; `fail2ban` jail reading Caddy's access log.
 
-### 5.3 Infrastructure as Code (new NFR)
+### 6.3 Infrastructure as Code (new NFR)
 
 - All Scaleway resources (project, IAM app + policy + key, instance, Flex IP, security group, object storage bucket, DNS records) are managed by **Terraform** (ADR-0035). No OpenTofu, no click-ops.
 - Terraform state lives in a bootstrap Scaleway Object Storage bucket (`budget-planner-tfstate-pl-waw`) created once out-of-band.
 - Two environments: `prod` and `drill` (disposable).
 
-### 5.4 Deployment pipeline (new NFR)
+### 6.4 Deployment pipeline (new NFR)
 
 - GitHub Actions: `build.yml` (image + cosign) → `deploy.yml` (SSH to deploy user, auto-rollback on `/ready` probe failure).
 - Deploy user has `/usr/sbin/nologin` + `command=".../deploy-budget-planner"` restriction. No arbitrary SSH.
@@ -232,7 +302,7 @@ v2 keeps v1's functional surface unchanged and layers a hardened public-internet
 - Prod deploy requires explicit `prod` environment approval; drill deploys automatically.
 - Rollback is one SSH call or one `workflow_dispatch`.
 
-### 5.5 Durability (amends §3.7 for v2)
+### 6.5 Durability (amends §3.7 for v3)
 
 - SQLite file at `/data/budget.db` with `journal_mode=WAL`, `synchronous=NORMAL`, `wal_autocheckpoint=0`, `busy_timeout=5000` (ADR-0034).
 - Litestream sidecar streams WAL to Scaleway Object Storage every ≤10 s.
@@ -240,14 +310,14 @@ v2 keeps v1's functional surface unchanged and layers a hardened public-internet
 - RPO ≤ 15 s. RTO target < 60 min for full re-provision.
 - Monthly automated restore drill opens a GitHub issue on failure.
 
-### 5.6 Observability (new NFR, minimal)
+### 6.6 Observability (new NFR, minimal)
 
 - `/health` (liveness) + `/ready` (readiness, DB-aware) endpoints, public.
 - Structured JSON logs on stdout via `structlog`; request-id propagation.
 - UptimeRobot (or Betterstack free) hits `/health` every 5 min; email alert.
 - Scaleway cost alert at 2× expected monthly cost (PLN).
 
-### 5.7 Security (new NFR)
+### 6.7 Security (new NFR)
 
 - CSP with per-request nonce (Caddy injects, app propagates to Jinja).
 - HSTS preload, X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy minimal.
@@ -255,23 +325,23 @@ v2 keeps v1's functional surface unchanged and layers a hardened public-internet
 - `testssl.sh` grade A, Mozilla Observatory ≥ A+ required pre-go-live.
 - UFW default-deny; only 22/80/443 allowed. `fail2ban` jails on `sshd` + `caddy-auth`.
 
-### 5.8 Non-goals for v2
+### 6.8 Non-goals for v3
 
-Explicitly out of v2 scope (require ADR before promotion):
+Explicitly out of v3 scope (require ADR before promotion):
 
 - Multi-user auth beyond the single-user passkey model.
 - Autoscaling or multi-instance.
 - Cross-region replication of the Litestream bucket.
 - Centralised log store or distributed tracing.
 - CDN or edge caching.
-- CSV import from banks (remains deferred).
+- CSV import from banks (remains deferred — see ADR-0020).
 
-### 5.9 Deliverables
+### 6.9 Deliverables
 
-- All six v2 ADRs (0032–0037) Accepted.
-- `docs/plans/v2/` phases 1–4 complete with `✅` on every task.
+- All six v3 ADRs (0032–0037) Accepted.
+- `docs/plans/v3/` phases 1–4 complete with `✅` on every task.
 - Production deployment running at the agreed hostname with Observatory ≥ A+.
-- First restore drill logged in `docs/plans/v2/runbooks/restore-log.md`.
+- First restore drill logged in `docs/plans/v3/runbooks/restore-log.md`.
 - Monthly automated restore drill scheduled.
 - Operator captured the fallback password into a password manager; at least one passkey registered.
 - Dated go-live entry in `docs/CHANGELOG.md`.
