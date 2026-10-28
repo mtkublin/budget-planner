@@ -61,7 +61,7 @@
                 <td class="whitespace-nowrap font-semibold">{{ row.operation_date|date_fmt }}</td>
                 <td>{% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}</td>
                 <td class="text-right"><span class="tabular-nums">{{ row.amount|money(row.currency) }}</span></td>
-                <td>{{ row.category.name if row.category else '' }}</td>
+                <td>{{ category_label(row.category) }}</td>
                 <td>
                   {{ row.account.name if row.account else '' }}
                   {% if row.dest_account %}→ {{ row.dest_account.name }}{% endif %}
@@ -86,7 +86,7 @@
                 <td class="whitespace-nowrap font-semibold">{{ row.operation_date|date_fmt }}</td>
                 <td>{% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}</td>
                 <td class="text-right"><span class="tabular-nums">{{ row.amount_minor|money(row.currency) }}</span></td>
-                <td>{{ row.category.name if row.category else '' }}</td>
+                <td>{{ category_label(row.category) }}</td>
                 <td>{{ row.account.name if row.account else '' }}</td>
                 <td class="text-muted">{{ row.description }}</td>
                 <td>
@@ -139,7 +139,7 @@
                   {% endif %}
                 </td>
                 <td>{{ row.account.name if row.account else '' }}</td>
-                <td>{{ row.category.name if row.category else '' }}</td>
+                <td>{{ category_label(row.category) }}</td>
                 <td class="text-muted">{{ row.default_description or '' }}</td>
                 <td class="text-right">
                   {% if row.amount_overridden %}

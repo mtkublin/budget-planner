@@ -64,3 +64,53 @@ def test_update_noop_patch(conn: sqlite3.Connection) -> None:
     categories.update(conn, created.id, PatchCategory())
     ops = [e.operation.value for e in audit.list_entries(conn, "category", created.id)]
     assert ops == ["create", "update"]
+
+
+# -- ADR-0047 color override --------------------------------------------
+
+
+def test_create_with_color(conn: sqlite3.Connection) -> None:
+    created = categories.create(
+        conn,
+        NewCategory(name="Travel", direction=Direction.EXPENSE, color="#a3c2ff"),
+    )
+    reloaded = categories.find_by_id(conn, created.id)
+    assert reloaded is not None
+    assert reloaded.color == "#a3c2ff"
+
+
+def test_create_without_color_defaults_null(conn: sqlite3.Connection) -> None:
+    created = categories.create(conn, NewCategory(name="Health", direction=Direction.EXPENSE))
+    reloaded = categories.find_by_id(conn, created.id)
+    assert reloaded is not None
+    assert reloaded.color is None
+
+
+def test_update_set_color(conn: sqlite3.Connection) -> None:
+    created = categories.create(conn, NewCategory(name="Books", direction=Direction.EXPENSE))
+    updated = categories.update(conn, created.id, PatchCategory(color="#112233"))
+    assert updated.color == "#112233"
+
+
+def test_update_clear_color(conn: sqlite3.Connection) -> None:
+    created = categories.create(
+        conn,
+        NewCategory(name="Gifts", direction=Direction.EXPENSE, color="#aabbcc"),
+    )
+    cleared = categories.update(conn, created.id, PatchCategory(clear_color=True))
+    assert cleared.color is None
+
+
+def test_update_color_preserves_name(conn: sqlite3.Connection) -> None:
+    created = categories.create(conn, NewCategory(name="Pets", direction=Direction.EXPENSE))
+    updated = categories.update(conn, created.id, PatchCategory(color="#abcdef"))
+    assert updated.name == "Pets"
+    assert updated.color == "#abcdef"
+
+
+def test_create_rejects_invalid_hex(conn: sqlite3.Connection) -> None:
+    with pytest.raises(sqlite3.IntegrityError):
+        categories.create(
+            conn,
+            NewCategory(name="Bad", direction=Direction.EXPENSE, color="not-a-color"),
+        )

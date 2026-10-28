@@ -47,7 +47,7 @@
       <tbody>
         {% for row in yearly %}
           <tr class="row">
-            <td>{{ row.category_name }}</td>
+            <td>{{ category_label_parts(row.category_name, row.category_direction, row.category_color) }}</td>
             {% for cell in row.cells %}
               {% set m = loop.index %}
               <td class="text-right">

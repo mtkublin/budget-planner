@@ -49,6 +49,8 @@ from budget_planner.services import (
 class CategoryBudgetLine:
     category_id: int
     category_name: str
+    category_direction: Direction
+    category_color: str | None
     budgeted_minor: int | None
     spent_minor: int
     remaining_minor: int | None
@@ -90,6 +92,8 @@ class YearlyCell:
 class YearlyRow:
     category_id: int
     category_name: str
+    category_direction: Direction
+    category_color: str | None
     cells: tuple[YearlyCell, ...]  # exactly 12 entries, Jan..Dec
     total_minor: int
 
@@ -348,6 +352,8 @@ def month_summary(
             CategoryBudgetLine(
                 category_id=cat.id,
                 category_name=cat.name,
+                category_direction=cat.direction,
+                category_color=cat.color,
                 budgeted_minor=budgeted,
                 spent_minor=spent,
                 remaining_minor=remaining,
@@ -450,6 +456,8 @@ def yearly_grid(conn: sqlite3.Connection, year: int) -> tuple[YearlyRow, ...]:
             YearlyRow(
                 category_id=cat.id,
                 category_name=cat.name,
+                category_direction=cat.direction,
+                category_color=cat.color,
                 cells=tuple(cells),
                 total_minor=total,
             )

@@ -59,6 +59,8 @@ class RulesRow:
 
     category_id: int
     category_name: str
+    category_direction: Direction
+    category_color: str | None
     default_minor: int | None
 
 
@@ -102,6 +104,8 @@ def _rules_rows(conn: sqlite3.Connection) -> tuple[RulesRow, ...]:
         RulesRow(
             category_id=cat.id,
             category_name=cat.name,
+            category_direction=cat.direction,
+            category_color=cat.color,
             default_minor=defaults.get(cat.id),
         )
         for cat in cats

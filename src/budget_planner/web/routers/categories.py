@@ -7,7 +7,7 @@ import sqlite3
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
-from budget_planner.domain.categories import NewCategory, PatchCategory
+from budget_planner.domain.categories import NewCategory, PatchCategory, normalise_color
 from budget_planner.domain.enums import Direction
 from budget_planner.repositories import categories as categories_repo
 from budget_planner.web.deps import get_db
@@ -58,11 +58,26 @@ def _validate_direction(value: str) -> Direction | None:
     return d
 
 
+def _resolve_color_form(color: str | None, clear_color: str | None) -> tuple[str | None, bool]:
+    """ADR-0047 — return ``(hex_or_none, clear_requested)``.
+
+    ``clear_color`` present means "reset to direction default" and wins over
+    any ``color`` value the browser might send. Raises ``ValueError`` via
+    ``normalise_color`` on malformed hex.
+    """
+    cleared = bool(clear_color)
+    if cleared:
+        return None, True
+    return normalise_color(color), False
+
+
 @router.post("")
-def create_category(
+def create_category(  # noqa: PLR0917
     request: Request,
     name: str = Form(...),
     direction: str = Form(...),
+    color: str | None = Form(None),
+    clear_color: str | None = Form(None),
     conn: sqlite3.Connection = Depends(get_db),
 ) -> Response:
     errors: dict[str, str] = {}
@@ -71,6 +86,11 @@ def create_category(
         errors["direction"] = "invalid direction"
     if not name.strip():
         errors["name"] = "name required"
+    resolved_color: str | None = None
+    try:
+        resolved_color, _ = _resolve_color_form(color, clear_color)
+    except ValueError as exc:
+        errors["color"] = str(exc)
     if errors:
         return render(
             request,
@@ -81,7 +101,9 @@ def create_category(
             status_code=422,
         )
     assert d is not None
-    cat = categories_repo.create(conn, NewCategory(name=name.strip(), direction=d))
+    cat = categories_repo.create(
+        conn, NewCategory(name=name.strip(), direction=d, color=resolved_color)
+    )
     html = render(request, "partials/categories/_row.html", category=cat)
     trigger(html, "budget-stale")
     return html
@@ -111,10 +133,12 @@ def edit_form(
 
 
 @router.post("/{category_id}")
-def update_category(
+def update_category(  # noqa: PLR0917
     category_id: int,
     request: Request,
     name: str = Form(...),
+    color: str | None = Form(None),
+    clear_color: str | None = Form(None),
     conn: sqlite3.Connection = Depends(get_db),
 ) -> Response:
     cat = categories_repo.find_by_id(conn, category_id)
@@ -127,16 +151,30 @@ def update_category(
             errors={"category": "not found"},
             status_code=404,
         )
+    errors: dict[str, str] = {}
     if not name.strip():
+        errors["name"] = "name required"
+    resolved_color: str | None = None
+    clear_requested = False
+    try:
+        resolved_color, clear_requested = _resolve_color_form(color, clear_color)
+    except ValueError as exc:
+        errors["color"] = str(exc)
+    if errors:
         return render(
             request,
             "partials/categories/_form.html",
             category=cat,
             action=f"/categories/{category_id}",
-            errors={"name": "name required"},
+            errors=errors,
             status_code=422,
         )
-    categories_repo.update(conn, category_id, PatchCategory(name=name.strip()))
+    patch = PatchCategory(
+        name=name.strip(),
+        color=resolved_color,
+        clear_color=clear_requested,
+    )
+    categories_repo.update(conn, category_id, patch)
     updated = categories_repo.find_by_id(conn, category_id)
     assert updated is not None
     html = render(request, "partials/categories/_row.html", category=updated)
