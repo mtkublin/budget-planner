@@ -30,19 +30,19 @@
       {% set remaining = summary.totals.budgeted_minor - summary.totals.spent_minor %}
       {% set left_per_day = (remaining / (days_left or 1)) / 100.0 %}
       <div class="rd-hero__amount">
-        {{ "%.2f"|format(left_per_day) }}
+        {{ "{:,.2f}".format(left_per_day) }}
         <small>{{ base_ccy }} / day</small>
       </div>
       <div class="rd-hero__meta">
-        {{ "%.2f"|format(remaining / 100.0) }} {{ base_ccy }} left ·
-        {{ days_left }} days left · {{ "%.2f"|format(summary.totals.spent_minor / 100.0) }} {{ base_ccy }} spent
+        {{ "{:,.2f}".format(remaining / 100.0) }} {{ base_ccy }} left ·
+        {{ days_left }} days left · {{ "{:,.2f}".format(summary.totals.spent_minor / 100.0) }} {{ base_ccy }} spent
       </div>
       <div class="rd-afford">
         <label class="rd-eyebrow" for="afford-input">Can I afford …</label>
         <form class="rd-afford__row" hx-get="/afford" hx-target="#afford-preview" hx-trigger="input delay:250ms from:find input">
           <input id="afford-input" class="rd-afford__input" type="number" step="0.01" name="amount" placeholder="250.00">
           <span>{{ base_ccy }} ·</span>
-          <span id="afford-preview" class="text-muted">Would leave <strong>{{ "%.2f"|format(left_per_day) }} {{ base_ccy }} / day</strong></span>
+          <span id="afford-preview" class="text-muted">Would leave <strong>{{ "{:,.2f}".format(left_per_day) }} {{ base_ccy }} / day</strong></span>
         </form>
       </div>
     </section>
@@ -52,14 +52,14 @@
       <div class="rd-netcard__header">
         <div>
           <div class="rd-eyebrow">Net worth · all accounts</div>
-          <div class="rd-netcard__total">{{ "%.2f"|format(fortune.net_base / 100.0) }} <small>{{ base_ccy }}</small></div>
+          <div class="rd-netcard__total">{{ "{:,.2f}".format(fortune.net_base / 100.0) }} <small>{{ base_ccy }}</small></div>
         </div>
       </div>
       <div class="rd-netcard__rows">
         {% for row in account_rows[:7] %}
           <div class="rd-netcard__row {% if row.balance_minor < 0 %}rd-netcard__row--liab{% endif %}">
             <span>{{ row.name }} <small class="text-muted">· {{ row.currency }}</small></span>
-            <span class="n">{{ "%.2f"|format(row.balance_minor / 100.0) }}</span>
+            <span class="n">{{ "{:,.2f}".format(row.balance_minor / 100.0) }}</span>
           </div>
         {% endfor %}
         <a class="rd-netcard__link" href="/accounts">View all accounts →</a>

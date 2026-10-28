@@ -18,8 +18,8 @@
       {%- endif %}
     </div>
     <div class="rd-period__amt">
-      {{ "%.2f"|format((budget_f - spent_f) / (days_left or 1)) }}
-      <small>{{ currency }} / day · {{ "%.2f"|format(comm_f) }} committed · {{ days_left }} days left</small>
+      {{ "{:,.2f}".format((budget_f - spent_f) / (days_left or 1)) }}
+      <small>{{ currency }} / day · {{ "{:,.2f}".format(comm_f) }} committed · {{ days_left }} days left</small>
     </div>
   </section>
 {%- endmacro -%}

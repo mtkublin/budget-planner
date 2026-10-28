@@ -1,9 +1,9 @@
 {% if amount_minor > 0 %}
   Would leave
-  <strong>{{ "%.2f"|format(new_left_per_day / 100.0) }} {{ base_ccy }} / day</strong>
+  <strong>{{ "{:,.2f}".format(new_left_per_day / 100.0) }} {{ base_ccy }} / day</strong>
   <span class="text-muted">
     ({{ "%+.2f"|format(delta / 100.0) }} / day)
   </span>
 {% else %}
-  Would leave <strong>{{ "%.2f"|format(new_left_per_day / 100.0) }} {{ base_ccy }} / day</strong>
+  Would leave <strong>{{ "{:,.2f}".format(new_left_per_day / 100.0) }} {{ base_ccy }} / day</strong>
 {% endif %}

@@ -14,7 +14,7 @@
         {{ "M" if loop.first else "L" }}{{ "%.2f"|format(x) }} {{ "%.2f"|format(y) }}{% if not loop.last %} {% endif %}
       {%- endfor -%}
     {%- endset -%}
-    {%- set area = path + ' L' + "%.2f"|format(width) + ' ' + "%.2f"|format(height) + ' L0 ' + "%.2f"|format(height) + ' Z' -%}
+    {%- set area = path + ' L' + ("%.2f"|format(width)) + ' ' + ("%.2f"|format(height)) + ' L0 ' + ("%.2f"|format(height)) + ' Z' -%}
     <svg class="rd-sparkline" viewBox="0 0 {{ width }} {{ height }}" aria-hidden="true">
       <path class="area" d="{{ area }}"/>
       <path class="line" d="{{ path }}"/>

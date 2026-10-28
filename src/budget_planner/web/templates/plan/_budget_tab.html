@@ -18,7 +18,7 @@
     <span style="width: {{ [spent_pct, 100]|min }}%"></span>
   </div>
   <div class="rd-period__amt">
-    {{ "%.2f"|format(per_day) }}
+    {{ "{:,.2f}".format(per_day) }}
     <small>{{ base_ccy }} / day · {{ summary.days_until_next_income }} days left</small>
   </div>
 </section>
@@ -43,19 +43,19 @@
       {% set used = (100.0 * a / p) if p > 0 else 0 %}
       <tr>
         <td>{{ category_pill(row.category_name, direction='expense') }}</td>
-        <td class="num">{{ "%.2f"|format(p) }}</td>
-        <td class="num">{{ "%.2f"|format(a) }}</td>
+        <td class="num">{{ "{:,.2f}".format(p) }}</td>
+        <td class="num">{{ "{:,.2f}".format(a) }}</td>
         <td>{{ progress_bar(used, over=(a > p)) }}</td>
-        <td class="num"><span class="{% if r < 0 %}rd-amount rd-amount--expense{% endif %}">{{ "%.2f"|format(r) }}</span></td>
+        <td class="num"><span class="{% if r < 0 %}rd-amount rd-amount--expense{% endif %}">{{ "{:,.2f}".format(r) }}</span></td>
         <td class="rd-actions"><a class="rd-btn rd-btn--sm rd-btn--ghost" href="/budget/overrides/new?category_id={{ row.category_id }}">⋯</a></td>
       </tr>
     {% endfor %}
     <tr>
       <td><strong>Total</strong></td>
-      <td class="num"><strong>{{ "%.2f"|format(budget) }}</strong></td>
-      <td class="num"><strong>{{ "%.2f"|format(spent) }}</strong></td>
+      <td class="num"><strong>{{ "{:,.2f}".format(budget) }}</strong></td>
+      <td class="num"><strong>{{ "{:,.2f}".format(spent) }}</strong></td>
       <td></td>
-      <td class="num"><strong>{{ "%.2f"|format(remaining) }}</strong></td>
+      <td class="num"><strong>{{ "{:,.2f}".format(remaining) }}</strong></td>
       <td></td>
     </tr>
   </tbody>

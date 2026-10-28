@@ -108,7 +108,7 @@ body.rd {
 .rd-main {
   padding: 2.25rem 2.5rem 3rem;
   min-width: 0;
-  max-width: 1200px;
+  max-width: 1280px;
 }
 
 /* ─── Screen header ───────────────────────────────────────────────── */
@@ -294,10 +294,10 @@ body.rd {
 
 .rd-hero__amount {
   font-family: var(--font-display);
-  font-size: clamp(3rem, 2rem + 3vw, 4.5rem);
+  font-size: clamp(3.5rem, 2.4rem + 4vw, 5.5rem);
   line-height: 1;
   font-weight: 500;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
 }
 .rd-hero__amount small { font-family: var(--font-mono); font-size: 0.3em; color: var(--mute); font-weight: 400; margin-left: 0.5rem; letter-spacing: 0; text-transform: uppercase; }
 .rd-hero__meta { margin-top: 0.5rem; color: var(--mute); font-size: 0.9rem; }
