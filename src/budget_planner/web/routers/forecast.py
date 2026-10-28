@@ -1,4 +1,9 @@
-"""Forecast router (T-037)."""
+"""Forecast router (T-037, ADR-0043).
+
+The user-facing horizon is specified in **months** (ADR-0043) and expanded
+to days at the router boundary so the pure daily projection service stays
+unchanged.
+"""
 
 from __future__ import annotations
 
@@ -17,16 +22,17 @@ from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/forecast", tags=["forecast"])
 
-_DEFAULT_HORIZON = 30
-_MAX_HORIZON = 365
+_DEFAULT_HORIZON_MONTHS = 12
+_MIN_HORIZON_MONTHS = 1
+_MAX_HORIZON_MONTHS = 60
 
 
-def _parse_horizon(request: Request) -> int:
+def _parse_horizon_months(request: Request) -> int:
     try:
-        val = int(request.query_params.get("horizon_days", _DEFAULT_HORIZON))
+        val = int(request.query_params.get("horizon_months", _DEFAULT_HORIZON_MONTHS))
     except (TypeError, ValueError):
-        return _DEFAULT_HORIZON
-    return max(1, min(val, _MAX_HORIZON))
+        return _DEFAULT_HORIZON_MONTHS
+    return max(_MIN_HORIZON_MONTHS, min(val, _MAX_HORIZON_MONTHS))
 
 
 def _series_to_plotly(series: forecast_service.ForecastSeries) -> dict[str, object]:
@@ -50,40 +56,56 @@ def _series_to_plotly(series: forecast_service.ForecastSeries) -> dict[str, obje
     }
 
 
+def _compute(
+    conn: sqlite3.Connection,
+    settings: Settings,
+    horizon_months: int,
+) -> tuple[forecast_service.ForecastSeries, forecast_service.MonthlySeries]:
+    today = date.today()  # noqa: DTZ011
+    horizon_days = forecast_service.horizon_days_for_months(today, horizon_months)
+    with httpx.Client(timeout=5.0) as client:
+        series = forecast_service.forecast(
+            conn, client, today, horizon_days, settings.base_currency
+        )
+        monthly = forecast_service.forecast_monthly(
+            conn, client, today, horizon_months, settings.base_currency
+        )
+    return series, monthly
+
+
 @router.get("", response_class=HTMLResponse)
 def index(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
 ) -> HTMLResponse:
-    horizon = _parse_horizon(request)
-    today = date.today()  # noqa: DTZ011
-    with httpx.Client(timeout=5.0) as client:
-        series = forecast_service.forecast(conn, client, today, horizon, settings.base_currency)
+    horizon_months = _parse_horizon_months(request)
+    series, monthly = _compute(conn, settings, horizon_months)
     plotly_json = json.dumps(_series_to_plotly(series))
     return render(
         request,
         "forecast/index.html",
-        horizon=horizon,
+        horizon_months=horizon_months,
         series=series,
+        monthly=monthly,
         plotly_json=plotly_json,
     )
 
 
-@router.get("/chart", response_class=HTMLResponse)
-def chart_fragment(
+@router.get("/view", response_class=HTMLResponse)
+def view_fragment(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
 ) -> HTMLResponse:
-    horizon = _parse_horizon(request)
-    today = date.today()  # noqa: DTZ011
-    with httpx.Client(timeout=5.0) as client:
-        series = forecast_service.forecast(conn, client, today, horizon, settings.base_currency)
+    horizon_months = _parse_horizon_months(request)
+    series, monthly = _compute(conn, settings, horizon_months)
     plotly_json = json.dumps(_series_to_plotly(series))
     return render(
         request,
-        "partials/forecast/_chart.html",
+        "partials/forecast/_view.html",
         plotly_json=plotly_json,
         series=series,
+        monthly=monthly,
+        horizon_months=horizon_months,
     )

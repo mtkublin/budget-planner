@@ -72,17 +72,17 @@ def test_nav_links_present(client: TestClient) -> None:
     assert r.status_code == 200
     soup = BeautifulSoup(r.text, "html.parser")
     hrefs = {a["href"] for a in soup.select("nav a")}
-    for path in ("/", "/ledger", "/accounts", "/budget", "/settings"):
+    for path in ("/", "/ledger", "/accounts", "/budget", "/forecast", "/settings"):
         assert path in hrefs, f"nav missing {path}"
     assert "/transactions" not in hrefs
 
 
-def test_nav_has_four_primary_items_plus_settings(client: TestClient) -> None:
+def test_nav_has_five_primary_items_plus_settings(client: TestClient) -> None:
     r = client.get("/")
     soup = BeautifulSoup(r.text, "html.parser")
     primary = soup.select("nav ul.rail-list:not(.rail-list--footer) a")
     footer = soup.select("nav ul.rail-list--footer a")
-    assert len(primary) == 4, f"expected 4 primary rail items, got {len(primary)}"
+    assert len(primary) == 5, f"expected 5 primary rail items, got {len(primary)}"
     assert len(footer) == 1, f"expected 1 footer rail item (Settings), got {len(footer)}"
 
 

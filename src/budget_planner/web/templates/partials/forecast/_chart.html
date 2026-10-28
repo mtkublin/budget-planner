@@ -1,9 +1,4 @@
-<div id="forecast-chart-wrap"
-     hx-trigger="forecast-stale from:body"
-     hx-get="/forecast/chart"
-     hx-swap="outerHTML">
-  <div id="forecast-chart"
-       data-plotly="{{ plotly_json }}"
-       aria-label="Forecast chart"></div>
-  <p class="text-muted text-sm mt-2">Start {{ series.start_date|date_fmt }} · End {{ series.end_date|date_fmt }}</p>
-</div>
+<div id="forecast-chart"
+     data-plotly="{{ plotly_json }}"
+     aria-label="Forecast chart"></div>
+<p class="text-muted text-sm mt-2">Start {{ series.start_date|date_fmt }} · End {{ series.end_date|date_fmt }}</p>

@@ -1,0 +1,246 @@
+"""Tests for ``services.forecast.forecast_monthly`` (T-127, ADR-0043)."""
+
+from __future__ import annotations
+
+import sqlite3
+from collections.abc import Callable
+from datetime import date
+from decimal import Decimal
+
+import httpx
+import pytest
+
+from budget_planner.domain.accounts import NewAccount
+from budget_planner.domain.categories import NewCategory
+from budget_planner.domain.enums import Cadence, Direction
+from budget_planner.domain.fx import NewFxRate
+from budget_planner.domain.planned import NewPlannedTransaction
+from budget_planner.domain.recurring import NewRecurringRule
+from budget_planner.repositories import (
+    accounts,
+    categories,
+    fx as fx_repo,
+    planned,
+    recurring,
+)
+from budget_planner.services import forecast as forecast_svc
+
+_API = "https://api.frankfurter.app"
+
+
+def _dead_client() -> httpx.Client:
+    def _h(req: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("offline in tests")
+
+    return httpx.Client(transport=httpx.MockTransport(_h), base_url=_API)
+
+
+def _mock_client(handler: Callable[[httpx.Request], httpx.Response]) -> httpx.Client:
+    return httpx.Client(transport=httpx.MockTransport(handler), base_url=_API)
+
+
+TODAY = date(2026, 10, 23)
+
+
+@pytest.fixture
+def world(conn: sqlite3.Connection) -> dict[str, int]:
+    a1 = accounts.create(
+        conn, NewAccount(name="Checking", currency="PLN", opening_balance=100_000)
+    ).id
+    a2 = accounts.create(conn, NewAccount(name="Savings", currency="PLN")).id
+    a3 = accounts.create(
+        conn, NewAccount(name="EUR Cash", currency="EUR", opening_balance=50_000)
+    ).id
+    salary = categories.create(conn, NewCategory(name="Salary", direction=Direction.INCOME)).id
+    groceries = categories.create(
+        conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+    ).id
+    rent = categories.create(conn, NewCategory(name="Rent", direction=Direction.EXPENSE)).id
+    transit = categories.find_by_name(conn, "Transit")
+    assert transit is not None
+
+    fx_repo.upsert_rate(
+        conn,
+        NewFxRate(date=TODAY, from_ccy="EUR", to_ccy="PLN", rate=Decimal("4.30")),
+    )
+    return {
+        "a1": a1,
+        "a2": a2,
+        "a3": a3,
+        "salary": salary,
+        "groceries": groceries,
+        "rent": rent,
+        "transit": transit.id,
+    }
+
+
+def _row_for(series: forecast_svc.MonthlySeries, month: date) -> forecast_svc.MonthlyPoint:
+    for r in series.months:
+        if r.month == month:
+            return r
+    raise AssertionError(f"month {month} missing from monthly series")
+
+
+def test_horizon_days_for_months_spans_full_month() -> None:
+    # 2026-10-23 + 3 months -> last month = 2026-12, last day = 2026-12-31
+    assert forecast_svc.horizon_days_for_months(TODAY, 3) == (date(2026, 12, 31) - TODAY).days
+
+
+def test_shape_single_month(conn: sqlite3.Connection, world: dict[str, int]) -> None:
+    _ = world
+    with _dead_client() as http:
+        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 1, "PLN")
+    assert monthly.base_currency == "PLN"
+    assert len(monthly.months) == 1
+    assert monthly.months[0].month == date(2026, 10, 1)
+    assert monthly.start_month == monthly.end_month == date(2026, 10, 1)
+
+
+def test_shape_multi_month(conn: sqlite3.Connection, world: dict[str, int]) -> None:
+    _ = world
+    with _dead_client() as http:
+        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 4, "PLN")
+    expected = [date(2026, 10, 1), date(2026, 11, 1), date(2026, 12, 1), date(2027, 1, 1)]
+    assert [r.month for r in monthly.months] == expected
+    assert monthly.start_month == date(2026, 10, 1)
+    assert monthly.end_month == date(2027, 1, 1)
+
+
+def test_income_sum_in_month(conn: sqlite3.Connection, world: dict[str, int]) -> None:
+    planned.create(
+        conn,
+        NewPlannedTransaction(
+            operation_date=date(2026, 11, 15),
+            category_id=world["salary"],
+            account_id=world["a1"],
+            amount=800_000,
+            description="payday",
+        ),
+    )
+    with _dead_client() as http:
+        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 3, "PLN")
+    nov = _row_for(monthly, date(2026, 11, 1))
+    assert nov.income_base_minor == 800_000
+    assert nov.expense_base_minor == 0
+    assert nov.net_base_minor == 800_000
+
+
+def test_expense_sum_in_month_includes_recurring(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    recurring.create_rule(
+        conn,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=date(2026, 10, 1),
+            category_id=world["rent"],
+            account_id=world["a1"],
+            default_amount=300_000,
+            default_description="rent",
+        ),
+    )
+    planned.create(
+        conn,
+        NewPlannedTransaction(
+            operation_date=date(2026, 11, 20),
+            category_id=world["groceries"],
+            account_id=world["a1"],
+            amount=10_000,
+            description="groceries",
+        ),
+    )
+    with _dead_client() as http:
+        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 3, "PLN")
+    nov = _row_for(monthly, date(2026, 11, 1))
+    # Rent 300_000 (recurring) + groceries 10_000 (planned)
+    assert nov.expense_base_minor == 310_000
+    assert nov.income_base_minor == 0
+    assert nov.net_base_minor == -310_000
+
+
+def test_transit_excluded_from_income_expense(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    planned.create(
+        conn,
+        NewPlannedTransaction(
+            operation_date=date(2026, 11, 5),
+            category_id=world["transit"],
+            account_id=world["a1"],
+            dest_account_id=world["a2"],
+            amount=20_000,
+            description="savings sweep",
+        ),
+    )
+    with _dead_client() as http:
+        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 2, "PLN")
+    nov = _row_for(monthly, date(2026, 11, 1))
+    assert nov.income_base_minor == 0
+    assert nov.expense_base_minor == 0
+    assert nov.net_base_minor == 0
+
+
+def test_end_balance_matches_daily_eom(conn: sqlite3.Connection, world: dict[str, int]) -> None:
+    planned.create(
+        conn,
+        NewPlannedTransaction(
+            operation_date=date(2026, 11, 10),
+            category_id=world["salary"],
+            account_id=world["a1"],
+            amount=800_000,
+            description="payday",
+        ),
+    )
+    with _dead_client() as http:
+        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 2, "PLN")
+    with _dead_client() as http:
+        daily = forecast_svc.forecast(
+            conn,
+            http,
+            TODAY,
+            forecast_svc.horizon_days_for_months(TODAY, 2),
+            "PLN",
+            include_budget_overlay=False,
+        )
+    eom_nov = next(d for d in daily.days if d.on_date == date(2026, 11, 30))
+    nov = _row_for(monthly, date(2026, 11, 1))
+    assert nov.end_balance_base_minor == eom_nov.totals_base_minor
+
+
+def test_empty_accounts_returns_zero_rows(conn: sqlite3.Connection) -> None:
+    with _dead_client() as http:
+        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 3, "PLN")
+    assert len(monthly.months) == 3
+    assert all(r.income_base_minor == 0 for r in monthly.months)
+    assert all(r.expense_base_minor == 0 for r in monthly.months)
+    assert all(r.end_balance_base_minor == 0 for r in monthly.months)
+
+
+def test_fx_conversion_on_foreign_account(conn: sqlite3.Connection, world: dict[str, int]) -> None:
+    planned.create(
+        conn,
+        NewPlannedTransaction(
+            operation_date=date(2026, 11, 10),
+            category_id=world["salary"],
+            account_id=world["a3"],  # EUR account
+            amount=1_000,  # 10.00 EUR
+            description="eur payday",
+        ),
+    )
+    hits: list[httpx.Request] = []
+
+    def _h(req: httpx.Request) -> httpx.Response:
+        hits.append(req)
+        return httpx.Response(500)
+
+    with _mock_client(_h) as http:
+        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 2, "PLN")
+    nov = _row_for(monthly, date(2026, 11, 1))
+    # 1_000 EUR minor * 4.30 = 4_300 PLN minor.
+    assert nov.income_base_minor == 4_300
+    assert hits == []
+
+
+def test_negative_horizon_months_raises(conn: sqlite3.Connection) -> None:
+    with _dead_client() as http, pytest.raises(ValueError, match="horizon_months"):
+        forecast_svc.forecast_monthly(conn, http, TODAY, 0, "PLN")
