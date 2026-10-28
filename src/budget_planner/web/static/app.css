@@ -1359,6 +1359,27 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
   font-size: var(--text-sm);
 }
 
+.overrides-list li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.overrides-list__remove {
+  margin-left: auto;
+  background: transparent;
+  border: 0;
+  color: var(--direction-expense, var(--muted));
+  cursor: pointer;
+  font-size: inherit;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.overrides-list__remove:hover,
+.overrides-list__remove:focus-visible { color: var(--ink); }
+
 /* ---- Quick-add FAB + slide-over (T-069) -----------------------------------
    Composes existing tokens only. The FAB sits above the drawer; the
    slide-over wraps form fragments launched from the FAB and rides on top

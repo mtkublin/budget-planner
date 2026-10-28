@@ -164,6 +164,13 @@
                           <li>
                             <span class="tabular-nums">{{ ov.occurrence_date|date_fmt }}</span>
                             <span class="text-muted">{{ ov.state.value }}</span>
+                            <button type="button"
+                                    class="overrides-list__remove"
+                                    data-destructive
+                                    hx-post="/recurring/{{ row.id }}/overrides/{{ ov.occurrence_date }}/delete"
+                                    hx-swap="none"
+                                    hx-confirm="Remove override for {{ ov.occurrence_date }}?"
+                                    aria-label="Remove override {{ ov.occurrence_date }} on rule {{ row.id }}">Remove</button>
                           </li>
                         {% endfor %}
                       </ul>

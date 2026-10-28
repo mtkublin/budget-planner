@@ -136,6 +136,44 @@ def test_ledger_view_recurring(client: TestClient, seeded: dict[str, int]) -> No
     assert any("override" in d.get_text().lower() for d in details)
 
 
+def test_ledger_recurring_lists_each_override_with_remove_button(
+    _migrated: Settings,
+    client: TestClient,
+    seeded: dict[str, int],
+) -> None:
+    """Every live override on a rule gets a Remove button targeting its own
+    canonical ``occurrence_date`` delete endpoint. Covers the multi-future-
+    override case where only the override on ``next_due`` was previously
+    reachable via UI."""
+    client.post(
+        f"/recurring/{seeded['rule']}/overrides",
+        data={"year": 2026, "month": 2, "amount": "100.00"},
+    )
+    client.post(
+        f"/recurring/{seeded['rule']}/overrides",
+        data={"year": 2026, "month": 3, "amount": "200.00"},
+    )
+    r = client.get("/ledger?view=recurring")
+    assert r.status_code == 200
+    soup = BeautifulSoup(r.text, "html.parser")
+    remove_btns = soup.select("button.overrides-list__remove")
+    assert len(remove_btns) >= 2
+    endpoints = {btn.get("hx-post") for btn in remove_btns}
+    assert f"/recurring/{seeded['rule']}/overrides/2026-02-01/delete" in endpoints
+    assert f"/recurring/{seeded['rule']}/overrides/2026-03-01/delete" in endpoints
+
+    # Clicking Remove on the second override calls the delete endpoint and
+    # the row re-rendered via the ledger-stale trigger drops that override.
+    resp = client.post(f"/recurring/{seeded['rule']}/overrides/2026-03-01/delete")
+    assert resp.status_code == 200
+    conn = get_connection(_migrated)
+    try:
+        remaining = recurring_repo.list_overrides(conn, seeded["rule"])
+    finally:
+        conn.close()
+    assert [ov.occurrence_date for ov in remaining] == [date(2026, 2, 1)]
+
+
 def test_ledger_invalid_view_falls_back_to_actual(
     client: TestClient, seeded: dict[str, int]
 ) -> None:
