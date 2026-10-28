@@ -874,13 +874,59 @@ def forecast_monthly(
     )
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MonthlyProjectionPoint:
+    """Template-friendly projection point for the Plan · Forecast chart.
+
+    One entry per calendar month in the horizon. ``value_major`` is the
+    projected end-of-month fortune in major units, convenient for SVG
+    plotting (``charts.line_area`` normalises on raw floats). ``label``
+    is a short month label suitable for the x-axis.
+    """
+
+    month: dt.date
+    label: str
+    value_major: float
+
+
+def monthly_projection(
+    conn: sqlite3.Connection,
+    settings: object,
+    today: dt.date,
+    horizon: int = 12,
+) -> tuple[MonthlyProjectionPoint, ...]:
+    """Return the per-month end-of-month projection series for the Plan tab.
+
+    Thin composer over :func:`forecast_monthly`: picks ``base_currency``
+    from ``settings``, opens a short-lived ``httpx.Client`` for FX
+    fallback, and reshapes the result into points the chart templates can
+    consume directly (no further template-side math).
+
+    ``settings`` is typed as ``object`` to avoid an import cycle with the
+    web layer; it must expose ``base_currency: str``.
+    """
+    base_ccy = str(getattr(settings, "base_currency", "PLN"))
+    with httpx.Client(timeout=5.0) as client:
+        series = forecast_monthly(conn, client, today, horizon, base_ccy)
+    return tuple(
+        MonthlyProjectionPoint(
+            month=point.month,
+            label=point.month.strftime("%b %Y"),
+            value_major=point.end_balance_base_minor / 100.0,
+        )
+        for point in series.months
+    )
+
+
 __all__ = [
     "AccountBalancePoint",
     "DayPoint",
     "ForecastSeries",
     "MonthlyPoint",
+    "MonthlyProjectionPoint",
     "MonthlySeries",
     "forecast",
     "forecast_monthly",
     "horizon_days_for_months",
+    "monthly_projection",
 ]

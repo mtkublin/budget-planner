@@ -1,27 +1,71 @@
-<section>
-  <p class="text-muted">
-    <strong>NOW:</strong> --- · <strong>HORIZON:</strong> --- · PLN budget overlay on
+{# Rising Dough v2 — Plan · Forecast tab (T-R48, ADR-0054).
+
+Renders the monthly projection as a server-computed line + area SVG. The
+<figure> carries a <figcaption> for screen readers; the <details> fallback
+exposes the same data as a table so keyboard + screen-reader users keep
+parity with the chart.
+#}
+{% set chart = forecast_chart %}
+{% set points = forecast_points %}
+<section class="rd-forecast">
+  <p class="text-muted" style="margin-bottom: 1rem;">
+    <strong>NOW:</strong> {{ today.strftime("%b %Y") }} ·
+    <strong>HORIZON:</strong> {{ points|length }} months ·
+    {{ base_ccy }} budget overlay on
   </p>
-  <figure style="margin-top: 1rem; padding: 1.5rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card);">
-    <figcaption class="rd-eyebrow">Projected balance</figcaption>
-    <svg viewBox="0 0 600 240" role="img" aria-labelledby="forecast-caption" style="width: 100%; height: 240px;">
-      <title id="forecast-caption">Monthly projection</title>
-      <path d="M0 180 L50 170 L100 160 L150 140 L200 100 L250 95 L300 80 L350 70 L400 65 L450 60 L500 65 L550 75 L600 90"
-            fill="none" stroke="var(--accent)" stroke-width="2"/>
-      <path d="M0 180 L50 170 L100 160 L150 140 L200 100 L250 95 L300 80 L350 70 L400 65 L450 60 L500 65 L550 75 L600 90 L600 240 L0 240 Z"
-            fill="var(--accent-soft)" opacity="0.6"/>
+  <figure class="rd-chart rd-chart--line"
+          role="img"
+          aria-labelledby="forecast-caption">
+    <figcaption id="forecast-caption" class="rd-chart__caption">
+      Projected balance,
+      {% if points %}
+        {{ points[0].label }} — {{ points[-1].label }}
+      {% else %}
+        no data available
+      {% endif %}
+      · {{ base_ccy }}
+    </figcaption>
+    <svg class="rd-chart__svg rd-chart__svg--line"
+         viewBox="{{ chart.view_box }}"
+         preserveAspectRatio="xMidYMid meet"
+         role="presentation">
+      {% for tick in chart.y_axis %}
+        <line class="rd-chart__gridline" x1="48" x2="{{ chart.width - 16 }}" y1="{{ tick.position }}" y2="{{ tick.position }}" />
+        <text class="rd-chart__y-label" x="42" y="{{ tick.position }}" text-anchor="end" dominant-baseline="middle">{{ tick.label }}</text>
+      {% endfor %}
+      {% if chart.area_d %}
+        <path class="rd-chart__area" d="{{ chart.area_d }}" />
+      {% endif %}
+      {% if chart.line_d %}
+        <path class="rd-chart__line" d="{{ chart.line_d }}" fill="none" />
+      {% endif %}
+      {% for tick in chart.x_axis %}
+        <text class="rd-chart__x-label" x="{{ tick.position }}" y="{{ chart.height - 10 }}" text-anchor="middle">{{ tick.label }}</text>
+      {% endfor %}
     </svg>
-    <details>
-      <summary>Monthly table</summary>
-      <table class="rd-table">
-        <caption class="sr-only">Monthly projection fallback</caption>
-        <thead><tr><th scope="col">Month</th><th scope="col" class="num">Income</th><th scope="col" class="num">Expenses</th><th scope="col" class="num">Net</th><th scope="col" class="num">End of month</th></tr></thead>
-        <tbody>
-          {% for i in range(12) %}
-          <tr><td>Month {{ i+1 }}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </details>
   </figure>
+  <details class="rd-chart__fallback">
+    <summary>Monthly table</summary>
+    <table class="rd-table">
+      <caption class="sr-only">Monthly projection fallback for the forecast chart</caption>
+      <thead>
+        <tr>
+          <th scope="col">Month</th>
+          <th scope="col" class="num">End of month ({{ base_ccy }})</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for point in points %}
+          <tr data-month="{{ point.month.isoformat() }}">
+            <td>{{ point.label }}</td>
+            <td class="num">{{ "{:,.2f}".format(point.value_major) }}</td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="2" class="text-muted">No projection data available.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </details>
 </section>

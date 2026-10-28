@@ -586,6 +586,106 @@ kbd.rd-kbd {
 .rd-sparkline path.area { fill: var(--accent-soft); }
 .rd-sparkline path.line { fill: none; stroke: var(--accent); stroke-width: 1.25; }
 
+/* ─── Charts (ADR-0054) ───────────────────────────────────────────── */
+.rd-chart {
+  margin: 0;
+  padding: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+.rd-chart__caption {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  color: var(--mute);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.75rem;
+}
+
+.rd-chart__svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.rd-chart__svg--line  { height: 240px; }
+.rd-chart__svg--bars  { height: 260px; }
+.rd-chart__svg--hbars { height: auto; }
+
+.rd-chart__gridline {
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+.rd-chart__y-label,
+.rd-chart__x-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  fill: var(--mute);
+}
+
+.rd-chart__line {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.rd-chart__area {
+  fill: var(--accent-soft);
+  opacity: 0.55;
+}
+
+.rd-chart__bar--income  { fill: var(--income); }
+.rd-chart__bar--expense { fill: var(--expense); }
+.rd-chart__bar--hbar    { fill: var(--accent); }
+.rd-chart__bar-track    { fill: var(--sunk); }
+
+.rd-chart__hbar-label {
+  font-family: var(--font-body);
+  font-size: 12px;
+  fill: var(--ink);
+  dominant-baseline: middle;
+}
+
+.rd-chart__hbar-value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  fill: var(--mute);
+  dominant-baseline: middle;
+  text-anchor: end;
+}
+
+.rd-chart__fallback {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+}
+.rd-chart__fallback summary { cursor: pointer; color: var(--mute); }
+.rd-chart__fallback[open] summary { color: var(--ink); }
+.rd-chart__fallback table { margin-top: 0.75rem; }
+
+.rd-chart__legend {
+  display: inline-flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--mute);
+}
+
+.rd-chart__legend-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 0.4rem;
+  vertical-align: middle;
+}
+.rd-chart__legend-swatch--income  { background: var(--income); }
+.rd-chart__legend-swatch--expense { background: var(--expense); }
+
 /* ─── Heatmap cell ────────────────────────────────────────────────── */
 .rd-heat {
   display: inline-flex;
