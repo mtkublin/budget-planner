@@ -636,6 +636,19 @@ def horizon_days_for_months(today: dt.date, horizon_months: int) -> int:
     return (end_date - today).days
 
 
+def _current_month_budget_totals(
+    conn: sqlite3.Connection,
+    today: dt.date,
+) -> budget_svc.MonthTotals | None:
+    """Return ``month_summary(today).totals`` or ``None`` if no live categories.
+
+    Reuses the Budget page math so the Forecast table's current-month row
+    stays in lockstep with Budget + Overview (ADR-0039 + ADR-0041).
+    """
+    summary = budget_svc.month_summary(conn, today.year, today.month, today=today)
+    return summary.totals
+
+
 def _planned_budget_per_month(
     conn: sqlite3.Connection,
     today: dt.date,
@@ -662,8 +675,6 @@ def _planned_budget_per_month(
     Budget-period consumption boundaries (ADR-0041) are approximated with
     calendar months here, matching ``_collect_budget_overlay``.
     """
-    from budget_planner.services import budget as budget_svc  # noqa: PLC0415
-
     expense_cats = [
         c
         for c in categories_repo.list_all(conn, include_deleted=False)
@@ -830,11 +841,20 @@ def forecast_monthly(
     for d in series.days:
         eom_by_month[d.on_date.replace(day=1)] = d.totals_base_minor
 
+    current_month = today.replace(day=1)
+    current_month_totals = _current_month_budget_totals(conn, today)
+
     rows: list[MonthlyPoint] = []
     for offset in range(horizon_months):
         month = _month_offset(today, offset)
         income, expense = flows.get(month, (0, 0))
-        planned_budget = planned_budget_by_month[month]
+        if month == current_month and current_month_totals is not None:
+            # Current fiscal period reuses services.budget.month_summary so the
+            # Forecast table lines up with the Budget page + Overview panel.
+            expense = current_month_totals.committed_minor
+            planned_budget = max(current_month_totals.remaining_minor, 0)
+        else:
+            planned_budget = planned_budget_by_month[month]
         rows.append(
             MonthlyPoint(
                 month=month,
