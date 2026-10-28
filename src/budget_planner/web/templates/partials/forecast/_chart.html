@@ -1,4 +1,4 @@
 <div id="forecast-chart"
      data-plotly="{{ plotly_json }}"
      aria-label="Forecast chart"></div>
-<p class="text-muted text-sm mt-2">Start {{ series.start_date|date_fmt }} · End {{ series.end_date|date_fmt }}</p>
+<p class="text-muted text-sm mt-2">Start {{ monthly.start_month|date_fmt("%b %Y") }} · End {{ monthly.end_month|date_fmt("%b %Y") }}</p>

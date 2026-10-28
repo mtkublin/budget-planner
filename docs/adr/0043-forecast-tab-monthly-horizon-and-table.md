@@ -29,10 +29,13 @@ Per month in `[today.month, today.month + horizon_months - 1]` returns:
 - `month` (first-of-month `date`)
 - `income_base_minor` — sum of signed income events landing in the month (base currency)
 - `expense_base_minor` — sum of (absolute) expense events in the month (base currency)
-- `net_base_minor` — `income - expense`
-- `end_balance_base_minor` — projected total fortune at end of month
+- `planned_budget_base_minor` — `Σ max(resolve_budget(cat, m) − spent_so_far(cat, m) − committed_future(cat, m), 0)` across live expense categories. Residual-only, clamped at zero (matches the ADR-0042 overlay math exactly). Current month subtracts actual spending + already-committed future events; future months only subtract committed events in that calendar month.
+- `net_base_minor` — `income - expense - planned_budget`
+- `end_balance_base_minor` — projected total fortune at end of month, computed by `forecast()` with the ADR-0042 **budget overlay enabled**, so the current-month row absorbs both the remaining planned events and the synthetic residual-budget spend distributed across the rest of the horizon.
 
 Transits net to zero across accounts and are excluded from income / expense totals. Adjustments are not emitted by the forecast engine (planned adjustments unsupported, ADR-0011).
+
+Budget-period consumption boundaries (ADR-0041) are approximated with calendar months here — matching ADR-0042 overlay semantics. Fiscal-period redefinition (anchor-income cycle) is tracked separately.
 
 The daily `forecast()` function remains the primary driver; `forecast_monthly()` composes over its daily output + raw event stream — one DB pass per request.
 
@@ -45,10 +48,12 @@ Previously the `/forecast` route was reachable only by URL. It becomes a first-c
 ```
 Forecast
   ├─ Horizon control (number input, unit = months)
-  ├─ Chart (daily series, same as today, extends over the chosen window)
+  ├─ Chart (monthly granularity — one EOM point per month, overlay-on)
   └─ Monthly table
-       Month · Income · Expenses · Net · Projected balance (EOM)
+       Month · Income · Expenses · Planned budget · Net · Projected balance (EOM)
 ```
+
+Chart X-axis renders one point per month (`forecast_monthly.months`) with `mode: "lines+markers"` and `tickformat: "%b %Y"` — matches ADR-0042's monthly materialisation and the table's row granularity. Users wanting a per-day drilldown use the daily `forecast()` endpoint directly (not surfaced in the UI).
 
 Table reuses `partials/forecast/_table.html`; both chart + table share the `#forecast-view` wrap so one HTMX swap updates both.
 

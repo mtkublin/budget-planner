@@ -87,11 +87,18 @@ class MonthlyPoint:
     ``expense`` are unsigned sums over cash events landing in the month;
     transits + adjustments are excluded (transits net to zero across
     accounts; planned adjustments are unsupported — see ADR-0011).
+
+    ``planned_budget_base_minor`` is the sum of
+    ``services.budget.resolve_budget(cat, year, month)`` across every
+    live expense category — the total budget allocated for the month
+    regardless of whether planned/recurring events already cover it.
+    ``net_base_minor = income - expense - planned_budget``.
     """
 
     month: dt.date
     income_base_minor: int
     expense_base_minor: int
+    planned_budget_base_minor: int
     net_base_minor: int
     end_balance_base_minor: int
 
@@ -629,6 +636,58 @@ def horizon_days_for_months(today: dt.date, horizon_months: int) -> int:
     return (end_date - today).days
 
 
+def _planned_budget_per_month(
+    conn: sqlite3.Connection,
+    today: dt.date,
+    horizon_months: int,
+) -> dict[dt.date, int]:
+    """Return per-month **remaining** budget, clamped at zero.
+
+    For each month ``m`` in the horizon:
+
+    ``remaining(m) = Σ max(resolve_budget(cat, m) - spent_so_far(cat, m) -
+                            committed_future(cat, m), 0)``
+
+    across every live expense category.
+
+    * ``spent_so_far`` counts actual expense transactions in
+      ``[month_start, min(today, month_end)]`` — zero for future months.
+    * ``committed_future`` counts unpromoted planned + active recurring
+      expense amounts in ``(max(today, month_start - 1 day), month_end]``.
+    * The clamp drops categories whose planned/recurring already covers
+      (or exceeds) their budget, matching the ADR-0042 overlay semantics
+      and the user's "only if remaining is positive" rule.
+
+    Budgets are stored in base currency, so no FX conversion is needed.
+    Budget-period consumption boundaries (ADR-0041) are approximated with
+    calendar months here, matching ``_collect_budget_overlay``.
+    """
+    from budget_planner.services import budget as budget_svc  # noqa: PLC0415
+
+    expense_cats = [
+        c
+        for c in categories_repo.list_all(conn, include_deleted=False)
+        if c.direction is Direction.EXPENSE
+    ]
+    out: dict[dt.date, int] = {}
+    for offset in range(horizon_months):
+        month = _month_offset(today, offset)
+        month_end = _last_day_of_month(month)
+        window_start = max(today + dt.timedelta(days=1), month)
+        total = 0
+        for cat in expense_cats:
+            amount = budget_svc.resolve_budget(conn, cat.id, month.year, month.month)
+            if amount is None:
+                continue
+            spent = _spent_so_far(conn, cat.id, month, min(today, month_end))
+            committed = _committed_future_for_category(conn, cat.id, window_start, month_end)
+            remaining = amount - spent - committed
+            if remaining > 0:
+                total += remaining
+        out[month] = total
+    return out
+
+
 def _month_flow_sums(
     conn: sqlite3.Connection,
     *,
@@ -710,12 +769,15 @@ def forecast_monthly(
     ``income_base_minor``, ``expense_base_minor``, ``net`` = income - expense,
     and ``end_balance_base_minor`` = projected total fortune at month-end.
 
-    The daily projection is reused for end-of-month balances; monthly flow
-    sums are re-derived from the same event stream to keep per-direction
-    totals exact (daily totals aggregate both directions by net). The
-    budget overlay (ADR-0042) is excluded here so the table reflects
-    explicit planned + recurring + anchor state only — the chart on the
-    page continues to render the overlay-adjusted projection separately.
+    The daily projection is reused for end-of-month balances with the
+    ADR-0042 budget overlay enabled, so each row's ``end_balance_base_minor``
+    absorbs the remaining-budget synthetic spend across the horizon.
+    Monthly flow sums (``income`` / ``expense``) are re-derived from the
+    explicit event stream only (no overlay) so those columns stay
+    traceable to real planned + recurring + anchor state.
+    ``planned_budget_base_minor`` is the per-month residual budget
+    (``max(resolved - spent_so_far - committed_future, 0)``) summed across
+    live expense categories.
     """
     if horizon_months < 1:
         raise ValueError(f"horizon_months must be >= 1, got {horizon_months}")
@@ -724,7 +786,9 @@ def forecast_monthly(
     last_month = _month_offset(today, horizon_months - 1)
     end_date = _last_day_of_month(last_month)
     horizon_days = (end_date - today).days
-    series = forecast(conn, http, today, horizon_days, base_currency, include_budget_overlay=False)
+    series = forecast(conn, http, today, horizon_days, base_currency)
+
+    planned_budget_by_month = _planned_budget_per_month(conn, today, horizon_months)
 
     active_accounts = tuple(accounts_repo.list_all(conn))
     if not active_accounts:
@@ -733,7 +797,8 @@ def forecast_monthly(
                 month=_month_offset(today, offset),
                 income_base_minor=0,
                 expense_base_minor=0,
-                net_base_minor=0,
+                planned_budget_base_minor=planned_budget_by_month[_month_offset(today, offset)],
+                net_base_minor=-planned_budget_by_month[_month_offset(today, offset)],
                 end_balance_base_minor=0,
             )
             for offset in range(horizon_months)
@@ -769,12 +834,14 @@ def forecast_monthly(
     for offset in range(horizon_months):
         month = _month_offset(today, offset)
         income, expense = flows.get(month, (0, 0))
+        planned_budget = planned_budget_by_month[month]
         rows.append(
             MonthlyPoint(
                 month=month,
                 income_base_minor=income,
                 expense_base_minor=expense,
-                net_base_minor=income - expense,
+                planned_budget_base_minor=planned_budget,
+                net_base_minor=income - expense - planned_budget,
                 end_balance_base_minor=eom_by_month.get(month, 0),
             )
         )
