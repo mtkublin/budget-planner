@@ -712,7 +712,10 @@ def forecast_monthly(
 
     The daily projection is reused for end-of-month balances; monthly flow
     sums are re-derived from the same event stream to keep per-direction
-    totals exact (daily totals aggregate both directions by net).
+    totals exact (daily totals aggregate both directions by net). The
+    budget overlay (ADR-0042) is excluded here so the table reflects
+    explicit planned + recurring + anchor state only — the chart on the
+    page continues to render the overlay-adjusted projection separately.
     """
     if horizon_months < 1:
         raise ValueError(f"horizon_months must be >= 1, got {horizon_months}")
@@ -721,7 +724,7 @@ def forecast_monthly(
     last_month = _month_offset(today, horizon_months - 1)
     end_date = _last_day_of_month(last_month)
     horizon_days = (end_date - today).days
-    series = forecast(conn, http, today, horizon_days, base_currency)
+    series = forecast(conn, http, today, horizon_days, base_currency, include_budget_overlay=False)
 
     active_accounts = tuple(accounts_repo.list_all(conn))
     if not active_accounts:

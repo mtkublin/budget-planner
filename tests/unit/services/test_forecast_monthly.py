@@ -195,7 +195,12 @@ def test_end_balance_matches_daily_eom(conn: sqlite3.Connection, world: dict[str
         monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 2, "PLN")
     with _dead_client() as http:
         daily = forecast_svc.forecast(
-            conn, http, TODAY, forecast_svc.horizon_days_for_months(TODAY, 2), "PLN"
+            conn,
+            http,
+            TODAY,
+            forecast_svc.horizon_days_for_months(TODAY, 2),
+            "PLN",
+            include_budget_overlay=False,
         )
     eom_nov = next(d for d in daily.days if d.on_date == date(2026, 11, 30))
     nov = _row_for(monthly, date(2026, 11, 1))
