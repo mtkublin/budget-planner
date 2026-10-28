@@ -32,6 +32,34 @@ _VALID: tuple[PlanTab, ...] = ("budget", "year", "forecast", "analytics")
 _VALID_PERIODS: tuple[analytics_service.Period, ...] = ("month", "year", "trailing-12")
 
 _FORECAST_HORIZON_MONTHS = 12
+_MINOR_UNITS_PER_MAJOR = 100.0
+
+
+def _analytics_charts(bundle: analytics_service.AnalyticsBundle) -> dict[str, Any]:
+    """Compute SVG geometry for the Analytics tab charts.
+
+    Returns a dict with ``spend_chart`` (horizontal bars) and ``flow_chart``
+    (grouped bars) so the template can render inline SVG without doing any
+    math itself. All amounts converted to major units for display.
+    """
+    spend_items = tuple(
+        (row.category_name, row.amount_minor / _MINOR_UNITS_PER_MAJOR)
+        for row in bundle.spend_by_category
+    )
+    flow_groups = tuple(
+        {
+            "label": point.label[-5:],  # YYYY-MM → MM-?; keep tail for density
+            "bars": [
+                ("income", point.income_minor / _MINOR_UNITS_PER_MAJOR),
+                ("expense", point.expense_minor / _MINOR_UNITS_PER_MAJOR),
+            ],
+        }
+        for point in bundle.income_vs_expense_monthly
+    )
+    return {
+        "spend_chart": charts.horizontal_bars(spend_items),
+        "flow_chart": charts.grouped_bars(flow_groups),
+    }
 
 
 @router.get("/plan", response_class=HTMLResponse)
@@ -67,7 +95,10 @@ def plan(
         chart_labels = tuple(p.label for p in projection)
         ctx["forecast_chart"] = charts.line_area(chart_points, x_labels=chart_labels)
     else:
-        ctx["bundle"] = analytics_service.bundle(conn, today=today_d, period="month")
+        bundle = analytics_service.bundle(conn, today=today_d, period="month")
+        ctx["bundle"] = bundle
+        ctx["period"] = "month"
+        ctx.update(_analytics_charts(bundle))
 
     return render(request, "plan/index.html", **ctx)
 
@@ -97,6 +128,7 @@ def plan_analytics(
         bundle=data,
         base_ccy=settings.base_currency,
         period=period_norm,
+        **_analytics_charts(data),
     )
 
 

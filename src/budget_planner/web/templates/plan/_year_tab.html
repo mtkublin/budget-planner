@@ -7,14 +7,17 @@
       <tr>
         <th scope="col">Category</th>
         {% for m in range(1, 13) %}
-          <th scope="col" class="num">{{ ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1] }}</th>
+          <th scope="col"
+              class="num">{{ ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1] }}</th>
         {% endfor %}
         <th scope="col" class="num">Total</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td colspan="14" class="text-muted" style="padding: 1rem">Heatmap renders once the Year endpoint lands (ADR-0056 §2 / T-R31). Phase 1 placeholder.</td>
+        <td colspan="14"
+            class="text-muted"
+            style="padding: 1rem">Heatmap renders once the Year endpoint lands (ADR-0056 §2 / T-R31). Phase 1 placeholder.</td>
       </tr>
     </tbody>
   </table>

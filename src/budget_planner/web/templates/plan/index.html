@@ -14,15 +14,14 @@
     </div>
     <div class="rd-screen-header__actions">
       {{ segmented([('budget', 'Budget'), ('year', 'Year'), ('forecast', 'Forecast'), ('analytics', 'Analytics')], tab, name='tab', base_href='/plan') }}
-      <span class="rd-btn rd-btn--sm" style="font-family: var(--font-mono)">{{ today.strftime('%B %Y') }}</span>
+      <span class="rd-btn rd-btn--sm" style="font-family: var(--font-mono)">{{ today.strftime("%B %Y") }}</span>
     </div>
   </header>
-
-  {% if tab == 'budget' %}
+  {% if tab == "budget" %}
     {% include "plan/_budget_tab.html" %}
-  {% elif tab == 'year' %}
+  {% elif tab == "year" %}
     {% include "plan/_year_tab.html" %}
-  {% elif tab == 'forecast' %}
+  {% elif tab == "forecast" %}
     {% include "plan/_forecast_tab.html" %}
   {% else %}
     {% include "plan/_analytics_tab.html" %}
