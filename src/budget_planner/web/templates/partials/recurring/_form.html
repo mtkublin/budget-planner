@@ -81,18 +81,19 @@
          {% if not is_formula %}hidden aria-hidden="true"{% endif %}>
       <ul class="form-stack__terms" data-terms-list>
         {% for term in terms %}
+          {% set term_idx = loop.index0 %}
           <li class="form-stack__term" data-term-row>
             <div class="form-stack__term-head">
               <label class="form-stack__radio">
                 <input type="radio"
-                       name="terms[{{ loop.index0 }}][sign]"
+                       name="terms[{{ term_idx }}][sign]"
                        value="+"
                        {% if term.sign == "+" %}checked{% endif %}>
                 +
               </label>
               <label class="form-stack__radio">
                 <input type="radio"
-                       name="terms[{{ loop.index0 }}][sign]"
+                       name="terms[{{ term_idx }}][sign]"
                        value="-"
                        {% if term.sign == "-" %}checked{% endif %}>
                 −
@@ -100,7 +101,7 @@
               <label class="form-stack__term-coef">
                 Coefficient (%)
                 <input type="text"
-                       name="terms[{{ loop.index0 }}][coefficient_percent]"
+                       name="terms[{{ term_idx }}][coefficient_percent]"
                        value="{{ term.coefficient_percent }}"
                        inputmode="decimal"
                        data-numeric
@@ -114,7 +115,7 @@
                   <li>
                     <label>
                       <input type="checkbox"
-                             name="terms[{{ loop.index0 }}][source_category_ids]"
+                             name="terms[{{ term_idx }}][source_category_ids]"
                              value="{{ cat.id }}"
                              {% if cat.id in term.source_category_ids %}checked{% endif %}>
                       {{ cat.name }}

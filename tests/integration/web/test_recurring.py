@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import re
 from datetime import date
 
 import pytest
@@ -56,6 +57,29 @@ def test_new_form(client: TestClient) -> None:
     r = client.get("/recurring/new")
     assert r.status_code == 200
     assert 'name="cadence"' in r.text
+
+
+def test_new_form_single_term_consistent_indices(client: TestClient, ctx: dict[str, int]) -> None:
+    """ADR-0047 regression: inner category loop must not shadow outer term
+    loop's `loop.index0`. Single-term new form must emit every checkbox under
+    `terms[0][source_category_ids]`, matching the sign/coefficient fields.
+    """
+    # ``ctx`` seeds at least one income+expense category so
+    # ``_formula_source_candidates`` yields non-empty checkbox markup.
+    assert ctx["cat"] > 0
+    r = client.get("/recurring/new")
+    assert r.status_code == 200
+    checkbox_indices = {
+        int(m.group(1))
+        for m in re.finditer(
+            r'name="terms\[(\d+)\]\[source_category_ids\]"',
+            r.text,
+        )
+    }
+    sign_indices = {int(m.group(1)) for m in re.finditer(r'name="terms\[(\d+)\]\[sign\]"', r.text)}
+    # New form seeds a single empty term — both axes must agree on index 0.
+    assert checkbox_indices == {0}, checkbox_indices
+    assert sign_indices == {0}, sign_indices
 
 
 def test_create(client: TestClient, ctx: dict[str, int]) -> None:
