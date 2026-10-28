@@ -1,15 +1,18 @@
-"""Recurring rules router (T-035; formula support per ADR-0045)."""
+"""Recurring rules router (T-035; formula support per ADR-0047)."""
 
 from __future__ import annotations
 
 import datetime as dt
+import re
 import sqlite3
+from collections.abc import Mapping
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from starlette.datastructures import FormData
 
 from budget_planner.domain.enums import Cadence, Direction, OverrideState
 from budget_planner.domain.money import to_minor_units
@@ -72,6 +75,47 @@ def _formula_source_candidates(conn: sqlite3.Connection) -> list[Any]:
     ]
 
 
+_EMPTY_TERM_INPUT: dict[str, Any] = {
+    "sign": "+",
+    "coefficient_percent": "",
+    "source_category_ids": (),
+}
+
+_TERM_FIELD_RE = re.compile(r"^terms\[(\d+)\]\[(sign|coefficient_percent|source_category_ids)\]$")
+
+
+def _parse_terms_from_form(form: FormData) -> list[dict[str, Any]]:
+    """Group `terms[i][field]` form entries into a dense indexed list.
+
+    Returns a list of ``{"sign", "coefficient_percent", "source_category_ids"}``
+    dicts in ascending index order. Holes (removed row 1 in a form that
+    posted rows 0 and 2) collapse to a contiguous list. Values are left as
+    strings / tuples so :func:`formula_svc.build_term` is the single
+    validation boundary.
+    """
+    by_index: dict[int, dict[str, Any]] = {}
+    for key, raw in form.multi_items():
+        m = _TERM_FIELD_RE.match(key)
+        if m is None:
+            continue
+        idx = int(m.group(1))
+        field = m.group(2)
+        bucket = by_index.setdefault(
+            idx,
+            {"sign": "+", "coefficient_percent": "", "source_category_ids": []},
+        )
+        if field == "source_category_ids":
+            bucket["source_category_ids"].append(raw)
+        else:
+            bucket[field] = raw
+    out: list[dict[str, Any]] = []
+    for idx in sorted(by_index):
+        row = by_index[idx]
+        row["source_category_ids"] = tuple(row["source_category_ids"])
+        out.append(row)
+    return out
+
+
 @router.get("/new", response_class=HTMLResponse)
 def new_form(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLResponse:
     # T-069 — slide-over wrapper for FAB launches.
@@ -86,8 +130,7 @@ def new_form(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HT
         accounts=accounts_repo.list_all(conn),
         source_categories=_formula_source_candidates(conn),
         amount_source="fixed",
-        coefficient_percent="",
-        selected_source_ids=(),
+        terms=[dict(_EMPTY_TERM_INPUT)],
         errors={},
     )
 
@@ -99,28 +142,32 @@ def _validate_cadence(value: str) -> Cadence | None:
         return None
 
 
-def _resolve_amount_inputs(  # noqa: PLR0911
+def _resolve_amount_inputs(  # noqa: PLR0911 — branchy validation surface
     conn: sqlite3.Connection,
     *,
     amount_source: str,
     default_amount: str,
-    coefficient_percent: str,
-    source_category_ids: list[int],
+    term_inputs: list[dict[str, Any]],
     account_currency: str | None,
     exclude_rule_id: int | None,
     today: date,
 ) -> tuple[int | None, AmountFormula | None, dict[str, str]]:
-    """Validate the fixed-vs-formula branch; return (default_amount_minor, formula, errors)."""
+    """Validate fixed-vs-formula branch; return (default_amount_minor, formula, errors)."""
     errors: dict[str, str] = {}
     if amount_source == "formula":
         if account_currency is None:
             errors["amount_source"] = "unknown account currency"
             return None, None, errors
         try:
-            formula = formula_svc.build_formula(
-                coefficient_percent=coefficient_percent,
-                source_category_ids=source_category_ids,
-            )
+            terms = [
+                formula_svc.build_term(
+                    sign=t.get("sign", "+"),
+                    coefficient_percent=t.get("coefficient_percent", ""),
+                    source_category_ids=[int(v) for v in t.get("source_category_ids", ())],
+                )
+                for t in term_inputs
+            ]
+            formula = formula_svc.build_formula(terms)
         except formula_svc.FormulaError as exc:
             errors["formula"] = str(exc)
             return None, None, errors
@@ -158,10 +205,9 @@ def _render_form_errors(
     *,
     rule: Any,
     action: str,
-    errors: dict[str, str],
+    errors: Mapping[str, str],
     amount_source: str,
-    coefficient_percent: str,
-    selected_source_ids: tuple[int, ...],
+    terms: list[dict[str, Any]],
 ) -> Response:
     return render(
         request,
@@ -172,28 +218,28 @@ def _render_form_errors(
         accounts=accounts_repo.list_all(conn),
         source_categories=_formula_source_candidates(conn),
         amount_source=amount_source,
-        coefficient_percent=coefficient_percent,
-        selected_source_ids=selected_source_ids,
+        terms=terms,
         errors=errors,
         status_code=422,
     )
 
 
 @router.post("")
-def create_rule(  # noqa: PLR0917
+async def create_rule(
     request: Request,
-    cadence: str = Form(...),
-    start_date: str = Form(...),
-    category_id: int = Form(...),
-    account_id: int = Form(...),
-    default_amount: str = Form(""),
-    default_description: str = Form(""),
-    day_of_month: str = Form(""),
-    amount_source: str = Form("fixed"),
-    coefficient_percent: str = Form(""),
-    source_category_ids: list[int] = Form(default_factory=list),
     conn: sqlite3.Connection = Depends(get_db),
 ) -> Response:
+    form = await request.form()
+    cadence = str(form.get("cadence", ""))
+    start_date = str(form.get("start_date", ""))
+    category_id_raw = str(form.get("category_id", ""))
+    account_id_raw = str(form.get("account_id", ""))
+    default_amount = str(form.get("default_amount", ""))
+    default_description = str(form.get("default_description", ""))
+    day_of_month = str(form.get("day_of_month", ""))
+    amount_source = str(form.get("amount_source", "fixed"))
+    term_inputs = _parse_terms_from_form(form)
+
     errors: dict[str, str] = {}
     c = _validate_cadence(cadence)
     if c is None:
@@ -201,6 +247,20 @@ def create_rule(  # noqa: PLR0917
     start = _parse_date(start_date)
     if start is None:
         errors["start_date"] = "invalid date"
+    try:
+        category_id = int(category_id_raw)
+        account_id = int(account_id_raw)
+    except ValueError:
+        errors["account_id"] = "invalid account/category"
+        return _render_form_errors(
+            request,
+            conn,
+            rule=None,
+            action="/recurring",
+            errors=errors,
+            amount_source=amount_source,
+            terms=term_inputs or [dict(_EMPTY_TERM_INPUT)],
+        )
     acc = accounts_repo.find_by_id(conn, account_id)
     cat = categories_repo.find_by_id(conn, category_id)
     if acc is None:
@@ -211,8 +271,7 @@ def create_rule(  # noqa: PLR0917
         conn,
         amount_source=amount_source,
         default_amount=default_amount,
-        coefficient_percent=coefficient_percent,
-        source_category_ids=source_category_ids,
+        term_inputs=term_inputs,
         account_currency=acc.currency if acc else None,
         exclude_rule_id=None,
         today=dt.date.today(),  # noqa: DTZ011 — date-only anchor
@@ -226,8 +285,7 @@ def create_rule(  # noqa: PLR0917
             action="/recurring",
             errors=errors,
             amount_source=amount_source,
-            coefficient_percent=coefficient_percent,
-            selected_source_ids=tuple(source_category_ids),
+            terms=term_inputs or [dict(_EMPTY_TERM_INPUT)],
         )
     assert c is not None and start is not None and minor is not None
     rule = recurring_repo.create_rule(
@@ -256,13 +314,27 @@ def create_rule(  # noqa: PLR0917
     return html
 
 
-def _formula_prefill(rule: Any) -> tuple[str, str, tuple[int, ...]]:
-    """Return (amount_source, coefficient_percent_str, selected_source_ids)."""
+def _formula_prefill(rule: Any) -> tuple[str, list[dict[str, Any]]]:
+    """Return (amount_source, term_input_rows) from a persisted rule.
+
+    Fixed-amount rules get a seed empty term so the formula branch can
+    receive input immediately on toggle. Formula rules return each term in
+    persisted order as a dict shape matching :func:`_parse_terms_from_form`.
+    """
     if rule is None or rule.amount_formula is None:
-        return "fixed", "", ()
-    pct = (Decimal(rule.amount_formula.coefficient_bps) / Decimal(100)).normalize()
-    pct_str = format(pct, "f")
-    return "formula", pct_str, tuple(rule.amount_formula.source_category_ids)
+        return "fixed", [dict(_EMPTY_TERM_INPUT)]
+    rows: list[dict[str, Any]] = []
+    for term in rule.amount_formula.terms:
+        pct = (Decimal(term.coefficient_bps) / Decimal(100)).normalize()
+        pct_str = format(pct, "f")
+        rows.append(
+            {
+                "sign": term.sign,
+                "coefficient_percent": pct_str,
+                "source_category_ids": tuple(term.source_category_ids),
+            }
+        )
+    return "formula", rows
 
 
 @router.get("/{rule_id}/edit", response_class=HTMLResponse)
@@ -280,12 +352,11 @@ def edit_form(
             accounts=[],
             source_categories=[],
             amount_source="fixed",
-            coefficient_percent="",
-            selected_source_ids=(),
+            terms=[dict(_EMPTY_TERM_INPUT)],
             errors={"rule": "not found"},
             status_code=404,
         )
-    amount_source, coefficient_percent, selected_source_ids = _formula_prefill(rule)
+    amount_source, terms = _formula_prefill(rule)
     # T-114 / ADR-0030 §4 — slide-over wrapper mirrors /recurring/new.
     return render(
         request,
@@ -298,30 +369,34 @@ def edit_form(
         accounts=accounts_repo.list_all(conn),
         source_categories=_formula_source_candidates(conn),
         amount_source=amount_source,
-        coefficient_percent=coefficient_percent,
-        selected_source_ids=selected_source_ids,
+        terms=terms,
         errors={},
     )
 
 
 @router.post("/{rule_id}")
-def update_rule_handler(  # noqa: PLR0917
+async def update_rule_handler(
     rule_id: int,
     request: Request,
-    cadence: str = Form(...),
-    start_date: str = Form(...),
-    category_id: int = Form(...),
-    account_id: int = Form(...),
-    default_amount: str = Form(""),
-    default_description: str = Form(""),
-    amount_source: str = Form("fixed"),
-    coefficient_percent: str = Form(""),
-    source_category_ids: list[int] = Form(default_factory=list),
     conn: sqlite3.Connection = Depends(get_db),
 ) -> Response:
     rule = recurring_repo.find_rule(conn, rule_id)
     if rule is None:
         return Response(status_code=404, content="not found")
+    form = await request.form()
+    cadence = str(form.get("cadence", ""))
+    start_date = str(form.get("start_date", ""))
+    category_id_raw = str(form.get("category_id", ""))
+    account_id_raw = str(form.get("account_id", ""))
+    default_amount = str(form.get("default_amount", ""))
+    default_description = str(form.get("default_description", ""))
+    amount_source = str(form.get("amount_source", "fixed"))
+    term_inputs = _parse_terms_from_form(form)
+    try:
+        category_id = int(category_id_raw)
+        account_id = int(account_id_raw)
+    except ValueError:
+        return Response(status_code=422, content="invalid account/category")
     acc = accounts_repo.find_by_id(conn, account_id)
     c = _validate_cadence(cadence)
     start = _parse_date(start_date)
@@ -336,8 +411,7 @@ def update_rule_handler(  # noqa: PLR0917
         conn,
         amount_source=amount_source,
         default_amount=default_amount,
-        coefficient_percent=coefficient_percent,
-        source_category_ids=source_category_ids,
+        term_inputs=term_inputs,
         account_currency=acc.currency if acc else None,
         exclude_rule_id=rule_id,
         today=dt.date.today(),  # noqa: DTZ011
@@ -351,8 +425,7 @@ def update_rule_handler(  # noqa: PLR0917
             action=f"/recurring/{rule_id}",
             errors=errors,
             amount_source=amount_source,
-            coefficient_percent=coefficient_percent,
-            selected_source_ids=tuple(source_category_ids),
+            terms=term_inputs or [dict(_EMPTY_TERM_INPUT)],
         )
     assert c is not None and start is not None and minor is not None
     recurring_repo.update_rule(

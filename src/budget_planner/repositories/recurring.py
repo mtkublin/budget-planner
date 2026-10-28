@@ -11,6 +11,7 @@ from typing import Any
 from budget_planner.domain.enums import Cadence, OverrideState
 from budget_planner.domain.recurring import (
     AmountFormula,
+    FormulaTerm,
     NewRecurringOverride,
     NewRecurringRule,
     PatchRecurringRule,
@@ -29,12 +30,24 @@ _RULE_COLUMNS = (
 
 
 def _formula_to_json(formula: AmountFormula | None) -> str | None:
+    """Serialise `AmountFormula` to v2 JSON (ADR-0047).
+
+    Future tier-B/C upgrades bump `schema_version` and extend this
+    serialiser; the inverse `_formula_from_json` dispatches on version.
+    """
     if formula is None:
         return None
     return json.dumps(
         {
-            "coefficient_bps": formula.coefficient_bps,
-            "source_category_ids": list(formula.source_category_ids),
+            "schema_version": formula.schema_version,
+            "terms": [
+                {
+                    "sign": term.sign,
+                    "coefficient_bps": term.coefficient_bps,
+                    "source_category_ids": list(term.source_category_ids),
+                }
+                for term in formula.terms
+            ],
         },
         separators=(",", ":"),
         sort_keys=True,
@@ -42,12 +55,43 @@ def _formula_to_json(formula: AmountFormula | None) -> str | None:
 
 
 def _formula_from_json(raw: str | None) -> AmountFormula | None:
+    """Parse `recurring_rules.amount_formula` JSON into `AmountFormula`.
+
+    Dispatches on `schema_version`:
+    - v1 (legacy, pre-migration-0010): wrapped on the fly as a single
+      positive-sign term so the service layer never sees v1 shape.
+    - v2 (current): straightforward terms-list unmarshal.
+
+    v1 fallback is defensive; migration 0010 rewrites every live row to v2
+    on `just migrate`. Tests exercise both branches.
+    """
     if raw is None:
         return None
     data = json.loads(raw)
+    schema = int(data.get("schema_version", 1))
+    if schema == 1:
+        # Pre-ADR-0047 single-term shape.
+        return AmountFormula(
+            schema_version=1,
+            terms=(
+                FormulaTerm(
+                    sign="+",
+                    coefficient_bps=int(data["coefficient_bps"]),
+                    source_category_ids=tuple(int(v) for v in data["source_category_ids"]),
+                ),
+            ),
+        )
+    # v2 and anything we treat as v2-compatible until a tier-B/C ADR lands.
     return AmountFormula(
-        coefficient_bps=int(data["coefficient_bps"]),
-        source_category_ids=tuple(int(v) for v in data["source_category_ids"]),
+        schema_version=schema,
+        terms=tuple(
+            FormulaTerm(
+                sign=term["sign"],
+                coefficient_bps=int(term["coefficient_bps"]),
+                source_category_ids=tuple(int(v) for v in term["source_category_ids"]),
+            )
+            for term in data["terms"]
+        ),
     )
 
 

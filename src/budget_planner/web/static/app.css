@@ -648,6 +648,43 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
   color: var(--muted);
 }
 
+/* ADR-0047 — multi-term formula fieldset. */
+.form-stack__terms {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.form-stack__term {
+  padding: var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.form-stack__term-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.form-stack__term-coef {
+  flex: 1 1 10rem;
+  color: var(--muted);
+}
+
+.btn-ghost--sm {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+}
+
 /* ---- Flash (T-051 kinds) ---- */
 
 .flash {

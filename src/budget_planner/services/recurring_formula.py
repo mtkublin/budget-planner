@@ -1,9 +1,14 @@
-"""Formula-derived recurring amount (ADR-0045).
+"""Formula-derived recurring amount (ADR-0047; supersedes ADR-0045 §Decision).
 
-Pure parsing + validation helpers plus a DB-backed compute function.
-Imported indirectly by ``services.recurring`` (which re-exports ``rt_expand``
-and ``resolve_rule_amount``). Isolated from the pure cadence generator so
-``generate_occurrences`` / ``apply_overrides`` remain DB-free.
+Pure parsing + validation helpers plus DB-backed compute primitives. Isolated
+from the pure cadence generator so ``generate_occurrences`` / ``apply_overrides``
+remain DB-free.
+
+The three private primitives (``_sum_category_in_month``, ``_apply_coefficient``,
+``_collect_referenced_category_ids``) are the leaf operators of any future tier
+B (nested AST) or tier C (text DSL) evaluator. The top-level evaluator
+``compute_formula_amount`` iterates linear-combination terms today; swapping
+it for a tree walker leaves the primitives untouched.
 """
 
 from __future__ import annotations
@@ -15,10 +20,13 @@ from collections.abc import Iterable, Sequence
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from budget_planner.domain.recurring import (
+    FORMULA_SCHEMA_VERSION,
     AmountFormula,
+    FormulaTerm,
     Occurrence,
     RecurringOverride,
     RecurringRule,
+    TermSign,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,6 +43,13 @@ class FormulaError(ValueError):
     """Raised when a formula fails validation at the save boundary."""
 
 
+class FormulaCycleError(FormulaError):
+    """Raised when a formula would create a dependency cycle (ADR-0047)."""
+
+
+# ---------------------------------------------------------------------------
+# Parsing + building (used by routers + tests)
+# ---------------------------------------------------------------------------
 def parse_percent_to_bps(percent_str: str) -> int:
     """Convert a decimal percent string ("12", "12.5", "0.075") to int bps.
 
@@ -58,16 +73,21 @@ def parse_percent_to_bps(percent_str: str) -> int:
     return bps
 
 
-def build_formula(
+def _parse_sign(raw: str) -> TermSign:
+    cleaned = (raw or "+").strip()
+    if cleaned not in {"+", "-"}:
+        raise FormulaError("term sign must be '+' or '-'")
+    return cleaned  # type: ignore[return-value]
+
+
+def build_term(
     *,
+    sign: str,
     coefficient_percent: str,
     source_category_ids: Iterable[int],
-) -> AmountFormula:
-    """Validate + build an :class:`AmountFormula` from form inputs.
-
-    Deduplicates source_category_ids while preserving the user's order.
-    Raises :class:`FormulaError` on invalid input.
-    """
+) -> FormulaTerm:
+    """Validate + build a single :class:`FormulaTerm` from form inputs."""
+    parsed_sign = _parse_sign(sign)
     bps = parse_percent_to_bps(coefficient_percent)
     seen: set[int] = set()
     cleaned: list[int] = []
@@ -78,10 +98,27 @@ def build_formula(
         seen.add(cid)
         cleaned.append(cid)
     if not cleaned:
-        raise FormulaError("select at least one source category")
-    return AmountFormula(coefficient_bps=bps, source_category_ids=tuple(cleaned))
+        raise FormulaError("each term needs at least one source category")
+    return FormulaTerm(
+        sign=parsed_sign,
+        coefficient_bps=bps,
+        source_category_ids=tuple(cleaned),
+    )
 
 
+def build_formula(terms: Sequence[FormulaTerm]) -> AmountFormula:
+    """Wrap a validated terms list into an :class:`AmountFormula`.
+
+    Non-empty terms list required. Each term must already pass :func:`build_term`.
+    """
+    if not terms:
+        raise FormulaError("formula needs at least one term")
+    return AmountFormula(terms=tuple(terms), schema_version=FORMULA_SCHEMA_VERSION)
+
+
+# ---------------------------------------------------------------------------
+# Pure compute primitives (future tier B / C leaf operators)
+# ---------------------------------------------------------------------------
 def _month_bounds(year: int, month: int) -> tuple[dt.date, dt.date]:
     first = dt.date(year, month, 1)
     if month == 12:  # noqa: PLR2004
@@ -97,6 +134,106 @@ def _apply_coefficient(sum_minor: int, coefficient_bps: int) -> int:
     return int(dec.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
+def _collect_referenced_category_ids(formula: AmountFormula) -> set[int]:
+    """Flat set of every category id referenced across the formula's terms."""
+    out: set[int] = set()
+    for term in formula.terms:
+        out.update(term.source_category_ids)
+    return out
+
+
+def _sum_category_in_month(
+    conn: sqlite3.Connection,
+    category_ids: Iterable[int],
+    year: int,
+    month: int,
+    *,
+    exclude_rule_id: int | None,
+    in_progress: frozenset[int],
+    cache: dict[tuple[int, int, int], int],
+) -> int:
+    """Sum monthly occurrence amounts across rules in ``category_ids``.
+
+    Recurses into formula source rules (chaining per ADR-0047). ``in_progress``
+    tracks the current ancestor chain for runtime cycle protection; ``cache``
+    memoises child-rule results keyed by ``(rule_id, year, month)`` so diamond
+    deps compute once.
+
+    Fixed source rules go through :func:`services.recurring.expand` with
+    ``list_overrides_all`` (ADR-0046 soft-consume contract — historical
+    overrides stay visible).
+    """
+    from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
+    from budget_planner.services.recurring import expand  # noqa: PLC0415
+
+    start, end = _month_bounds(year, month)
+    cat_set = set(category_ids)
+    total = 0
+    for rule in recurring_repo.list_rules(conn, active_only=True):
+        if rule.id == exclude_rule_id:
+            continue
+        if rule.category_id not in cat_set:
+            continue
+        if rule.id in in_progress:
+            raise FormulaCycleError(
+                f"formula cycle detected via rule {rule.id} (ancestors: {sorted(in_progress)})"
+            )
+        key = (rule.id, year, month)
+        if key in cache:
+            total += cache[key]
+            continue
+        if rule.amount_formula is None:
+            overrides = recurring_repo.list_overrides_all(conn, rule.id)
+            value = sum(occ.amount for occ in expand(rule, overrides, start, end))
+        else:
+            value = _evaluate(
+                conn,
+                rule.amount_formula,
+                year,
+                month,
+                exclude_rule_id=rule.id,
+                in_progress=in_progress | {rule.id},
+                cache=cache,
+            )
+        cache[key] = value
+        total += value
+    return total
+
+
+def _evaluate(
+    conn: sqlite3.Connection,
+    formula: AmountFormula,
+    year: int,
+    month: int,
+    *,
+    exclude_rule_id: int | None,
+    in_progress: frozenset[int],
+    cache: dict[tuple[int, int, int], int],
+) -> int:
+    """Evaluate the linear-combination formula for ``(year, month)``.
+
+    Each term contributes ``sign * coefficient * Σ sources``. Memoisation +
+    in-progress tracking passed through to ``_sum_category_in_month``.
+    """
+    total = 0
+    for term in formula.terms:
+        term_sum = _sum_category_in_month(
+            conn,
+            term.source_category_ids,
+            year,
+            month,
+            exclude_rule_id=exclude_rule_id,
+            in_progress=in_progress,
+            cache=cache,
+        )
+        magnitude = _apply_coefficient(term_sum, term.coefficient_bps)
+        total += magnitude if term.sign == "+" else -magnitude
+    return total
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
 def compute_formula_amount(
     conn: sqlite3.Connection,
     formula: AmountFormula,
@@ -107,41 +244,23 @@ def compute_formula_amount(
 ) -> int:
     """Return the computed amount (minor units) for ``formula`` in ``(year, month)``.
 
-    Enumerates every active, non-deleted recurring rule whose ``category_id``
-    is in ``formula.source_category_ids`` AND whose ``amount_formula IS NULL``
-    (cycle prevention — only fixed rules feed the sum). For each such rule,
-    expands its canonical schedule within the calendar month (overrides
-    applied) and sums the occurrence amounts. Returns 0 when no sources
-    produce an occurrence.
+    Thin wrapper that establishes a fresh memoisation cache + empty
+    in-progress set. The recursive heavy lifting lives in :func:`_evaluate` +
+    :func:`_sum_category_in_month`.
     """
-    from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
-    from budget_planner.services.recurring import (  # noqa: PLC0415
-        expand,
+    cache: dict[tuple[int, int, int], int] = {}
+    in_progress: frozenset[int] = (
+        frozenset({exclude_rule_id}) if exclude_rule_id is not None else frozenset()
     )
-
-    start, end = _month_bounds(year, month)
-    source_ids = set(formula.source_category_ids)
-    total_minor = 0
-    for rule in recurring_repo.list_rules(conn, active_only=True):
-        if rule.id == exclude_rule_id:
-            continue
-        if rule.category_id not in source_ids:
-            continue
-        if rule.amount_formula is not None:
-            # Cycle guard: a formula referencing another formula is rejected
-            # at save time; a stale cross-reference caught here is silently
-            # dropped so the UI stays stable while the user cleans up.
-            logger.warning(
-                "formula source rule %s has its own formula; skipping",
-                rule.id,
-            )
-            continue
-        # ADR-0046: formula compute must see consumed overrides so B's May
-        # override still counts after B's May was promoted.
-        overrides = recurring_repo.list_overrides_all(conn, rule.id)
-        for occ in expand(rule, overrides, start, end):
-            total_minor += occ.amount
-    return _apply_coefficient(total_minor, formula.coefficient_bps)
+    return _evaluate(
+        conn,
+        formula,
+        year,
+        month,
+        exclude_rule_id=exclude_rule_id,
+        in_progress=in_progress,
+        cache=cache,
+    )
 
 
 def resolve_rule_amount(
@@ -172,14 +291,11 @@ def rt_expand(
     range_start: dt.date,
     range_end: dt.date,
 ) -> tuple[Occurrence, ...]:
-    """Expand ``rule`` across ``[range_start, range_end]`` with runtime amounts.
+    """Expand ``rule`` with runtime amounts; chaining-aware (ADR-0047).
 
-    Thin wrapper over :func:`services.recurring.expand` that substitutes
-    computed amounts for formula rules before overrides apply. For fixed
-    rules this is equivalent to calling ``expand`` directly.
-
-    Overrides still win: an explicit ``amount_override`` beats the computed
-    amount, consistent with the planned-override precedence everywhere else.
+    Fixed rules behave like a direct :func:`services.recurring.expand` call.
+    Formula rules get per-month computed amounts substituted before overrides
+    apply (override amount still wins when present).
     """
     from budget_planner.services.recurring import (  # noqa: PLC0415
         apply_overrides,
@@ -197,13 +313,13 @@ def _with_formula_amount(
     rule: RecurringRule,
     occurrences: Sequence[Occurrence],
 ) -> Iterable[Occurrence]:
-    """Yield occurrences with ``amount`` replaced by the per-month formula result."""
+    """Yield occurrences with ``amount`` replaced by per-month formula result."""
     assert rule.amount_formula is not None
-    cache: dict[tuple[int, int], int] = {}
+    month_cache: dict[tuple[int, int], int] = {}
     for occ in occurrences:
         key = (occ.occurrence_date.year, occ.occurrence_date.month)
-        if key not in cache:
-            cache[key] = compute_formula_amount(
+        if key not in month_cache:
+            month_cache[key] = compute_formula_amount(
                 conn,
                 rule.amount_formula,
                 key[0],
@@ -217,44 +333,71 @@ def _with_formula_amount(
             category_id=occ.category_id,
             account_id=occ.account_id,
             dest_account_id=occ.dest_account_id,
-            amount=cache[key],
+            amount=month_cache[key],
             description=occ.description,
             is_overridden=occ.is_overridden,
             is_skipped=occ.is_skipped,
         )
 
 
+# ---------------------------------------------------------------------------
+# Save-boundary validation
+# ---------------------------------------------------------------------------
 def validate_formula_sources(
     conn: sqlite3.Connection,
     formula: AmountFormula,
     *,
     exclude_rule_id: int | None = None,
 ) -> None:
-    """Raise :class:`FormulaError` if any source category contains a formula rule.
+    """Topological reachability check — reject cycles (ADR-0047).
 
-    Enforces the ADR-0045 structural cycle guard at the save boundary: the
-    dependency graph must be a 2-level tree (formula → fixed only). Compute
-    time silently skips formula sources with a WARNING log; this call makes
-    the rejection visible to the user before they save.
+    Walks the dependency graph from ``formula``'s referenced categories →
+    rules in those categories → their formulas → ... — depth-first, raising
+    :class:`FormulaCycleError` if ``exclude_rule_id`` is ever reachable from
+    itself. Visited set guards against re-walking shared subgraphs.
     """
     from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
 
-    source_ids = set(formula.source_category_ids)
-    for rule in recurring_repo.list_rules(conn, active_only=True):
-        if rule.id == exclude_rule_id:
+    # Sentinel for brand-new rules (not yet persisted) so the walk still
+    # catches a cycle the new rule would introduce once persisted.
+    target_id = -1 if exclude_rule_id is None else exclude_rule_id
+
+    all_rules = recurring_repo.list_rules(conn, active_only=True)
+    by_category: dict[int, list[RecurringRule]] = {}
+    for rule in all_rules:
+        by_category.setdefault(rule.category_id, []).append(rule)
+
+    visited: set[int] = set()
+    # Seed the stack with every rule reachable from the proposed formula.
+    stack: list[int] = []
+    for cat_id in _collect_referenced_category_ids(formula):
+        for rule in by_category.get(cat_id, []):
+            if rule.id == exclude_rule_id:
+                # The rule being saved cannot source itself.
+                raise FormulaCycleError("a formula cannot reference its own category")
+            stack.append(rule.id)
+
+    while stack:
+        rid = stack.pop()
+        if rid == target_id:
+            raise FormulaCycleError(f"formula would create a cycle via rule {rid}")
+        if rid in visited:
             continue
-        if rule.amount_formula is None:
+        visited.add(rid)
+        found: RecurringRule | None = next((r for r in all_rules if r.id == rid), None)
+        if found is None or found.amount_formula is None:
             continue
-        if rule.category_id in source_ids:
-            raise FormulaError(
-                "a source category contains a formula rule — "
-                "pick categories whose rules are fixed amounts only"
-            )
+        for cat_id in _collect_referenced_category_ids(found.amount_formula):
+            for child in by_category.get(cat_id, []):
+                if child.id not in visited:
+                    stack.append(child.id)
 
 
 __all__ = [
+    "FormulaCycleError",
     "FormulaError",
     "build_formula",
+    "build_term",
     "compute_formula_amount",
     "parse_percent_to_bps",
     "resolve_rule_amount",

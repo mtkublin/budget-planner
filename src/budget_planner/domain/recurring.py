@@ -1,10 +1,10 @@
-"""Recurring rules + overrides + virtual occurrence shape (ADR-0013 / ADR-0038 / ADR-0045)."""
+"""Recurring rules + overrides + virtual occurrence shape (ADR-0013 / ADR-0038 / ADR-0047)."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, fields
 from datetime import date, datetime
-from typing import Any, Final
+from typing import Any, Final, Literal
 
 from budget_planner.domain.enums import Cadence, OverrideState
 
@@ -15,19 +15,39 @@ from budget_planner.domain.enums import Cadence, OverrideState
 # re-asserting it.
 _UNCHANGED: Final[object] = object()
 
+# Current storage schema for `AmountFormula` JSON. Bumped on any
+# shape-breaking change; migrations keyed off this value. See ADR-0047.
+FORMULA_SCHEMA_VERSION: Final[int] = 2
+
+TermSign = Literal["+", "-"]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class FormulaTerm:
+    """One signed term of a linear-combination formula (ADR-0047).
+
+    Semantics: ``sign * (coefficient_bps / 10_000) * Σ(monthly occurrence
+    amounts across source rules whose category_id is in source_category_ids)``.
+    ``coefficient_bps`` is always positive; sign lives in `sign`.
+    """
+
+    sign: TermSign
+    coefficient_bps: int
+    source_category_ids: tuple[int, ...]
+
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class AmountFormula:
-    """Formula spec for a recurring rule's amount (ADR-0045).
+    """Linear-combination formula spec for a recurring rule's amount (ADR-0047).
 
-    Stored as JSON in `recurring_rules.amount_formula`. The amount is derived
-    as `coefficient_bps / 10_000 * Σ(occurrence amounts of other recurring
-    rules in the same calendar month whose category_id is in
-    source_category_ids)`.
+    Stored as versioned JSON in `recurring_rules.amount_formula`. The amount
+    is `Σ terms`. A future ADR tier B (nested AST) or tier C (text DSL) bumps
+    `schema_version` and swaps the shape beneath this wrapper — the wrapper
+    + storage + repo layer survive the transition.
     """
 
-    coefficient_bps: int
-    source_category_ids: tuple[int, ...]
+    terms: tuple[FormulaTerm, ...]
+    schema_version: int = FORMULA_SCHEMA_VERSION
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

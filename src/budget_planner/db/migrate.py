@@ -202,12 +202,54 @@ def _backfill_recurring_next_due(conn: sqlite3.Connection) -> None:
         raise
 
 
+def _upgrade_formula_schema_v1_to_v2(conn: sqlite3.Connection) -> None:
+    """ADR-0047: transform v1 single-term `amount_formula` JSON to v2 terms list.
+
+    v1 shape: ``{"coefficient_bps": X, "source_category_ids": [...]}``
+    v2 shape: ``{"schema_version": 2, "terms": [{"sign": "+", ...}]}``
+
+    Idempotent: rows already at ``schema_version == 2`` are left unchanged.
+    """
+    import json  # noqa: PLC0415 — hook-local import keeps top-of-module imports lean
+
+    rows = conn.execute(
+        "SELECT id, amount_formula FROM recurring_rules WHERE amount_formula IS NOT NULL"
+    ).fetchall()
+    conn.execute("BEGIN")
+    try:
+        for row in rows:
+            raw = row["amount_formula"]
+            data = json.loads(raw)
+            if data.get("schema_version") == 2:  # noqa: PLR2004 — explicit version pin
+                continue
+            # v1 → v2 wrap. Single implicit "+" term carrying the v1 coefficient.
+            v2 = {
+                "schema_version": 2,
+                "terms": [
+                    {
+                        "sign": "+",
+                        "coefficient_bps": int(data["coefficient_bps"]),
+                        "source_category_ids": [int(x) for x in data["source_category_ids"]],
+                    }
+                ],
+            }
+            conn.execute(
+                "UPDATE recurring_rules SET amount_formula = ? WHERE id = ?",
+                (json.dumps(v2, separators=(",", ":"), sort_keys=True), row["id"]),
+            )
+        conn.execute("COMMIT")
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+
+
 # Mapping of migration version -> post-apply hook. Hooks run inside their
 # own BEGIN/COMMIT after the migration's SQL commits, but strictly before
 # any later migration runs. The sequence (0006 adds nullable column →
 # backfill populates → 0007 flips to NOT NULL) hangs on this ordering.
 _POST_APPLY_HOOKS: dict[int, Callable[[sqlite3.Connection], None]] = {
     6: _backfill_recurring_next_due,
+    10: _upgrade_formula_schema_v1_to_v2,
 }
 
 # Migrations that require ``PRAGMA foreign_keys = OFF`` for the duration of

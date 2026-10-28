@@ -1,4 +1,4 @@
-"""Unit tests for formula-derived recurring amounts (ADR-0045)."""
+"""Unit tests for formula-derived recurring amounts (ADR-0047)."""
 
 from __future__ import annotations
 
@@ -7,11 +7,18 @@ import datetime as dt
 import pytest
 
 from budget_planner.domain.enums import Cadence
-from budget_planner.domain.recurring import AmountFormula, RecurringRule
+from budget_planner.domain.recurring import (
+    FORMULA_SCHEMA_VERSION,
+    AmountFormula,
+    FormulaTerm,
+    RecurringRule,
+)
 from budget_planner.services.recurring_formula import (
     FormulaError,
     _apply_coefficient,
+    _collect_referenced_category_ids,
     build_formula,
+    build_term,
     parse_percent_to_bps,
 )
 
@@ -42,16 +49,41 @@ class TestParsePercentToBps:
             parse_percent_to_bps(bad)
 
 
-class TestBuildFormula:
-    def test_dedupes_and_preserves_order(self) -> None:
-        f = build_formula(coefficient_percent="12", source_category_ids=[5, 7, 5, 9, 7])
-        assert isinstance(f, AmountFormula)
-        assert f.coefficient_bps == 1200
-        assert f.source_category_ids == (5, 7, 9)
+class TestBuildTerm:
+    def test_default_sign_plus(self) -> None:
+        term = build_term(sign="+", coefficient_percent="12", source_category_ids=[5])
+        assert term.sign == "+"
+        assert term.coefficient_bps == 1200
+        assert term.source_category_ids == (5,)
+
+    def test_negative_sign(self) -> None:
+        term = build_term(sign="-", coefficient_percent="40", source_category_ids=[11])
+        assert term.sign == "-"
+
+    def test_invalid_sign_rejected(self) -> None:
+        with pytest.raises(FormulaError):
+            build_term(sign="*", coefficient_percent="12", source_category_ids=[5])
+
+    def test_dedupes_category_ids(self) -> None:
+        term = build_term(sign="+", coefficient_percent="12", source_category_ids=[5, 7, 5, 9, 7])
+        assert term.source_category_ids == (5, 7, 9)
 
     def test_empty_category_list_rejected(self) -> None:
         with pytest.raises(FormulaError):
-            build_formula(coefficient_percent="12", source_category_ids=[])
+            build_term(sign="+", coefficient_percent="12", source_category_ids=[])
+
+
+class TestBuildFormula:
+    def test_wraps_terms(self) -> None:
+        term = FormulaTerm(sign="+", coefficient_bps=1200, source_category_ids=(5,))
+        formula = build_formula([term])
+        assert isinstance(formula, AmountFormula)
+        assert formula.schema_version == FORMULA_SCHEMA_VERSION
+        assert formula.terms == (term,)
+
+    def test_empty_terms_rejected(self) -> None:
+        with pytest.raises(FormulaError):
+            build_formula([])
 
 
 class TestApplyCoefficient:
@@ -67,6 +99,17 @@ class TestApplyCoefficient:
     )
     def test_rounding(self, sum_minor: int, bps: int, expected: int) -> None:
         assert _apply_coefficient(sum_minor, bps) == expected
+
+
+class TestCollectReferencedCategoryIds:
+    def test_flattens_across_terms(self) -> None:
+        formula = AmountFormula(
+            terms=(
+                FormulaTerm(sign="+", coefficient_bps=1200, source_category_ids=(5, 7)),
+                FormulaTerm(sign="-", coefficient_bps=4000, source_category_ids=(11,)),
+            ),
+        )
+        assert _collect_referenced_category_ids(formula) == {5, 7, 11}
 
 
 def _mk_rule(

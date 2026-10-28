@@ -146,9 +146,7 @@
                     <em data-amount-overridden
                         class="tabular-nums">{{ row.effective_amount_minor|money(row.currency) }}</em>
                   {% elif row.is_formula %}
-                    <span class="tabular-nums"
-                          data-formula-amount
-                          title="{{ (row.amount_formula.coefficient_bps / 100)|round(2) }}% of selected categories">
+                    <span class="tabular-nums" data-formula-amount title="{% for t in row.amount_formula.terms %}{{ t.sign }} {{ (t.coefficient_bps / 100)|round(2) }}% of {{ t.source_category_ids|length }} categor{{ 'y' if t.source_category_ids|length == 1 else 'ies' }}{% if not loop.last %} {% endif %}{% endfor %}">
                       {{ row.effective_amount_minor|money(row.currency) }}
                       <span class="formula-chip" aria-label="computed amount">ƒ</span>
                     </span>

@@ -167,14 +167,6 @@ def _pace_tag(spent: int, budgeted: int, today: date, year: int, month: int) -> 
     return PaceTag(kind="on_track", label=_PACE_LABELS["on_track"])
 
 
-def _days_left_in_month(today: date, year: int, month: int) -> int:
-    """Days remaining in ``(year, month)`` relative to ``today`` (inclusive)."""
-    if today.year != year or today.month != month:
-        return 0
-    last_day = calendar.monthrange(year, month)[1]
-    return max(0, last_day - today.day)
-
-
 def _window_from(request: Request) -> tuple[str, int | None]:
     """Parse ``?window=`` → (label, days). Falls back to the default."""
     raw = request.query_params.get("window", _DEFAULT_WINDOW)
@@ -225,7 +217,9 @@ def home(
     fortune = fortune_service.compute_fortune(conn, settings)
     summary = budget_service.month_summary(conn, year, month, today=today)
     pace = _pace_tag(summary.totals.spent_minor, summary.totals.budgeted_minor, today, year, month)
-    days_left = _days_left_in_month(today, year, month)
+    # ADR-0041 F4.6: days-left mirrors Budget period cutoff (next income anchor),
+    # not end-of-month. ``MonthSummary.days_until_next_income`` is floored at 1.
+    days_left = summary.days_until_next_income
     bar_pct = 0
     if summary.totals.budgeted_minor > 0:
         ratio = 100 * summary.totals.spent_minor / summary.totals.budgeted_minor

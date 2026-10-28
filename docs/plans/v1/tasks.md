@@ -691,6 +691,16 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 - CSS: `app.css` gets `.cat-name { font-weight: 500; color: inherit; }` + `.cat-color-field` form styles; existing `.pill-*` palette untouched.
 - Tests: `tests/unit/domain/test_categories.py` (hex normalisation + PatchCategory semantics), `tests/unit/web/test_category_label.py` (helper render + XSS-escape), repo + router tests extend with colour round-trip, invalid-hex 422, `clear_color` reset, SQL CHECK rejection.
 
+### ✅ T-131 [M] Recurring formula — linear combination of terms + chaining → ADR-0047 (supersedes ADR-0045 §Decision)
+- Migration `0010_recurring_formula_terms_schema_v2.sql`: SQL file is a no-op comment; Python post-apply hook in `db/migrate._POST_APPLY_HOOKS` transforms every `recurring_rules.amount_formula` v1 JSON into v2 shape (`{schema_version: 2, terms: [{sign: "+", coefficient_bps, source_category_ids}]}`). Idempotent — re-runs skip rows already at v2.
+- Domain: new `FormulaTerm(sign, coefficient_bps, source_category_ids)` dataclass; `AmountFormula` becomes `(schema_version, terms: tuple[FormulaTerm, ...])`. Wrapper preserved so B/C transitions keep the same column + repo shape.
+- Service refactor: factor out `_sum_category_in_month`, `_apply_coefficient`, `_collect_referenced_category_ids` as pure primitives — reused as B's AST leaf operators and C's parser emits them. `compute_formula_amount` iterates terms with `in_progress` frozenset for defence-in-depth cycle protection and memoisation cache for diamond deps.
+- Chaining: `_sum_category_in_month` recurses into formula source rules. Save-time `validate_formula_sources` becomes topological reachability check (new `FormulaCycleError`).
+- Promotion: 422 at `POST /recurring/{id}/promote` when formula resolves to non-positive amount (no silent clamp).
+- Repository: JSON serialize/deserialize dispatches on `schema_version` — v1 fallback keeps legacy rows readable until the data migration runs.
+- UI: `partials/recurring/_form.html` dynamic terms fieldset with Add/Remove term buttons; `terms[i][sign]`, `terms[i][coefficient_percent]`, `terms[i][source_category_ids]` POST field names. Ledger row chip tooltip summarises multi-term.
+- Tests: new terms (empty reject, multi-term mixed sign, zero sum), chaining (2-level, 3-level, diamond with memo, self-loop + indirect cycle rejection at save), negative-at-promote 422, migration v1→v2 round trip, UI add/remove term POST shapes.
+
 ### ✅ T-130 [S] Recurring override soft-consume on promotion → ADR-0046
 - Migration `0009_recurring_override_promoted_fk.sql`: add nullable `recurring_rule_overrides.promoted_to_txn_id INTEGER REFERENCES transactions(id) DEFERRABLE INITIALLY DEFERRED` + index `ix_recurring_overrides_promoted(rule_id, promoted_to_txn_id)`. Additive, no table rebuild.
 - Domain: `RecurringOverride.promoted_to_txn_id: int | None = None`.
