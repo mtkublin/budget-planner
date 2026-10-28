@@ -143,9 +143,17 @@
                 <td class="text-muted">{{ row.default_description or '' }}</td>
                 <td class="text-right">
                   {% if row.amount_overridden %}
-                    <em data-amount-overridden class="tabular-nums">{{ row.default_amount|money(row.currency) }}</em>
+                    <em data-amount-overridden
+                        class="tabular-nums">{{ row.effective_amount_minor|money(row.currency) }}</em>
+                  {% elif row.is_formula %}
+                    <span class="tabular-nums"
+                          data-formula-amount
+                          title="{{ (row.amount_formula.coefficient_bps / 100)|round(2) }}% of selected categories">
+                      {{ row.effective_amount_minor|money(row.currency) }}
+                      <span class="formula-chip" aria-label="computed amount">ƒ</span>
+                    </span>
                   {% else %}
-                    <span class="tabular-nums">{{ row.default_amount|money(row.currency) }}</span>
+                    <span class="tabular-nums">{{ row.effective_amount_minor|money(row.currency) }}</span>
                   {% endif %}
                 </td>
                 <td>{{ 'Yes' if row.active else 'No' }}</td>

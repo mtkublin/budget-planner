@@ -25,12 +25,8 @@ import logging
 import sqlite3
 from dataclasses import dataclass
 from decimal import ROUND_HALF_EVEN, Decimal
-from typing import TYPE_CHECKING
 
 import httpx
-
-if TYPE_CHECKING:
-    from budget_planner.services import budget as budget_svc
 
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.enums import Direction
@@ -283,7 +279,7 @@ def _collect_events(
             continue
         overrides = recurring_repo.list_overrides(conn, rule.id)
         direction = directions_by_cat[rule.category_id]
-        for occ in recurring_svc.expand(rule, overrides, event_start, end_date):
+        for occ in recurring_svc.rt_expand(conn, rule, overrides, event_start, end_date):
             if (rule.id, occ.occurrence_date) in dedup_keys:
                 continue
             for ev in _events_from_occurrence(occ, direction):
@@ -388,7 +384,7 @@ def _committed_future_for_category(
         if rule_start > window_end_inclusive:
             continue
         overrides = recurring_repo.list_overrides(conn, rule.id)
-        for occ in recurring_svc.expand(rule, overrides, rule_start, window_end_inclusive):
+        for occ in recurring_svc.rt_expand(conn, rule, overrides, rule_start, window_end_inclusive):
             total += occ.amount
 
     return total
@@ -649,8 +645,6 @@ def _current_month_budget_totals(
     Reuses the Budget page math so the Forecast table's current-month row
     stays in lockstep with Budget + Overview (ADR-0039 + ADR-0041).
     """
-    from budget_planner.services import budget as budget_svc  # noqa: PLC0415
-
     summary = budget_svc.month_summary(conn, today.year, today.month, today=today)
     return summary.totals
 
@@ -681,8 +675,6 @@ def _planned_budget_per_month(
     Budget-period consumption boundaries (ADR-0041) are approximated with
     calendar months here, matching ``_collect_budget_overlay``.
     """
-    from budget_planner.services import budget as budget_svc  # noqa: PLC0415
-
     expense_cats = [
         c
         for c in categories_repo.list_all(conn, include_deleted=False)
@@ -763,7 +755,7 @@ def _month_flow_sums(
         ccy = acct_ccy.get(rule.account_id)
         if ccy is None:
             continue
-        for occ in recurring_svc.expand(rule, overrides, event_start, end_date):
+        for occ in recurring_svc.rt_expand(conn, rule, overrides, event_start, end_date):
             if (rule.id, occ.occurrence_date) in dedup_keys:
                 continue
             base = _convert_native_to_base(occ.amount, ccy, base_currency, fx_rates)

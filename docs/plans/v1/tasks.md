@@ -680,6 +680,23 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 - `templates/partials/_nav.html`: new `{{ navlink('/forecast', 'Forecast', 'g f') }}` after Budget.
 - Tests: 10 new unit tests in `tests/unit/services/test_forecast_monthly.py` cover empty / single-month / multi-month / income-only / expense-only / recurring-included / transit-excluded / fx-conversion / end-balance-matches-daily / negative-horizon. Integration tests in `tests/integration/web/test_forecast.py` migrated to `horizon_months`, new `_table.html` + `_view.html` fragment-shape tests, nav-link assertion. `test_home.py::test_nav_has_five_primary_items_plus_settings` picks up the new entry.
 
+### ✅ T-130 [S] Recurring override soft-consume on promotion → ADR-0046
+- Migration `0009_recurring_override_promoted_fk.sql`: add nullable `recurring_rule_overrides.promoted_to_txn_id INTEGER REFERENCES transactions(id) DEFERRABLE INITIALLY DEFERRED` + index `ix_recurring_overrides_promoted(rule_id, promoted_to_txn_id)`. Additive, no table rebuild.
+- Domain: `RecurringOverride.promoted_to_txn_id: int | None = None`.
+- Repository: `list_overrides(..., include_consumed: bool = False)` default-filters consumed rows; new `list_overrides_all` + new audit-free `mark_override_promoted(conn, override_id, txn_id)`.
+- Service: `services.recurring.promote_recurring` step 6e swaps `delete_override` → `mark_override_promoted`. `skip_and_advance` + `_override_on_next_due` lookups keep default `include_consumed=False`.
+- Formula compute: `services/recurring_formula.compute_formula_amount` + `rt_expand` load overrides via `list_overrides_all` so historical overrides stay visible after B's promotion.
+- Tests: pin "A's May = formula(B.override) *after* B's May promoted"; pin that `list_overrides` default still hides consumed; pin that consumed override still appears in `expand` output for its canonical month.
+
+### ✅ T-129 [M] Recurring formula amount → ADR-0045
+- Migration `0008_recurring_amount_formula.sql`: add nullable `amount_formula TEXT`, rebuild `recurring_rules` to relax CHECK (`amount_formula IS NOT NULL OR default_amount <> 0`); FK pragma off during rebuild via `FK_OFF_MIGRATIONS = {7, 8}`.
+- Domain: `AmountFormula(coefficient_bps, source_category_ids)`; `RecurringRule.amount_formula` defaulted `None`; `NewRecurringRule.amount_formula`; `PatchRecurringRule.amount_formula` via `_UNCHANGED` sentinel.
+- Service `services/recurring_formula.py`: `parse_percent_to_bps`, `build_formula`, `compute_formula_amount`, `resolve_rule_amount`, `rt_expand`, `validate_formula_sources`. Pure cycle guard: skip formula sources at compute, reject at save.
+- Wire-in: `services/recurring.promote_recurring`, `services/budget.committed_in_window`, `services/forecast._collect_events`, `web/routers/ledger._hydrate_recurring_rows` route through formula-aware runtime expand.
+- Repository: JSON serialize/deserialize round-trip; snapshot `default_amount` written at save using `compute_formula_amount(today.year, today.month)`.
+- UI: `partials/recurring/_form.html` gains `fixed | formula` radio toggle with coefficient % + source-category checkbox grid (JS swap via `data-amount-source-panel` + `hidden` + `aria-hidden` lockstep); Ledger row + Ledger table render `ƒ` chip when `is_formula`.
+- Tests: `tests/unit/services/test_recurring_formula.py` (parser, builder, rounding); `tests/integration/web/test_recurring_formula.py` (compute, repo roundtrip, promote live-recompute, override precedence over formula, save-time cycle rejection, router smoke).
+
 ---
 
 ## Phase 7 — Deferred to v2

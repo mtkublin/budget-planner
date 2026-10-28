@@ -1,14 +1,16 @@
-"""Recurring rules + sparse overrides repository (ADR-0013 / ADR-0038)."""
+"""Recurring rules + sparse overrides repository (ADR-0013 / ADR-0038 / ADR-0045)."""
 
 from __future__ import annotations
 
 import datetime as dt
+import json
 import sqlite3
 from datetime import date
 from typing import Any
 
 from budget_planner.domain.enums import Cadence, OverrideState
 from budget_planner.domain.recurring import (
+    AmountFormula,
     NewRecurringOverride,
     NewRecurringRule,
     PatchRecurringRule,
@@ -21,13 +23,37 @@ from budget_planner.services.recurring import first_due_on_or_after
 _RULE_COLUMNS = (
     "id, user_id, cadence, start_date, end_date, category_id, account_id, "
     "dest_account_id, default_amount, default_description, day_of_month, "
-    "month_of_year, active, next_due, last_promoted_date, "
+    "month_of_year, active, next_due, last_promoted_date, amount_formula, "
     "created_at, updated_at, deleted_at"
 )
 
+
+def _formula_to_json(formula: AmountFormula | None) -> str | None:
+    if formula is None:
+        return None
+    return json.dumps(
+        {
+            "coefficient_bps": formula.coefficient_bps,
+            "source_category_ids": list(formula.source_category_ids),
+        },
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+
+
+def _formula_from_json(raw: str | None) -> AmountFormula | None:
+    if raw is None:
+        return None
+    data = json.loads(raw)
+    return AmountFormula(
+        coefficient_bps=int(data["coefficient_bps"]),
+        source_category_ids=tuple(int(v) for v in data["source_category_ids"]),
+    )
+
+
 _OVERRIDE_COLUMNS = (
     "id, rule_id, occurrence_date, state, amount_override, description_override, "
-    "date_override, created_at"
+    "date_override, created_at, promoted_to_txn_id"
 )
 
 
@@ -52,6 +78,7 @@ def _row_to_rule(row: sqlite3.Row) -> RecurringRule:
             if row["last_promoted_date"] is not None
             else None
         ),
+        amount_formula=_formula_from_json(row["amount_formula"]),
         created_at=parse_dt_required(row["created_at"]),
         updated_at=parse_dt_required(row["updated_at"]),
         deleted_at=parse_dt(row["deleted_at"]),
@@ -82,6 +109,7 @@ def _compute_initial_next_due(data: NewRecurringRule, today: date) -> date:
         active=True,
         next_due=data.start_date,  # placeholder; helper doesn't read it
         last_promoted_date=None,
+        amount_formula=data.amount_formula,
         created_at=dt.datetime.now(dt.UTC),
         updated_at=dt.datetime.now(dt.UTC),
         deleted_at=None,
@@ -101,6 +129,7 @@ def _row_to_override(row: sqlite3.Row) -> RecurringOverride:
             date.fromisoformat(row["date_override"]) if row["date_override"] is not None else None
         ),
         created_at=parse_dt_required(row["created_at"]),
+        promoted_to_txn_id=row["promoted_to_txn_id"],
     )
 
 
@@ -144,6 +173,8 @@ def _normalise_rule_patch(changes: dict[str, Any]) -> dict[str, Any]:
             norm[key] = value.isoformat()
         elif key == "active":
             norm[key] = int(bool(value))
+        elif key == "amount_formula":
+            norm[key] = _formula_to_json(value)
         else:
             norm[key] = value
     return norm
@@ -158,8 +189,8 @@ def create_rule(conn: sqlite3.Connection, data: NewRecurringRule) -> RecurringRu
             "INSERT INTO recurring_rules("
             "user_id, cadence, start_date, end_date, category_id, account_id, "
             "dest_account_id, default_amount, default_description, "
-            "day_of_month, month_of_year, active, next_due) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "day_of_month, month_of_year, active, next_due, amount_formula) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 data.user_id,
                 data.cadence.value,
@@ -174,6 +205,7 @@ def create_rule(conn: sqlite3.Connection, data: NewRecurringRule) -> RecurringRu
                 data.month_of_year,
                 int(data.active),
                 initial_next_due.isoformat(),
+                _formula_to_json(data.amount_formula),
             ),
         )
         new_id = int(cursor.lastrowid or 0)
@@ -290,13 +322,48 @@ def soft_delete_rule(conn: sqlite3.Connection, rule_id: int) -> None:
     )
 
 
-def list_overrides(conn: sqlite3.Connection, rule_id: int) -> list[RecurringOverride]:
-    rows = conn.execute(
-        f"SELECT {_OVERRIDE_COLUMNS} FROM recurring_rule_overrides "
-        "WHERE rule_id = ? ORDER BY occurrence_date ASC",
-        (rule_id,),
-    ).fetchall()
+def list_overrides(
+    conn: sqlite3.Connection,
+    rule_id: int,
+    *,
+    include_consumed: bool = False,
+) -> list[RecurringOverride]:
+    """List overrides for a rule.
+
+    Default excludes consumed overrides (ADR-0046) so pre-ADR-0046 callers
+    (promote lookup, override UI, skip-and-advance) see only live rows.
+    Formula compute paths (ADR-0045) call ``list_overrides_all`` to include
+    historical rows that still need to materialise their canonical month.
+    """
+    sql = f"SELECT {_OVERRIDE_COLUMNS} FROM recurring_rule_overrides WHERE rule_id = ?"
+    if not include_consumed:
+        sql += " AND promoted_to_txn_id IS NULL"
+    sql += " ORDER BY occurrence_date ASC"
+    rows = conn.execute(sql, (rule_id,)).fetchall()
     return [_row_to_override(r) for r in rows]
+
+
+def list_overrides_all(conn: sqlite3.Connection, rule_id: int) -> list[RecurringOverride]:
+    """List every override for a rule, consumed or not (ADR-0046)."""
+    return list_overrides(conn, rule_id, include_consumed=True)
+
+
+def mark_override_promoted(
+    conn: sqlite3.Connection,
+    override_id: int,
+    *,
+    txn_id: int,
+) -> None:
+    """Stamp ``promoted_to_txn_id = txn_id`` on an override (ADR-0046 step 6e).
+
+    Audit-free: the orchestrating promotion service writes a single
+    ``update`` audit entry on the rule mutation, matching the pattern used
+    by ``set_next_due`` / ``set_inactive``.
+    """
+    conn.execute(
+        "UPDATE recurring_rule_overrides SET promoted_to_txn_id = ? WHERE id = ?",
+        (txn_id, override_id),
+    )
 
 
 def upsert_override(conn: sqlite3.Connection, data: NewRecurringOverride) -> RecurringOverride:
@@ -387,7 +454,9 @@ __all__ = [
     "delete_override",
     "find_rule",
     "list_overrides",
+    "list_overrides_all",
     "list_rules",
+    "mark_override_promoted",
     "set_inactive",
     "set_next_due",
     "soft_delete_rule",

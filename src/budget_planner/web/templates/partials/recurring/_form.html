@@ -1,9 +1,18 @@
 {% from "_partials/combobox.html" import combobox %}
+{# ADR-0045 — Recurring rule form with fixed-vs-formula amount source.
+
+   `amount_source` ∈ {fixed, formula}. The two sub-sections are mutually
+   visible; the inactive one carries `hidden` + `aria-hidden="true"` so form
+   submission still sends its (ignored) values but the UI only shows the
+   active variant. A small JS block flips the toggle inline — no HTMX round
+   trip, no slide-over disruption (ADR-0040). #}
+{% set is_formula = amount_source == "formula" %}
 {% set rule_account = (accounts|selectattr('id', 'equalto', rule.account_id)|first) if rule else none %}
 <form hx-post="{{ action }}"
       hx-target="{% if rule %}#recurring-{{ rule.id }}{% else %}table.ledger tbody{% endif %}"
       hx-swap="{% if rule %}outerHTML{% else %}beforeend{% endif %}"
       class="form-stack"
+      data-recurring-form
       {% if not rule %}data-reset-on-submit{% endif %}>
   <label>
     Cadence
@@ -36,15 +45,71 @@
       selected_value=rule.account_id if rule else "",
       required=True) }}
   </label>
-  <label>
-    Amount
-    <input type="text"
-           name="default_amount"
-           value="{{ rule.default_amount|money_major(rule_account.currency if rule_account else 'PLN') if rule else '' }}"
-           inputmode="decimal"
-           data-numeric
-           required>
-  </label>
+  <fieldset class="form-stack__group" data-amount-source-group>
+    <legend>Amount</legend>
+    <div class="form-stack__radio-row">
+      <label class="form-stack__radio">
+        <input type="radio"
+               name="amount_source"
+               value="fixed"
+               data-amount-source-radio
+               {% if not is_formula %}checked{% endif %}>
+        Fixed
+      </label>
+      <label class="form-stack__radio">
+        <input type="radio"
+               name="amount_source"
+               value="formula"
+               data-amount-source-radio
+               {% if is_formula %}checked{% endif %}>
+        Formula (% of other rules)
+      </label>
+    </div>
+    <div data-amount-source-panel="fixed"
+         {% if is_formula %}hidden aria-hidden="true"{% endif %}>
+      <label>
+        Amount
+        <input type="text"
+               name="default_amount"
+               value="{{ rule.default_amount|money_major(rule_account.currency if rule_account else 'PLN') if rule and not is_formula else '' }}"
+               inputmode="decimal"
+               data-numeric>
+      </label>
+    </div>
+    <div data-amount-source-panel="formula"
+         {% if not is_formula %}hidden aria-hidden="true"{% endif %}>
+      <label>
+        Coefficient (%)
+        <input type="text"
+               name="coefficient_percent"
+               value="{{ coefficient_percent }}"
+               inputmode="decimal"
+               data-numeric
+               placeholder="e.g. 12">
+      </label>
+      <fieldset class="form-stack__group">
+        <legend>Source categories</legend>
+        {% if source_categories %}
+          <ul class="form-stack__checklist">
+            {% for cat in source_categories %}
+              <li>
+                <label>
+                  <input type="checkbox"
+                         name="source_category_ids"
+                         value="{{ cat.id }}"
+                         {% if cat.id in selected_source_ids %}checked{% endif %}>
+                  {{ cat.name }}
+                  <span class="text-muted text-sm">({{ cat.direction.value }})</span>
+                </label>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted text-sm">No eligible categories.</p>
+        {% endif %}
+      </fieldset>
+    </div>
+  </fieldset>
   <label>
     Day of month
     <input type="text"
@@ -63,3 +128,30 @@
     <button type="submit" class="btn-accent">Save</button>
   </div>
 </form>
+<script>
+  (function () {
+    var form = document.currentScript && document.currentScript.previousElementSibling;
+    if (!form || !form.matches('[data-recurring-form]')) {
+      form = document.querySelector('[data-recurring-form]');
+    }
+    if (!form) return;
+    var radios = form.querySelectorAll('[data-amount-source-radio]');
+    var panels = form.querySelectorAll('[data-amount-source-panel]');
+    function sync() {
+      var selected = form.querySelector('[data-amount-source-radio]:checked');
+      var value = selected ? selected.value : 'fixed';
+      panels.forEach(function (panel) {
+        var active = panel.getAttribute('data-amount-source-panel') === value;
+        if (active) {
+          panel.removeAttribute('hidden');
+          panel.removeAttribute('aria-hidden');
+        } else {
+          panel.setAttribute('hidden', '');
+          panel.setAttribute('aria-hidden', 'true');
+        }
+      });
+    }
+    radios.forEach(function (r) { r.addEventListener('change', sync); });
+    sync();
+  })();
+</script>

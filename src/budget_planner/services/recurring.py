@@ -400,8 +400,13 @@ def promote_recurring(
     overrides = recurring_repo.list_overrides(conn, rule_id)
     match = _resolve_override_for_next_due(overrides, due_date)
 
-    # Defaults start from the rule.
-    default_amount = rule.default_amount
+    # Defaults start from the rule. Formula rules recompute from the
+    # live source-rule state for the next_due month (ADR-0045).
+    from budget_planner.services.recurring_formula import (  # noqa: PLC0415
+        resolve_rule_amount,
+    )
+
+    default_amount = resolve_rule_amount(conn, rule, due_date)
     default_description = rule.default_description
     effective_date = due_date
     if match is not None:
@@ -462,7 +467,10 @@ def promote_recurring(
                 last_promoted_date=due_date,
             )
         if match is not None:
-            recurring_repo.delete_override(conn, rule_id, due_date)
+            # ADR-0046: soft-consume the override by stamping the new txn id
+            # instead of deleting the row. Keeps the override visible to
+            # historical reads (formula compute per ADR-0045).
+            recurring_repo.mark_override_promoted(conn, match.id, txn_id=txn.id)
         updated_rule = recurring_repo.find_rule(conn, rule_id, include_deleted=True)
         audit_svc.write_audit(
             conn,
@@ -541,6 +549,13 @@ def skip_and_advance(
     return new_next_due
 
 
+# Re-export the runtime-aware expand so callers that need formula substitution
+# can grab it from the main service module alongside the pure helpers.
+from budget_planner.services.recurring_formula import (  # noqa: E402
+    resolve_rule_amount,
+    rt_expand,
+)
+
 __all__ = [
     "CannotPromoteSkippedError",
     "InactiveRecurringError",
@@ -553,5 +568,7 @@ __all__ = [
     "generate_occurrences",
     "occurrence_in_month",
     "promote_recurring",
+    "resolve_rule_amount",
+    "rt_expand",
     "skip_and_advance",
 ]
