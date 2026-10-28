@@ -680,6 +680,15 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 - `templates/partials/_nav.html`: new `{{ navlink('/forecast', 'Forecast', 'g f') }}` after Budget.
 - Tests: 10 new unit tests in `tests/unit/services/test_forecast_monthly.py` cover empty / single-month / multi-month / income-only / expense-only / recurring-included / transit-excluded / fx-conversion / end-balance-matches-daily / negative-horizon. Integration tests in `tests/integration/web/test_forecast.py` migrated to `horizon_months`, new `_table.html` + `_view.html` fragment-shape tests, nav-link assertion. `test_home.py::test_nav_has_five_primary_items_plus_settings` picks up the new entry.
 
+### ✅ T-133 [S] Budget Monthly Summary — surface analytics columns → ADR-0049
+- Template: `templates/budget/index.html` Section 1 table grows three columns (Avg/mo · YTD avg · Δ prev) after Actual, before Remainder-bar. Values sourced from `line.avg_monthly_overall_minor`, `line.avg_this_year_minor`, `line.delta_vs_prev_month_minor` — already present on `CategoryBudgetLine`. `tfoot` leaves these cells blank.
+- Delta sign: render explicit `+` / `−` prefix; apply `.delta--up` when `> 0`, `.delta--down` when `< 0`, no modifier when `== 0`.
+- Responsive: new `.col-hide-sm` utility hides YTD avg + Δ prev `<th>` + `<td>` below the 640px breakpoint; Avg/mo stays visible.
+- CSS: `app.css` adds `.col-hide-sm { @media (max-width: 639px) { display: none; } }` plus `.delta--up { color: var(--expense); }` / `.delta--down { color: var(--income); }` tint rules (red = expense rising, green = expense falling). No new palette tokens.
+- Service / repo / DTO: unchanged. Pure surfacing.
+- Tests: `tests/integration/web/test_budget.py` asserts the three columns render with values matching `services.budget.month_summary` output on a seeded fixture; delta sign classes applied correctly for +/−/0 cases.
+- Visual audit: `frontend-visual-audit` on `/budget` at 1440 / 1024 / 375; verify no horizontal scroll regression beyond the existing `.ledger-scroll` wrapper, no header/body column desync on hide-sm.
+
 ### ✅ T-132 [S] Category colour coding — per-category override with direction default → ADR-0048
 - Migration `0011_add_category_color.sql`: add nullable `categories.color TEXT CHECK (color IS NULL OR color GLOB '#[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]')`. Additive; no table rebuild; no FK pragma toggle.
 - Domain: `Category.color: str | None`, `NewCategory.color: str | None = None`, `PatchCategory.color + clear_color: bool` sentinel for explicit NULL reset. New `normalise_color(raw) -> str | None` + `HEX_COLOR_RE` validator mirror the SQL CHECK.

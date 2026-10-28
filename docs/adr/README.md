@@ -51,3 +51,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0046 | [Recurring Overrides — Soft-Consume on Promotion (Not Delete)](0046-recurring-override-soft-consume.md) (amends ADR-0038 §Promotion-flow step 6e) |
 | 0047 | [Recurring Formula — Linear Combination of Terms + Chained Formulas](0047-recurring-formula-linear-combination-and-chaining.md) (supersedes ADR-0045 §Decision) |
 | 0048 | [Category Color Coding — Per-Category Override with Direction Default](0048-category-color-coding.md) (amends ADR-0023; extends F1.6) |
+| 0049 | [Budget Monthly Summary — Surface Analytics Columns (Avg/mo, YTD avg, Δ prev)](0049-budget-monthly-summary-analytics-columns.md) (amends ADR-0031 §Monthly summary; surfaces F4.5) |

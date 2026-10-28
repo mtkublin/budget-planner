@@ -1110,6 +1110,14 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
   font-weight: 500;
 }
 
+/* ADR-0049: analytics columns on Monthly summary table. */
+.delta--up   { color: var(--expense); }
+.delta--down { color: var(--income); }
+
+@media (width < 640px) {
+  .col-hide-sm { display: none; }
+}
+
 .remainder-bar {
   height: 6px;
   min-width: 80px;

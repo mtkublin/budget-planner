@@ -2,18 +2,24 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 from bs4 import BeautifulSoup, Tag
 from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
+from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.budgets import NewBudgetDefault
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.transactions import NewTransaction
 from budget_planner.repositories import (
+    accounts as accounts_repo,
     budgets as budgets_repo,
     categories as categories_repo,
+    transactions as transactions_repo,
 )
 
 
@@ -331,3 +337,155 @@ def test_budget_hero_committed_subline_survives_budget_stale_rerender(
     assert r2.status_code == 200
     soup = BeautifulSoup(r2.text, "html.parser")
     assert soup.select_one(".budget-lds__committed") is not None
+
+
+# ---------------------------------------------------------------------------
+# T-133 / ADR-0049 — Monthly summary analytics columns.
+# ---------------------------------------------------------------------------
+def _seed_three_cats_with_history(settings: Settings) -> None:
+    """Seed one account + three expense categories with 2026-09 + 2026-10 txns.
+
+    Food   : prev=300, this=500 → delta=+200 (up)
+    Rent   : prev=400, this=400 → delta=   0 (no modifier)
+    Fun    : prev=200, this=100 → delta=-100 (down)
+    """
+    conn = get_connection(settings)
+    try:
+        acct = accounts_repo.create(conn, NewAccount(name="Checking", currency="PLN")).id
+        pairs = [
+            ("Food", 30000, 50000),
+            ("Rent", 40000, 40000),
+            ("Fun", 20000, 10000),
+        ]
+        for name, prev_amt, this_amt in pairs:
+            cat_id = categories_repo.create(
+                conn, NewCategory(name=name, direction=Direction.EXPENSE)
+            ).id
+            transactions_repo.create(
+                conn,
+                NewTransaction(
+                    operation_date=date(2026, 9, 15),
+                    category_id=cat_id,
+                    account_id=acct,
+                    amount=prev_amt,
+                ),
+            )
+            transactions_repo.create(
+                conn,
+                NewTransaction(
+                    operation_date=date(2026, 10, 15),
+                    category_id=cat_id,
+                    account_id=acct,
+                    amount=this_amt,
+                ),
+            )
+    finally:
+        conn.close()
+
+
+def _summary_row(soup: BeautifulSoup, category_name: str) -> Tag:
+    table = soup.select_one("table.budget-row-table")
+    assert isinstance(table, Tag)
+    for row in table.select("tbody tr"):
+        if category_name in row.get_text():
+            return row
+    raise AssertionError(f"row for {category_name} not found")
+
+
+def _classes(tag: Tag) -> list[str]:
+    raw = tag.get("class")
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        return raw.split()
+    return list(raw)
+
+
+def test_monthly_summary_renders_analytics_headers(client: TestClient, _migrated: Settings) -> None:
+    _seed_three_cats_with_history(_migrated)
+    r = client.get("/budget?year=2026&month=10")
+    assert r.status_code == 200
+    soup = BeautifulSoup(r.text, "html.parser")
+    table = soup.select_one("table.budget-row-table")
+    assert isinstance(table, Tag)
+    headers = [th.get_text(strip=True) for th in table.select("thead th")]
+    assert "Avg/mo" in headers
+    assert "YTD avg" in headers
+    # Δ prev — match on prefix so unicode minor variants don't trip the test.
+    assert any(h.endswith("prev") for h in headers)
+
+
+def test_monthly_summary_delta_up_renders_sign_and_class(
+    client: TestClient, _migrated: Settings
+) -> None:
+    _seed_three_cats_with_history(_migrated)
+    r = client.get("/budget?year=2026&month=10")
+    soup = BeautifulSoup(r.text, "html.parser")
+    row = _summary_row(soup, "Food")
+    cells = row.select("td")
+    # Column order (post-ADR-0049): Category, Planned, Actual, Avg/mo, YTD avg,
+    # Δ prev, Remainder-bar, Remainder.
+    assert "500.00" in cells[2].get_text()
+    assert "400.00" in cells[3].get_text()  # (500 + 300) / 2 months
+    assert "80.00" in cells[4].get_text()  # (500 + 300) / 10 elapsed months
+    delta = cells[5]
+    assert "+200.00" in delta.get_text()
+    assert "delta--up" in _classes(delta)
+
+
+def test_monthly_summary_delta_down_renders_sign_and_class(
+    client: TestClient, _migrated: Settings
+) -> None:
+    _seed_three_cats_with_history(_migrated)
+    r = client.get("/budget?year=2026&month=10")
+    soup = BeautifulSoup(r.text, "html.parser")
+    row = _summary_row(soup, "Fun")
+    cells = row.select("td")
+    delta = cells[5]
+    assert "-100.00" in delta.get_text()
+    assert "delta--down" in _classes(delta)
+    assert "delta--up" not in _classes(delta)
+
+
+def test_monthly_summary_delta_zero_has_no_sign_modifier(
+    client: TestClient, _migrated: Settings
+) -> None:
+    _seed_three_cats_with_history(_migrated)
+    r = client.get("/budget?year=2026&month=10")
+    soup = BeautifulSoup(r.text, "html.parser")
+    row = _summary_row(soup, "Rent")
+    cells = row.select("td")
+    delta = cells[5]
+    assert "0.00" in delta.get_text()
+    classes = _classes(delta)
+    assert "delta--up" not in classes
+    assert "delta--down" not in classes
+
+
+def test_monthly_summary_responsive_hide_class_on_ytd_and_delta(
+    client: TestClient, _migrated: Settings
+) -> None:
+    _seed_three_cats_with_history(_migrated)
+    r = client.get("/budget?year=2026&month=10")
+    soup = BeautifulSoup(r.text, "html.parser")
+    row = _summary_row(soup, "Food")
+    cells = row.select("td")
+    assert "col-hide-sm" not in _classes(cells[3])  # Avg/mo stays visible
+    assert "col-hide-sm" in _classes(cells[4])  # YTD avg hidden
+    assert "col-hide-sm" in _classes(cells[5])  # Δ prev hidden
+
+
+def test_monthly_summary_totals_row_leaves_analytics_blank(
+    client: TestClient, _migrated: Settings
+) -> None:
+    _seed_three_cats_with_history(_migrated)
+    r = client.get("/budget?year=2026&month=10")
+    soup = BeautifulSoup(r.text, "html.parser")
+    totals = soup.select_one("tr.budget-row--totals")
+    assert isinstance(totals, Tag)
+    cells = totals.select("td")
+    # Avg/mo, YTD avg, Δ prev all blank in the footer (weighted sums are
+    # misleading across differing active-month counts).
+    assert cells[3].get_text(strip=True) == ""
+    assert cells[4].get_text(strip=True) == ""
+    assert cells[5].get_text(strip=True) == ""

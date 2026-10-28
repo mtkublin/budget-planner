@@ -74,69 +74,87 @@
         <button type="submit" class="btn-ghost">Go</button>
       </form>
     </header>
-    <table class="ledger budget-row-table">
-      <caption class="sr-only">
-        Planned vs actual per category for {{ year }}-{{ "%02d"|format(month) }}
-      </caption>
-      <thead>
-        <tr>
-          <th scope="col">Category</th>
-          <th scope="col" class="text-right">Planned</th>
-          <th scope="col" class="text-right">Actual</th>
-          <th scope="col">Remainder</th>
-          <th scope="col" class="text-right">Remainder</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for line in summary.lines %}
-          {% set planned = line.budgeted_minor or 0 %}
-          {% set actual = line.spent_minor %}
-          {% if planned > 0 %}
-            {% set ratio = 100 * actual / planned %}
-            {% set bar_pct = 0 if ratio < 0 else (100 if ratio > 100 else ratio|int) %}
-          {% else %}
-            {% set bar_pct = 0 %}
-          {% endif %}
-          <tr class="row budget-row">
-            <td>{{ category_label_parts(line.category_name, line.category_direction, line.category_color) }}</td>
-            <td class="text-right tabular-nums">
-              {% if line.budgeted_minor is none %}
-                <span class="text-faint">—</span>
-              {% else %}
-                {{ line.budgeted_minor|money(base_ccy) }}
-              {% endif %}
-            </td>
-            <td class="text-right tabular-nums">{{ line.spent_minor|money(base_ccy) }}</td>
-            <td>
-              <div class="remainder-bar"
-                   role="progressbar"
-                   aria-valuemin="0"
-                   aria-valuemax="100"
-                   aria-valuenow="{{ bar_pct }}"
-                   aria-label="{{ line.category_name }} actual vs planned">
-                <span class="remainder-bar__fill" style="width: {{ bar_pct }}%"></span>
-              </div>
-            </td>
-            <td class="text-right tabular-nums">
-              {% if line.remaining_minor is none %}
-                <span class="text-faint">—</span>
-              {% else %}
-                {{ line.remaining_minor|money(base_ccy) }}
-              {% endif %}
-            </td>
+    <div class="ledger-scroll">
+      <table class="ledger budget-row-table">
+        <caption class="sr-only">
+          Planned vs actual per category for {{ year }}-{{ "%02d"|format(month) }}
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Category</th>
+            <th scope="col" class="text-right">Planned</th>
+            <th scope="col" class="text-right">Actual</th>
+            <th scope="col" class="text-right">Avg/mo</th>
+            <th scope="col" class="text-right col-hide-sm">YTD avg</th>
+            <th scope="col" class="text-right col-hide-sm">Δ prev</th>
+            <th scope="col">Remainder</th>
+            <th scope="col" class="text-right">Remainder</th>
           </tr>
-        {% endfor %}
-      </tbody>
-      <tfoot>
-        <tr class="budget-row budget-row--totals">
-          <td>Total</td>
-          <td class="text-right tabular-nums">{{ summary.totals.budgeted_minor|money(base_ccy) }}</td>
-          <td class="text-right tabular-nums">{{ summary.totals.spent_minor|money(base_ccy) }}</td>
-          <td></td>
-          <td class="text-right tabular-nums">{{ summary.totals.remaining_minor|money(base_ccy) }}</td>
-        </tr>
-      </tfoot>
-    </table>
+        </thead>
+        <tbody>
+          {% for line in summary.lines %}
+            {% set planned = line.budgeted_minor or 0 %}
+            {% set actual = line.spent_minor %}
+            {% if planned > 0 %}
+              {% set ratio = 100 * actual / planned %}
+              {% set bar_pct = 0 if ratio < 0 else (100 if ratio > 100 else ratio|int) %}
+            {% else %}
+              {% set bar_pct = 0 %}
+            {% endif %}
+            <tr class="row budget-row">
+              <td>{{ category_label_parts(line.category_name, line.category_direction, line.category_color) }}</td>
+              <td class="text-right tabular-nums">
+                {% if line.budgeted_minor is none %}
+                  <span class="text-faint">—</span>
+                {% else %}
+                  {{ line.budgeted_minor|money(base_ccy) }}
+                {% endif %}
+              </td>
+              <td class="text-right tabular-nums">{{ line.spent_minor|money(base_ccy) }}</td>
+              <td class="text-right tabular-nums">{{ line.avg_monthly_overall_minor|money(base_ccy) }}</td>
+              <td class="text-right tabular-nums col-hide-sm">{{ line.avg_this_year_minor|money(base_ccy) }}</td>
+              {% set d = line.delta_vs_prev_month_minor %}
+              {% if d > 0 %}
+                <td class="text-right tabular-nums col-hide-sm delta delta--up">+{{ d|money(base_ccy) }}</td>
+              {% elif d < 0 %}
+                <td class="text-right tabular-nums col-hide-sm delta delta--down">{{ d|money(base_ccy) }}</td>
+              {% else %}
+                <td class="text-right tabular-nums col-hide-sm delta">{{ d|money(base_ccy) }}</td>
+              {% endif %}
+              <td>
+                <div class="remainder-bar"
+                     role="progressbar"
+                     aria-valuemin="0"
+                     aria-valuemax="100"
+                     aria-valuenow="{{ bar_pct }}"
+                     aria-label="{{ line.category_name }} actual vs planned">
+                  <span class="remainder-bar__fill" style="width: {{ bar_pct }}%"></span>
+                </div>
+              </td>
+              <td class="text-right tabular-nums">
+                {% if line.remaining_minor is none %}
+                  <span class="text-faint">—</span>
+                {% else %}
+                  {{ line.remaining_minor|money(base_ccy) }}
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="budget-row budget-row--totals">
+            <td>Total</td>
+            <td class="text-right tabular-nums">{{ summary.totals.budgeted_minor|money(base_ccy) }}</td>
+            <td class="text-right tabular-nums">{{ summary.totals.spent_minor|money(base_ccy) }}</td>
+            <td></td>
+            <td class="col-hide-sm"></td>
+            <td class="col-hide-sm"></td>
+            <td></td>
+            <td class="text-right tabular-nums">{{ summary.totals.remaining_minor|money(base_ccy) }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
   </section>
   {# ------------------------------------------------------------------ #}
   {# Section 2 — Rules editor (ADR-0031 §2)                             #}
