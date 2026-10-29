@@ -1,6 +1,13 @@
 # Changelog
 
 ## 2026-10-29
+- **Manual-audit remediation Phase E — Plan · Year rework (audit ids #36, #37, #38, #39, #40, #41)**:
+  (#40, #41) Year selector moved into the shared Plan header slot — `plan/index.html` renders a `.rd-period-nav` with arrows + "{year}" label when `tab == "year"`. Internal `<h2>Year · YYYY</h2>` + the duplicate year nav + the inline help paragraph are gone from `plan/_year_tab.html`.
+  (#36) Year grid cells still link to the same `/budget/rules/{id}/overrides/new?month=&year=` endpoint, so the Phase D override card is reused verbatim when a cell is clicked.
+  (#37) Category column now uses `category_label_parts(name, direction, color)` so the pill chrome + hex colour match the rest of the surfaces.
+  (#38) `.rd-year-legend` legend row added above the grid with four swatches (`One-off · bold`, `Recurring · hatched`, `Default`, `Unset`).
+  (#39) Rows are split into `with_rows` (`total_minor > 0`) and `unset_rows` (`total_minor == 0`). Unset rows collapse into a `<details class="rd-year-unset">` beneath the grid with per-row `Set budget` buttons. The explanatory `.rd-plan-year__hint` sits at the bottom.
+  1080 tests pass. mypy --strict clean. ruff + djlint + sqlfluff + stylelint green.
 - **Manual-audit remediation Phase D — Plan · Budget (audit ids #32, #33, #34, #35)**:
   (#32, #33 — D.1) Plan tab-shell now hosts a `.rd-period-nav` in the shared top-right slot. It renders only when `tab in {budget, analytics}` and carries left/right arrow anchors + a mono-tabular month label (`October 2026`). `routers/plan.py` parses `?year=&month=` with validation (fallback → `today_d` when the pair is missing or `month` is outside `1..12`), then shifts prev/next by one month via `_shift_month` and threads `period_{prev,next}_{year,month}` into the template context. Year + Forecast selectors stay inside their own tab bodies (Phase E/F).
   (#34 — D.2) `plan/_budget_tab.html` top bar replaced with `.rd-period-bar` grid-template `auto 1fr auto`: left column stacks `Period · 1 Oct → 7 Nov · anchor:` lines; middle column holds the progress bar; right column shows the per-day amount in display font with the currency suffix + a muted meta line (`402.19 committed · 10 days left`). Matches `desktop-05-plan-budget.html:5`.

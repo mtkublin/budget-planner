@@ -1866,6 +1866,49 @@ kbd.rd-kbd {
 .rd-override__input input:focus { outline: none; }
 .rd-override__hint { font-size: 0.75rem; margin: 0.6rem 0 0; }
 
+/* ─── Plan · Year legend + unset collapse (manual-audit #38-#41) ──── */
+.rd-year-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 0 0 0.9rem;
+  font-size: 0.75rem;
+  color: var(--mute);
+}
+.rd-year-legend__item { display: inline-flex; align-items: center; gap: 0.4rem; }
+
+.rd-year-swatch {
+  display: inline-block;
+  width: 1.1rem;
+  height: 0.6rem;
+  border-radius: 2px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+}
+.rd-year-swatch--oneoff { background: var(--expense-soft); border-color: var(--expense); font-weight: 700; }
+
+.rd-year-swatch--recurring {
+  background: repeating-linear-gradient(135deg, var(--line) 0 2px, transparent 2px 5px);
+}
+.rd-year-swatch--default { background: var(--sunk); }
+.rd-year-swatch--unset { background: transparent; border-style: dashed; }
+
+.rd-year-unset { margin-top: 1rem; }
+.rd-year-unset summary { cursor: pointer; font-size: 0.85rem; color: var(--mute); }
+.rd-year-unset__list { list-style: none; margin: 0.5rem 0 0; padding: 0; display: grid; gap: 0.4rem; }
+
+.rd-year-unset__list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+
+.rd-plan-year__hint { font-size: 0.8rem; margin: 1rem 0 0; }
+
 /* ─── Plan · period selector in header slot (manual-audit #32-#33) ── */
 .rd-period-nav {
   display: inline-flex;

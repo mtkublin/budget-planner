@@ -11,9 +11,8 @@
     <div class="rd-screen-header__actions">
       {{ segmented([('budget', 'Budget'), ('year', 'Year'), ('forecast', 'Forecast'), ('analytics', 'Analytics')], tab, name='tab', base_href='/plan') }}
       {% if tab in ("budget", "analytics") %}
-        {# Monthly selector lives in the shared header slot for Budget +
-           Analytics (manual-audit #32); Year + Forecast ship their own
-           selectors inside the tab body. #}
+        {# Monthly selector in the shared header slot for Budget +
+           Analytics (manual-audit #32). #}
         {% set m_date = today.replace(year=year, month=month, day=1) %}
         <nav class="rd-period-nav" aria-label="Change month">
           <a class="rd-period-nav__btn"
@@ -23,6 +22,17 @@
           <a class="rd-period-nav__btn"
              href="/plan?tab={{ tab }}&year={{ period_next_year }}&month={{ period_next_month }}"
              aria-label="Next month">→</a>
+        </nav>
+      {% elif tab == "year" %}
+        {# Year selector in the shared header slot (manual-audit #40). #}
+        <nav class="rd-period-nav" aria-label="Change year">
+          <a class="rd-period-nav__btn"
+             href="/plan?tab=year&year={{ year_selected - 1 }}"
+             aria-label="Previous year">←</a>
+          <span class="rd-period-nav__label">{{ year_selected }}</span>
+          <a class="rd-period-nav__btn"
+             href="/plan?tab=year&year={{ year_selected + 1 }}"
+             aria-label="Next year">→</a>
         </nav>
       {% endif %}
     </div>

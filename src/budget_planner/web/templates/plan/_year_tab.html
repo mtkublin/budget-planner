@@ -1,25 +1,22 @@
 {% from "_partials/components/_heatmap_cell.html" import heatmap_cell %}
 {% set months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] %}
 {% set tier_map = {"one_off": "one-off", "recurring": "recurring", "default": "default", "unset": "unset"} %}
+{# Split rows into "with budget" vs "unset" so the unset block can collapse
+   by default (manual-audit #39). "unset" ≡ grand total of zero. #}
+{% set with_rows = year_rows|selectattr('total_minor') |list %}
+{% set unset_rows = year_rows|rejectattr('total_minor')|list %}
 <section class="rd-plan-year" aria-labelledby="plan-year-heading">
-  <header class="rd-plan-year__header">
-    <h2 id="plan-year-heading">Year · <span class="numeric">{{ year_selected }}</span></h2>
-    <nav class="rd-plan-year__nav" aria-label="Year selector">
-      <a class="rd-btn rd-btn--sm"
-         href="/plan?tab=year&year={{ year_selected - 1 }}"
-         hx-boost="true">← {{ year_selected - 1 }}</a>
-      <a class="rd-btn rd-btn--sm"
-         href="/plan?tab=year&year={{ year_selected + 1 }}"
-         hx-boost="true">{{ year_selected + 1 }} →</a>
-    </nav>
-  </header>
-  <p class="rd-field__help">
-    One-off (bold) and recurring (hatched) tiers overlay the default per ADR-0014. Click a cell to edit via the Budget tab.
-  </p>
+  <h2 id="plan-year-heading" class="sr-only">Year · {{ year_selected }}</h2>
+  <div class="rd-year-legend" aria-label="Cell styles">
+    <span class="rd-year-legend__item"><em class="rd-year-swatch rd-year-swatch--oneoff"></em>One-off · bold</span>
+    <span class="rd-year-legend__item"><em class="rd-year-swatch rd-year-swatch--recurring"></em>Recurring · hatched</span>
+    <span class="rd-year-legend__item"><em class="rd-year-swatch rd-year-swatch--default"></em>Default</span>
+    <span class="rd-year-legend__item"><em class="rd-year-swatch rd-year-swatch--unset"></em>Unset</span>
+  </div>
   {# Desktop + tablet — 12-month heatmap table (hidden at ≤640 px via T-R54). #}
   <div class="rd-table-scroll rd-plan-year__scroll">
     <table class="rd-table rd-plan-year__table">
-      <caption class="sr-only">Yearly budget heatmap · 12 months × {{ year_rows|length }} categories</caption>
+      <caption class="sr-only">Yearly budget heatmap · 12 months × {{ with_rows|length }} categories</caption>
       <thead>
         <tr>
           <th scope="col">Category</th>
@@ -30,9 +27,9 @@
         </tr>
       </thead>
       <tbody>
-        {% for row in year_rows %}
+        {% for row in with_rows %}
           <tr>
-            <td class="rd-desc">{{ row.category_name }}</td>
+            <td class="rd-desc">{{ category_label_parts(row.category_name, row.category_direction, row.category_color) }}</td>
             {% for cell in row.cells %}
               <td class="num rd-plan-year__cell">
                 <button type="button"
@@ -48,13 +45,13 @@
             <td class="num"><strong>{{ "{:,.0f}".format(row.total_minor / 100.0) }}</strong></td>
           </tr>
         {% endfor %}
-        {% if not year_rows %}
+        {% if not with_rows %}
           <tr>
-            <td colspan="14" class="text-muted" style="padding: 1rem">No expense categories yet.</td>
+            <td colspan="14" class="text-muted" style="padding: 1rem">No budgeted expense categories yet.</td>
           </tr>
         {% endif %}
       </tbody>
-      {% if year_rows %}
+      {% if with_rows %}
         <tfoot>
           <tr>
             <td><strong>Total</strong></td>
@@ -69,7 +66,7 @@
   </div>
   {# Mobile — per-category horizontal strip cards (T-R54). #}
   <div class="rd-plan-year__cards" aria-hidden="false">
-    {% for row in year_rows %}
+    {% for row in with_rows %}
       <article class="rd-year-card" id="year-card-{{ row.category_id }}">
         <header class="rd-year-card__head">
           <span class="rd-year-card__name">{{ row.category_name }}</span>
@@ -92,8 +89,28 @@
         </ol>
       </article>
     {% endfor %}
-    {% if not year_rows %}
-      <p class="text-muted">No expense categories yet.</p>
+    {% if not with_rows %}
+      <p class="text-muted">No budgeted expense categories yet.</p>
     {% endif %}
   </div>
+  {% if unset_rows %}
+    <details class="rd-year-unset">
+      <summary>Show {{ unset_rows|length }} categor{{ 'y' if unset_rows|length == 1 else 'ies' }} without a budget</summary>
+      <ul class="rd-year-unset__list">
+        {% for row in unset_rows %}
+          <li>
+            <span>{{ category_label_parts(row.category_name, row.category_direction, row.category_color) }}</span>
+            <button type="button"
+                    class="rd-btn rd-btn--sm rd-btn--ghost"
+                    hx-get="/budget/rules/{{ row.category_id }}/overrides/new?year={{ year_selected }}"
+                    hx-target="#modal-root"
+                    hx-swap="innerHTML">Set budget</button>
+          </li>
+        {% endfor %}
+      </ul>
+    </details>
+  {% endif %}
+  <p class="rd-plan-year__hint mut">
+    One-off (bold) overrides win for a specific month; recurring (hatched) applies every year. Click a cell to edit. Categories without a budget are collapsed above.
+  </p>
 </section>
