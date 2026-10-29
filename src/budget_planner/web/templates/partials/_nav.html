@@ -3,8 +3,8 @@
   {% set ns = namespace(is_current=(href == '/' and path == '/') or (href != '/' and path.startswith(href))) %}
   {%- if not ns.is_current -%}
     {%- for alt in extra_paths -%}
-      {%- if alt == '/' and path == '/' %}{% set ns.is_current = true %}
-      {%- elif alt != '/' and path.startswith(alt) %}{% set ns.is_current = true %}
+      {%- if alt == "/" and path == "/" %}{% set ns.is_current = true %}
+      {%- elif alt != "/" and path.startswith(alt) %}{% set ns.is_current = true %}
       {% endif -%}
     {%- endfor -%}
   {%- endif %}

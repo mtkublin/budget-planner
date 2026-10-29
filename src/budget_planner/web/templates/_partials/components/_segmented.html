@@ -8,7 +8,7 @@
       {%- set label = item[1] -%}
       {%- set count = item[2] if (item|length) > 2 else none -%}
       {%- set active = (key == active_key) -%}
-      {%- if mode == 'hx' -%}
+      {%- if mode == "hx" -%}
         <button class="rd-segmented__item{% if active %} rd-segmented__item--active{% endif %}"
                 role="tab"
                 aria-selected="{{ 'true' if active else 'false' }}"

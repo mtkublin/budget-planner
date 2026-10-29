@@ -1,6 +1,14 @@
 {% set path = request.url.path %}
-<a class="rd-tabbar__item" href="/today" {% if path in ('/', '/today') %}aria-current="page"{% endif %}>Today</a>
-<a class="rd-tabbar__item" href="/ledger" {% if path.startswith('/ledger') %}aria-current="page"{% endif %}>Ledger</a>
+<a class="rd-tabbar__item"
+   href="/today"
+   {% if path in ('/', '/today') %}aria-current="page"{% endif %}>Today</a>
+<a class="rd-tabbar__item"
+   href="/ledger"
+   {% if path.startswith('/ledger') %}aria-current="page"{% endif %}>Ledger</a>
 <button class="rd-tabbar__add" aria-label="Add" data-rd-add>+</button>
-<a class="rd-tabbar__item" href="/plan" {% if path.startswith('/plan') %}aria-current="page"{% endif %}>Plan</a>
-<a class="rd-tabbar__item" href="/accounts" {% if path.startswith('/accounts') %}aria-current="page"{% endif %}>Accounts</a>
+<a class="rd-tabbar__item"
+   href="/plan"
+   {% if path.startswith('/plan') %}aria-current="page"{% endif %}>Plan</a>
+<a class="rd-tabbar__item"
+   href="/accounts"
+   {% if path.startswith('/accounts') %}aria-current="page"{% endif %}>Accounts</a>

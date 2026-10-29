@@ -2,14 +2,14 @@
 {% from "_partials/components/_segmented.html" import segmented %}
 {% block title %}Settings · Rising Dough{% endblock %}
 {% block main %}
-  {% set titles = {'categories': 'Categories', 'fx': 'Currency & FX', 'prefs': 'Preferences'} %}
+  {% set titles = {"categories": "Categories", "fx": "Currency & FX", "prefs": "Preferences"} %}
   <header class="rd-screen-header">
     <div class="rd-screen-header__title">
       <div class="rd-eyebrow">Settings</div>
       <h1>{{ titles.get(active_tab, 'Settings') }}</h1>
     </div>
     <div class="rd-screen-header__actions">
-      {% if active_tab == 'categories' %}
+      {% if active_tab == "categories" %}
         <button class="rd-btn rd-btn--primary"
                 hx-get="/categories/new"
                 hx-target="#cat-form-slot"
@@ -17,7 +17,6 @@
       {% endif %}
     </div>
   </header>
-
   <div class="rd-segmented" role="tablist">
     {% for slug, label in [('categories', 'Categories'), ('fx', 'Currency & FX'), ('prefs', 'Preferences')] %}
       {% set is_active = (active_tab == slug) %}
@@ -29,11 +28,10 @@
          href="/settings?tab={{ slug }}">{{ label }}</a>
     {% endfor %}
   </div>
-
   <section id="panel-{{ active_tab }}"
            role="tabpanel"
            aria-labelledby="tab-{{ active_tab }}"
-           style="margin-top: 1.5rem;">
+           style="margin-top: 1.5rem">
     {% include "settings/_" ~ active_tab ~ ".html" %}
   </section>
 {% endblock %}

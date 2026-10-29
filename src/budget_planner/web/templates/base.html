@@ -6,11 +6,16 @@
     <title>{% block title %}Rising Dough{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="{{ url_for('static', path='fonts.css') }}?v=rd1">
-    <link rel="stylesheet" href="{{ url_for('static', path='tokens.css') }}?v=rd1">
-    <link rel="stylesheet" href="{{ url_for('static', path='tailwind.css') }}?v=t102">
-    <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}?v=fit1">
-    <link rel="stylesheet" href="{{ url_for('static', path='rising-dough.css') }}?v=rd1">
+    <link rel="stylesheet"
+          href="{{ url_for('static', path='fonts.css') }}?v=rd1">
+    <link rel="stylesheet"
+          href="{{ url_for('static', path='tokens.css') }}?v=rd1">
+    <link rel="stylesheet"
+          href="{{ url_for('static', path='tailwind.css') }}?v=t102">
+    <link rel="stylesheet"
+          href="{{ url_for('static', path='app.css') }}?v=fit1">
+    <link rel="stylesheet"
+          href="{{ url_for('static', path='rising-dough.css') }}?v=rd1">
     <script src="https://unpkg.com/htmx.org@2"></script>
     {% block head_extra %}{% endblock %}
   </head>
@@ -32,7 +37,11 @@
              aria-live="assertive"
              class="flash-region"></div>
         {% block main %}{% endblock %}
-        <footer class="rd-footer" style="margin-top: 3rem; padding: 1rem 0; color: var(--mute); font-size: 0.8rem;">
+        <footer class="rd-footer"
+                style="margin-top: 3rem;
+                       padding: 1rem 0;
+                       color: var(--mute);
+                       font-size: 0.8rem">
           <span class="rd-eyebrow">Rising Dough</span> · local-first
         </footer>
       </main>
@@ -53,7 +62,8 @@
     {% include "partials/_shortcuts.html" %}
     <script src="{{ url_for('static', path='js/palette.js') }}" defer></script>
     <script src="{{ url_for('static', path='js/shortcuts.js') }}?v=rd1" defer></script>
-    <script src="{{ url_for('static', path='js/numeric-input.js') }}?v=t110" defer></script>
+    <script src="{{ url_for('static', path='js/numeric-input.js') }}?v=t110"
+            defer></script>
     <script src="{{ url_for('static', path='js/combobox.js') }}?v=t110" defer></script>
     <script src="{{ url_for('static', path='js/kebab.js') }}?v=kebab" defer></script>
     <script src="{{ url_for('static', path='js/rising-dough.js') }}?v=rd1" defer></script>

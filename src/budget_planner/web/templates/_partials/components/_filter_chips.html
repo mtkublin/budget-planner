@@ -6,8 +6,11 @@
       <button class="rd-chip-select" type="button">{{ chip[0] }}</button>
     {%- endfor -%}
     <label class="rd-chips__search">
-      <input type="search" name="{{ search_name }}" value="{{ search_value }}"
-             placeholder="{{ search_placeholder }}" data-rd-search>
+      <input type="search"
+             name="{{ search_name }}"
+             value="{{ search_value }}"
+             placeholder="{{ search_placeholder }}"
+             data-rd-search>
       <kbd class="rd-kbd">/</kbd>
     </label>
   </div>

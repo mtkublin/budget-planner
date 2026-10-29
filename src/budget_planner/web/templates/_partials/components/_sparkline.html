@@ -15,9 +15,11 @@
       {%- endfor -%}
     {%- endset -%}
     {%- set area = path + ' L' + ("%.2f"|format(width)) + ' ' + ("%.2f"|format(height)) + ' L0 ' + ("%.2f"|format(height)) + ' Z' -%}
-    <svg class="rd-sparkline" viewBox="0 0 {{ width }} {{ height }}" aria-hidden="true">
-      <path class="area" d="{{ area }}"/>
-      <path class="line" d="{{ path }}"/>
+    <svg class="rd-sparkline"
+         viewBox="0 0 {{ width }} {{ height }}"
+         aria-hidden="true">
+      <path class="area" d="{{ area }}" />
+      <path class="line" d="{{ path }}" />
     </svg>
   {%- else -%}
     <span class="rd-sparkline" aria-hidden="true"></span>

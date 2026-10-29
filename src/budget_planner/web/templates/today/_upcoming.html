@@ -1,42 +1,44 @@
 {% from "_partials/components/_amount.html" import amount %}
 {% from "_partials/components/_pill.html" import category_pill %}
 {% if upcoming %}
-<table class="rd-table">
-  <caption class="sr-only">Upcoming planned and recurring entries</caption>
-  <thead>
-    <tr>
-      <th scope="col">Due</th>
-      <th scope="col">Description</th>
-      <th scope="col">Category</th>
-      <th scope="col" class="num">Amount</th>
-      <th scope="col"><span class="sr-only">Actions</span></th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for row in upcoming %}
-      <tr {% if row.is_overdue %}class="rd-row--overdue"{% endif %}>
-        <td style="font-family: var(--font-mono); font-size: 0.82rem; color: var(--mute);">
-          {{ row.operation_date.strftime("%d %b") }}
-        </td>
-        <td class="rd-desc">
-          {{ row.description }}
-          <small>{{ row.kind|capitalize }}</small>
-        </td>
-        <td class="rd-cat">
-          <span class="rd-pill rd-pill--expense">—</span>
-        </td>
-        <td class="num">{{ amount(row.amount_minor, base_ccy, direction='expense' if row.amount_minor < 0 else 'income') }}</td>
-        <td>
-          {% if row.kind == 'planned' %}
-            <a class="rd-btn rd-btn--sm" href="/planned/{{ row.planned_id }}/promote">Promote</a>
-          {% else %}
-            <a class="rd-btn rd-btn--sm" href="/recurring/{{ row.rule_id }}/promote?date={{ row.operation_date.isoformat() }}">Promote</a>
-          {% endif %}
-        </td>
+  <table class="rd-table">
+    <caption class="sr-only">Upcoming planned and recurring entries</caption>
+    <thead>
+      <tr>
+        <th scope="col">Due</th>
+        <th scope="col">Description</th>
+        <th scope="col">Category</th>
+        <th scope="col" class="num">Amount</th>
+        <th scope="col"><span class="sr-only">Actions</span></th>
       </tr>
-    {% endfor %}
-  </tbody>
-</table>
+    </thead>
+    <tbody>
+      {% for row in upcoming %}
+        <tr {% if row.is_overdue %}class="rd-row--overdue"{% endif %}>
+          <td style="font-family: var(--font-mono);
+                     font-size: 0.82rem;
+                     color: var(--mute)">{{ row.operation_date.strftime("%d %b") }}</td>
+          <td class="rd-desc">
+            {{ row.description }}
+            <small>{{ row.kind|capitalize }}</small>
+          </td>
+          <td class="rd-cat">
+            <span class="rd-pill rd-pill--expense">—</span>
+          </td>
+          <td class="num">{{ amount(row.amount_minor, base_ccy, direction='expense' if row.amount_minor < 0 else 'income') }}</td>
+          <td>
+            {% if row.kind == "planned" %}
+              <a class="rd-btn rd-btn--sm"
+                 href="/planned/{{ row.planned_id }}/promote">Promote</a>
+            {% else %}
+              <a class="rd-btn rd-btn--sm"
+                 href="/recurring/{{ row.rule_id }}/promote?date={{ row.operation_date.isoformat() }}">Promote</a>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 {% else %}
-<p class="text-muted" style="padding: 1.25rem;">Nothing upcoming in this window.</p>
+  <p class="text-muted" style="padding: 1.25rem;">Nothing upcoming in this window.</p>
 {% endif %}

@@ -4,9 +4,11 @@
   {%- set m = minor|int -%}
   {%- set is_neg = (direction == 'expense') or (sign == 'neg') or (sign == 'auto' and m < 0 and direction is none) -%}
   {%- set is_pos = (direction == 'income') or (sign == 'pos') -%}
-  {%- set cls = 'rd-amount' -%}
-  {%- if is_neg %}{% set cls = cls + ' rd-amount--expense' %}{% endif -%}
-  {%- if is_pos %}{% set cls = cls + ' rd-amount--income' %}{% endif -%}
+  {%- set cls = "rd-amount" -%}
+  {%- if is_neg %}{% set cls = cls + ' rd-amount--expense' %}
+  {% endif -%}
+  {%- if is_pos %}{% set cls = cls + ' rd-amount--income' %}
+  {% endif -%}
   <span class="{{ cls }}">
     {%- if is_neg %}−{% elif is_pos %}+{% endif -%}
     {{ (m|abs / 100.0)|round(2) }}
@@ -15,7 +17,9 @@
       <span class="rd-amount__formula" title="Derived from formula">ƒ</span>
     {%- endif -%}
     {%- if fx_hint -%}
-      <span class="rd-amount__fx" title="{{ fx_hint }}" aria-label="{{ fx_hint }}">·</span>
+      <span class="rd-amount__fx"
+            title="{{ fx_hint }}"
+            aria-label="{{ fx_hint }}">·</span>
     {%- endif -%}
   </span>
 {%- endmacro -%}

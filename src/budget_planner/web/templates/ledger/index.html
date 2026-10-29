@@ -3,7 +3,7 @@
 {% from "_partials/components/_top_bar_add.html" import top_bar_add %}
 {% block title %}Ledger · Rising Dough{% endblock %}
 {% block main %}
-  {% set titles = {'actual': 'Everything that happened', 'planned': 'Planned one-offs', 'recurring': 'Standing commitments'} %}
+  {% set titles = {"actual": "Everything that happened", "planned": "Planned one-offs", "recurring": "Standing commitments"} %}
   <header class="rd-screen-header">
     <div class="rd-screen-header__title">
       <div class="rd-eyebrow">Ledger</div>
@@ -16,11 +16,12 @@
       </span>
     </div>
   </header>
-
   {{ segmented([('actual', 'Actual'), ('planned', 'Planned'), ('recurring', 'Recurring')], view, name='view', base_href='/ledger') }}
-
   <form class="rd-chips"
-        style="margin-top: 1.25rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card);"
+        style="margin-top: 1.25rem;
+               background: var(--surface);
+               border: 1px solid var(--line);
+               border-radius: var(--radius-card)"
         hx-get="/ledger/table?view={{ view }}"
         hx-target="#ledger-table"
         hx-swap="outerHTML"
@@ -31,7 +32,8 @@
              name="date_from"
              value="{{ filters.date_from.isoformat() if filters.date_from else '' }}"
              class="rd-chip-select"
-             style="padding: 0.25rem 0.5rem; border: 1px solid var(--line);">
+             style="padding: 0.25rem 0.5rem;
+                    border: 1px solid var(--line)">
     </label>
     <label>
       <span class="sr-only">To</span>
@@ -39,7 +41,8 @@
              name="date_to"
              value="{{ filters.date_to.isoformat() if filters.date_to else '' }}"
              class="rd-chip-select"
-             style="padding: 0.25rem 0.5rem; border: 1px solid var(--line);">
+             style="padding: 0.25rem 0.5rem;
+                    border: 1px solid var(--line)">
     </label>
     <label>
       <span class="sr-only">Category</span>
@@ -65,9 +68,12 @@
       <span class="sr-only">Direction</span>
       <select name="direction" class="rd-chip-select">
         <option value="">Any direction</option>
-        <option value="expense" {% if filters.direction == 'expense' %}selected{% endif %}>Expense</option>
-        <option value="income" {% if filters.direction == 'income' %}selected{% endif %}>Income</option>
-        <option value="transit" {% if filters.direction == 'transit' %}selected{% endif %}>Transit</option>
+        <option value="expense"
+                {% if filters.direction == 'expense' %}selected{% endif %}>Expense</option>
+        <option value="income"
+                {% if filters.direction == 'income' %}selected{% endif %}>Income</option>
+        <option value="transit"
+                {% if filters.direction == 'transit' %}selected{% endif %}>Transit</option>
       </select>
     </label>
     <label class="rd-chips__search">
@@ -86,7 +92,6 @@
       <kbd class="rd-kbd">/</kbd>
     </label>
   </form>
-
   <section style="margin-top: 1rem;">
     {% include "ledger/_table.html" %}
   </section>

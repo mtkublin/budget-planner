@@ -14,7 +14,9 @@
     <div class="rd-period__bar">
       <span style="width: {{ [spent_pct, 100]|min }}%"></span>
       {%- if comm_pct > 0 %}
-      <span class="committed" style="left: {{ [spent_pct, 100]|min }}%; width: {{ [comm_pct, 100 - [spent_pct, 100]|min]|min }}%"></span>
+        <span class="committed"
+              style="left: {{ [spent_pct, 100]|min }}%;
+                     width: {{ [comm_pct, 100 - [spent_pct, 100]|min]|min }}%"></span>
       {%- endif %}
     </div>
     <div class="rd-period__amt">
