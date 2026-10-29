@@ -275,7 +275,7 @@ Owner: `web/templates/{today,ledger,plan,accounts,settings}/`.
 - Reference: ADR-0051 §7.
 - File: `phase-3-screens/T-R37-settings-preferences.md`.
 
-### ◻ T-R38 [S] Add entry modal → T-R24, T-R41
+### ✅ T-R38 [S] Add entry modal → T-R24, T-R41
 - Fixed / Formula paths; amount focused first on mobile.
 - Reference: handoff §Add entry, ADR-0056 §4.
 - File: `phase-3-screens/T-R38-add-entry-modal.md`.
