@@ -285,7 +285,7 @@ Owner: `web/templates/{today,ledger,plan,accounts,settings}/`.
 - Reference: handoff §Reconcile slide-over, ADR-0011.
 - File: `phase-3-screens/T-R39-reconcile-reskin.md`.
 
-### ◻ T-R65 [S] Create account overlay reskin → T-R24, T-R34
+### ✅ T-R65 [S] Create account overlay reskin → T-R24, T-R34
 - Rebuild handoff screen 2c: name · currency (immutable, filterable combobox) · free-text type · opening balance + as-of date · liability toggle · credit-limit (conditional per ADR-0030 §6).
 - Reuses existing POST endpoints; close affordance per ADR-0030.
 - Reference: handoff §Create account, ADR-0024, ADR-0030.
