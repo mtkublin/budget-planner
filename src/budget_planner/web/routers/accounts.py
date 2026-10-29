@@ -354,11 +354,13 @@ def reconcile_form(
             status_code=404,
         )
     derived = balance_service.derive_balance(conn, account_id)
+    snapshots = snapshots_repo.list_for_account(conn, account_id)
     return render(
         request,
         "partials/accounts/_reconcile_modal.html",
         account=acc,
         derived=derived,
+        snapshots=snapshots[:5],
         errors={},
     )
 

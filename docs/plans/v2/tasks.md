@@ -280,7 +280,7 @@ Owner: `web/templates/{today,ledger,plan,accounts,settings}/`.
 - Reference: handoff §Add entry, ADR-0056 §4.
 - File: `phase-3-screens/T-R38-add-entry-modal.md`.
 
-### ◻ T-R39 [S] Reconcile slide-over reskin → T-R24
+### ✅ T-R39 [S] Reconcile slide-over reskin → T-R24
 - Three steps in plain language; Record button states the signed amount.
 - Reference: handoff §Reconcile slide-over, ADR-0011.
 - File: `phase-3-screens/T-R39-reconcile-reskin.md`.
