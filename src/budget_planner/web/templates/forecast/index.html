@@ -27,19 +27,3 @@
   </header>
   {% include "partials/forecast/_view.html" %}
 {% endblock %}
-{% block scripts %}
-  <script>
-    (function() {
-      function render() {
-        var el = document.getElementById('forecast-chart');
-        if (!el) return;
-        var raw = el.getAttribute('data-plotly');
-        if (!raw) return;
-        var spec = JSON.parse(raw);
-        Plotly.newPlot(el, spec.data, spec.layout, { displayModeBar: false, responsive: true });
-      }
-      document.addEventListener('DOMContentLoaded', render);
-      document.body.addEventListener('htmx:afterSwap', render);
-    })();
-  </script>
-{% endblock %}

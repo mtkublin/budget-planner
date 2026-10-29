@@ -34,7 +34,7 @@ def test_dev_index_renders_shell(client: TestClient) -> None:
     body = r.text
     assert '<html lang="en"' in body
     assert "htmx.org" in body
-    assert "plotly" in body
+    # T-R50 — Plotly removed per ADR-0054; SVG charts are server-rendered now.
     assert "tailwind" in body
     soup = BeautifulSoup(body, "html.parser")
     assert soup.find("main", id="main") is not None

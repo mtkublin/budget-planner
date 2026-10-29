@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import html
-import json
-
 import pytest
 from fastapi.testclient import TestClient
 
@@ -27,10 +24,11 @@ def seeded(_migrated: Settings) -> int:
 
 
 def test_index(client: TestClient, seeded: int) -> None:
+    """T-R50 — Plotly replaced by server-rendered SVG (ADR-0054)."""
     r = client.get("/forecast")
     assert r.status_code == 200
     assert 'id="forecast-chart"' in r.text
-    assert "data-plotly" in r.text
+    assert "rd-chart__svg" in r.text
     assert 'id="forecast-monthly-table"' in r.text
 
 
@@ -74,16 +72,12 @@ def test_monthly_table_row_count(client: TestClient, seeded: int) -> None:
 
 
 def test_plotly_json_shape_monthly_granularity(client: TestClient, seeded: int) -> None:
+    """T-R50 — chart is now server-rendered SVG with monthly ticks instead of a
+    client-side Plotly JSON spec (ADR-0054)."""
     r = client.get("/forecast/view?horizon_months=4")
-    start = r.text.find('data-plotly="') + len('data-plotly="')
-    end = r.text.find('"', start)
-    payload = html.unescape(r.text[start:end])
-    spec = json.loads(payload)
-    assert "data" in spec and isinstance(spec["data"], list)
-    assert spec["data"][0]["type"] == "scatter"
-    # 4 months -> 4 X-axis points (one per month EOM), not daily.
-    assert len(spec["data"][0]["x"]) == 4
-    assert spec["data"][0]["mode"] == "lines+markers"
+    assert "rd-chart__svg" in r.text
+    # 4 months → 4 data-month entries in the monthly table fallback.
+    assert r.text.count('data-month="') == 4
 
 
 def test_planned_budget_column_present(client: TestClient, seeded: int) -> None:
