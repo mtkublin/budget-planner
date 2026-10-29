@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-10-29
+- **Manual-audit remediation Phase C.4 — Remove FAB (audit id #31)**: no mockup carries a floating action button. Deleted `templates/partials/_fab.html`, `web/context.py` (FAB target router), the Jinja global `fab_target_for`, the `{% block fab %}` include in `base.html`, the `.fab` block in `app.css`, and the mobile-only `.fab { display: none }` override in `rising-dough.css`. `tests/integration/web/test_fab.py` rewritten as a negative-regression guard: iterates every primary surface and asserts no `<button class="fab">` renders. The `+ Add` top-bar pill + the `n` keyboard shortcut remain the only new-entry affordances. 1080 tests pass (eight prior FAB-presence tests removed). mypy --strict + lint green.
 - **Manual-audit remediation Phase B.3 — Today Upcoming (audit ids #8, #9, #10, #11, #12, #13, #14)**:
   (#8, #9) Panel header split into left-group `[title | 7/30/All segmented]` and right-group `[Promote all due · + Planned · + Recurring]` — matches `desktop-01-today.html:17`. Button copy aligned to the mockup (`Promote all due ⇧↵`, `+ Planned`, `+ Recurring`).
   (#10) Upcoming body rewrote from `<table>` to a grid-based `.rd-upcoming__row` so columns match the mockup (`52px 1fr 160px 150px auto` → date / desc+account / category pill / amount / actions). Day-band eyebrow sits above each group.

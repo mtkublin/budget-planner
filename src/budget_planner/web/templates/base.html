@@ -45,11 +45,6 @@
     <div id="drawer-root" aria-live="polite"></div>
     <div id="modal-root"></div>
     <div id="toast-root" aria-live="polite"></div>
-    {% block fab %}
-      {% if fab_target_for is defined and fab_target_for(request) %}
-        {% include "partials/_fab.html" ignore missing %}
-      {% endif %}
-    {% endblock %}
     {% include "partials/_palette.html" %}
     {% include "partials/_shortcuts.html" %}
     <script src="{{ url_for('static', path='js/palette.js') }}" defer></script>

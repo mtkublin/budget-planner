@@ -1246,10 +1246,6 @@ kbd.rd-kbd {
     cursor: pointer;
   }
 
-  /* L-05 — Hide the legacy FAB on mobile so it stops overlapping the fixed
-   * bottom tab bar. Phase 7 cleanup (T-R58) removes the FAB entirely. */
-  .fab { display: none !important; }
-
   /* L-02 — Make row action controls meet the 44 px tap-target floor without
    * forcing the whole desktop table to grow. */
   .rd-actions .rd-btn,
