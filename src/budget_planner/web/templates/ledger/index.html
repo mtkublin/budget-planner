@@ -92,6 +92,36 @@
       <kbd class="rd-kbd">/</kbd>
     </label>
   </form>
+  {# T-R69 — sticky bulk-select toolbar; revealed by static/js/bulk-select.js
+     when any row checkbox is on. Export links reuse the current filter via
+     existing /transactions/export + /planned/export endpoints. #}
+  {% if view in ("actual", "planned") %}
+    <div class="rd-bulk-toolbar"
+         data-bulk-toolbar
+         data-view="{{ view }}"
+         hidden
+         role="region"
+         aria-label="Bulk actions">
+      <span><strong data-bulk-count>0</strong> selected</span>
+      <button type="button" class="rd-btn rd-btn--sm" data-bulk-clear>Clear</button>
+      {% if view == "actual" %}
+        <a class="rd-btn rd-btn--sm"
+           href="/transactions/export?format=csv"
+           data-bulk-export>Export CSV</a>
+        <a class="rd-btn rd-btn--sm"
+           href="/transactions/export?format=parquet"
+           data-bulk-export>Export Parquet</a>
+      {% else %}
+        <a class="rd-btn rd-btn--sm"
+           href="/planned/export?format=csv"
+           data-bulk-export>Export CSV</a>
+      {% endif %}
+      <button type="button"
+              class="rd-btn rd-btn--sm"
+              data-bulk-delete
+              data-destructive>Delete selected</button>
+    </div>
+  {% endif %}
   <section style="margin-top: 1rem;">
     {% include "ledger/_table.html" %}
   </section>
@@ -101,5 +131,4 @@
        style="color: var(--accent);
               text-underline-offset: 2px">Recently deleted →</a>
   </p>
-  <div id="modal-root"></div>
 {% endblock %}

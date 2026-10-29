@@ -39,6 +39,9 @@
               <th scope="col">Overrides</th>
               <th scope="col" class="text-right">Actions</th>
             {% else %}
+              <th scope="col" class="rd-bulk-check">
+                <input type="checkbox" data-bulk-all aria-label="Select all rows">
+              </th>
               <th scope="col">Date</th>
               <th scope="col">Direction</th>
               <th scope="col" class="text-right">Amount</th>
@@ -58,6 +61,12 @@
           {% for row in rows %}
             {% if view == "actual" %}
               <tr id="txn-{{ row.id }}" class="row">
+                <td class="rd-bulk-check">
+                  <input type="checkbox"
+                         data-bulk-row
+                         value="{{ row.id }}"
+                         aria-label="Select transaction {{ row.id }}">
+                </td>
                 <td class="whitespace-nowrap font-semibold">{{ row.operation_date|date_fmt }}</td>
                 <td>{% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}</td>
                 <td class="text-right"><span class="tabular-nums">{{ row.amount|money(row.currency) }}</span></td>
@@ -83,6 +92,14 @@
               </tr>
             {% elif view == "planned" %}
               <tr id="planned-{{ row.key }}" class="row">
+                <td class="rd-bulk-check">
+                  {% if row.kind == "persisted" %}
+                    <input type="checkbox"
+                           data-bulk-row
+                           value="{{ row.persisted_id }}"
+                           aria-label="Select planned entry {{ row.persisted_id }}">
+                  {% endif %}
+                </td>
                 <td class="whitespace-nowrap font-semibold">{{ row.operation_date|date_fmt }}</td>
                 <td>{% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}</td>
                 <td class="text-right"><span class="tabular-nums">{{ row.amount_minor|money(row.currency) }}</span></td>

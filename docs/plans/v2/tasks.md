@@ -302,7 +302,7 @@ Owner: `web/templates/{today,ledger,plan,accounts,settings}/`.
 - Reference: ADR-0051 §6.
 - File: `phase-3-screens/T-R67-accounts-row-menu.md`.
 
-### ◻ T-R69 [S] Ledger bulk-select toolbar → T-R26, T-R27
+### ✅ T-R69 [S] Ledger bulk-select toolbar → T-R26, T-R27
 - Row checkbox + sticky header toolbar on selection: Export CSV · Export Parquet · Bulk delete (Actual + Planned only).
 - Reuses existing export endpoints (F1.4) with current filter + selected row ids.
 - Reference: handoff §Ledger · Actual "Bulk actions and export appear as a toolbar when rows are selected."

@@ -1247,6 +1247,30 @@ kbd.rd-kbd {
   justify-content: center;
 }
 
+/* ─── Bulk-select toolbar (T-R69) ──────────────────────────────────── */
+.rd-bulk-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 0.55rem 0.9rem;
+  margin: 0.75rem 0;
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-overlay);
+}
+
+.rd-bulk-toolbar .rd-btn { background: color-mix(in oklab, var(--paper) 10%, transparent); color: var(--paper); border-color: color-mix(in oklab, var(--paper) 20%, transparent); }
+.rd-bulk-toolbar .rd-btn:hover { background: color-mix(in oklab, var(--paper) 20%, transparent); }
+.rd-bulk-toolbar [data-bulk-delete] { background: var(--expense); border-color: var(--expense); color: var(--paper); }
+.rd-bulk-toolbar [data-bulk-delete]:hover { background: color-mix(in oklab, var(--expense) 90%, white); }
+
+.rd-bulk-check { width: 2rem; }
+.rd-bulk-check input { cursor: pointer; }
+
 /* ─── Mobile table scroll wrapper (T-R53) ──────────────────────────── */
 
 /* Position:relative anchors absolute descendants (e.g. .sr-only) to this
