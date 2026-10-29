@@ -34,6 +34,7 @@ _VALID_PERIODS: tuple[analytics_service.Period, ...] = ("month", "year", "traili
 _FORECAST_HORIZON_MONTHS = 12
 _FORECAST_HORIZON_CHOICES: tuple[int, ...] = (6, 12, 24, 60)
 _MINOR_UNITS_PER_MAJOR = 100.0
+_MONTHS_IN_YEAR = 12
 
 
 def _analytics_charts(bundle: analytics_service.AnalyticsBundle) -> dict[str, Any]:
@@ -64,7 +65,7 @@ def _analytics_charts(bundle: analytics_service.AnalyticsBundle) -> dict[str, An
 
 
 @router.get("/plan", response_class=HTMLResponse)
-def plan(  # noqa: PLR0915 — one dispatcher per tab, kept flat for readability
+def plan(  # noqa: PLR0912, PLR0915 — one dispatcher per tab, kept flat for readability
     request: Request,
     tab: str = "budget",
     conn: sqlite3.Connection = Depends(get_db),
@@ -75,12 +76,35 @@ def plan(  # noqa: PLR0915 — one dispatcher per tab, kept flat for readability
     year, month = today_d.year, today_d.month
     base_ccy = settings.base_currency
 
+    # Budget + Analytics are month-scoped; allow ?year=&month= overrides so
+    # the shared Plan selector can navigate prev/next month without extra
+    # routes (manual-audit #32, #33).
+    if tab_norm in {"budget", "analytics"}:
+        try:
+            month = int(request.query_params.get("month", month))
+            year = int(request.query_params.get("year", year))
+        except ValueError:
+            year, month = today_d.year, today_d.month
+        if not (1 <= month <= _MONTHS_IN_YEAR):
+            year, month = today_d.year, today_d.month
+
+    def _shift_month(y: int, m: int, delta: int) -> tuple[int, int]:
+        total = y * _MONTHS_IN_YEAR + (m - 1) + delta
+        return total // _MONTHS_IN_YEAR, (total % _MONTHS_IN_YEAR) + 1
+
+    prev_year, prev_month = _shift_month(year, month, -1)
+    next_year, next_month = _shift_month(year, month, 1)
+
     ctx: dict[str, Any] = {
         "tab": tab_norm,
         "today": today_d,
         "year": year,
         "month": month,
         "base_ccy": base_ccy,
+        "period_prev_year": prev_year,
+        "period_prev_month": prev_month,
+        "period_next_year": next_year,
+        "period_next_month": next_month,
     }
 
     if tab_norm == "budget":

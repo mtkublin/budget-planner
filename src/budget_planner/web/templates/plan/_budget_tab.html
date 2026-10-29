@@ -1,5 +1,3 @@
-{% from "_partials/components/_amount.html" import amount %}
-{% from "_partials/components/_pill.html" import category_pill %}
 {% from "_partials/components/_progress_bar.html" import progress_bar %}
 {% set budget_minor = summary.totals.budgeted_minor|int %}
 {% set spent_minor = summary.totals.spent_minor|int %}
@@ -12,23 +10,25 @@
 {% set spent_pct = (100.0 * spent_minor / budget_minor) if budget_minor > 0 else 0 %}
 {% set committed_pct = (100.0 * committed_minor / budget_minor) if budget_minor > 0 else 0 %}
 {% set per_day = (remaining / (summary.days_until_next_income or 1)) %}
-<section class="rd-period">
-  <div>
+<section class="rd-period-bar">
+  <div class="rd-period-bar__left">
     <div class="rd-eyebrow">Period</div>
-    <div class="rd-period__range">{{ today.strftime("%d %b") }} → {{ summary.next_income_date.strftime("%d %b") }}</div>
-    <div class="text-muted" style="font-size: 0.85rem; margin-top: 0.25rem">anchor: {{ summary.anchor_category_name or '—' }} · <a class="link-muted" href="/settings?tab=prefs#income-anchor">change</a></div>
+    <div class="rd-period-bar__range">
+      {{ summary.period_start.strftime("%-d %b") }} → {{ summary.next_income_date.strftime("%-d %b") }}
+    </div>
+    <div class="mut rd-period-bar__anchor">
+      anchor: {{ summary.anchor_category_name or '—' }} · <a href="/settings?tab=prefs#income-anchor">change</a>
+    </div>
   </div>
-  <div class="rd-period__bar">
+  <div class="rd-period-bar__bar">
     {{ progress_bar(spent_pct, committed_pct=committed_pct, over=(spent_minor > budget_minor and budget_minor > 0)) }}
   </div>
-  <div class="rd-period__amt">
-    {{ "{:,.2f}".format(per_day) }}
-    <small>
-      {{ base_ccy }} / day · {{ summary.days_until_next_income }} days left
-      {% if committed > 0 %}
-        · <span class="rd-committed">{{ "{:,.2f}".format(committed) }} committed</span>
-      {% endif %}
-    </small>
+  <div class="rd-period-bar__right">
+    <span class="num rd-period-bar__perday">{{ "{:,.2f}".format(per_day) }}</span>
+    <span class="cur num">{{ base_ccy }} / day</span>
+    <div class="mut num rd-period-bar__meta">
+      {{ "{:,.2f}".format(committed) }} committed · {{ summary.days_until_next_income }} days left
+    </div>
   </div>
 </section>
 <div class="rd-table-scroll">
@@ -51,11 +51,11 @@
         {% set r = p - a %}
         {% set used = (100.0 * a / p) if p > 0 else 0 %}
         <tr>
-          <td>{{ category_pill(row.category_name, direction='expense') }}</td>
+          <td>{{ category_label_parts(row.category_name, row.category_direction, row.category_color) }}</td>
           <td class="num">{{ "{:,.2f}".format(p) }}</td>
           <td class="num">{{ "{:,.2f}".format(a) }}</td>
           <td>{{ progress_bar(used, over=(a > p)) }}</td>
-          <td class="num"><span class="{% if r < 0 %}rd-amount rd-amount--expense{% endif %}">{{ "{:,.2f}".format(r) }}</span></td>
+          <td class="num"><span class="{% if r < 0 %}neg{% endif %}">{{ "{:,.2f}".format(r) }}</span></td>
           <td class="rd-actions">
             <button type="button"
                     class="rd-btn rd-btn--sm rd-btn--ghost"

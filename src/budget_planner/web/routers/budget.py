@@ -198,6 +198,7 @@ def new_override_form(
             preset_year=preset_year,
             status_code=404,
         )
+    default_row = budgets_repo.get_default(conn, category_id)
     return render(
         request,
         "partials/_slideover.html",
@@ -208,6 +209,7 @@ def new_override_form(
         today_year=tz_year,
         preset_month=preset_month,
         preset_year=preset_year,
+        default_amount_minor=default_row.amount if default_row else None,
     )
 
 
@@ -225,18 +227,26 @@ def create_override(  # noqa: PLR0911, PLR0917
     cat = categories_repo.find_by_id(conn, category_id)
     if cat is None:
         return Response(status_code=404, content="not found")
-    if tier not in {"recurring", "one-off"}:
+    if tier not in {"recurring", "one-off", "default"}:
         return Response(status_code=422, content="invalid tier")
+    dec = _parse_decimal(amount) if amount.strip() else Decimal(0)
+    if dec is None or dec < 0:
+        return Response(status_code=422, content="invalid amount")
+    minor = to_minor_units(dec, settings.base_currency)
+    if tier == "default":
+        budgets_repo.set_default(
+            conn,
+            NewBudgetDefault(category_id=category_id, amount=minor),
+        )
+        resp = Response(content="ok", media_type="text/html")
+        trigger(resp, "budget-stale")
+        return resp
     try:
         parsed_month = int(month)
     except ValueError:
         return Response(status_code=422, content="invalid month")
     if parsed_month < 1 or parsed_month > _MONTHS_IN_YEAR:
         return Response(status_code=422, content="invalid month")
-    dec = _parse_decimal(amount) if amount.strip() else Decimal(0)
-    if dec is None or dec < 0:
-        return Response(status_code=422, content="invalid amount")
-    minor = to_minor_units(dec, settings.base_currency)
     if tier == "recurring":
         budgets_repo.set_recurring(
             conn,

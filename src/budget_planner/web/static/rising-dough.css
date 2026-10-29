@@ -1813,6 +1813,89 @@ kbd.rd-kbd {
 .pos { color: var(--income); }
 .neg { color: var(--expense); }
 
+/* ─── Plan · Budget top bar + override card (manual-audit #34, #35) ─ */
+.rd-period-bar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 2rem;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  margin-bottom: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+.rd-period-bar__range { font-family: var(--font-display); font-size: 1.1rem; margin-top: 0.15rem; }
+.rd-period-bar__anchor { font-size: 0.75rem; margin-top: 0.1rem; }
+.rd-period-bar__anchor a { color: var(--ink); text-underline-offset: 2px; }
+.rd-period-bar__right { text-align: right; }
+.rd-period-bar__perday { font-size: 1.6rem; letter-spacing: -0.02em; }
+.rd-period-bar__meta { font-size: 0.75rem; margin-top: 0.15rem; }
+
+.rd-override {
+  width: min(28rem, 100%);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  padding: 1rem 1.1rem;
+  box-shadow: 0 10px 25px -20px rgb(0 0 0 / 0.25);
+}
+.rd-override__title { font-weight: 600; margin-bottom: 0.6rem; }
+.rd-override__tiers { width: 100%; margin-bottom: 0.75rem; }
+.rd-override__row { display: flex; align-items: center; gap: 0.5rem; }
+
+.rd-override__input {
+  flex: 1;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font-family: var(--font-mono);
+}
+
+.rd-override__input input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  padding: 0;
+}
+.rd-override__input input:focus { outline: none; }
+.rd-override__hint { font-size: 0.75rem; margin: 0.6rem 0 0; }
+
+/* ─── Plan · period selector in header slot (manual-audit #32-#33) ── */
+.rd-period-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  padding: 0.1rem;
+}
+
+.rd-period-nav__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  color: var(--mute);
+  text-decoration: none;
+  border-radius: var(--radius-control);
+}
+.rd-period-nav__btn:hover { background: var(--sunk); color: var(--ink); }
+
+.rd-period-nav__label {
+  padding: 0 0.65rem;
+  font-size: 0.85rem;
+  font-family: var(--font-mono);
+  color: var(--ink);
+}
+
 /* ─── Ledger · pagination + formula breakdown ─────────────────────── */
 .rd-pagination {
   margin-top: 1.25rem;

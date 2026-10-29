@@ -1,9 +1,5 @@
 {% extends "base.html" %}
 {% from "_partials/components/_segmented.html" import segmented %}
-{% from "_partials/components/_button.html" import button %}
-{% from "_partials/components/_amount.html" import amount %}
-{% from "_partials/components/_pill.html" import category_pill %}
-{% from "_partials/components/_progress_bar.html" import progress_bar %}
 {% block title %}Plan · Rising Dough{% endblock %}
 {% block main %}
   {% set titles = {'budget': 'October budget', 'year': 'Budget ' ~ year, 'forecast': 'Projected balance', 'analytics': 'Where it went'} %}
@@ -14,7 +10,21 @@
     </div>
     <div class="rd-screen-header__actions">
       {{ segmented([('budget', 'Budget'), ('year', 'Year'), ('forecast', 'Forecast'), ('analytics', 'Analytics')], tab, name='tab', base_href='/plan') }}
-      <span class="rd-btn rd-btn--sm" style="font-family: var(--font-mono)">{{ today.strftime("%B %Y") }}</span>
+      {% if tab in ("budget", "analytics") %}
+        {# Monthly selector lives in the shared header slot for Budget +
+           Analytics (manual-audit #32); Year + Forecast ship their own
+           selectors inside the tab body. #}
+        {% set m_date = today.replace(year=year, month=month, day=1) %}
+        <nav class="rd-period-nav" aria-label="Change month">
+          <a class="rd-period-nav__btn"
+             href="/plan?tab={{ tab }}&year={{ period_prev_year }}&month={{ period_prev_month }}"
+             aria-label="Previous month">←</a>
+          <span class="rd-period-nav__label">{{ m_date.strftime("%B %Y") }}</span>
+          <a class="rd-period-nav__btn"
+             href="/plan?tab={{ tab }}&year={{ period_next_year }}&month={{ period_next_month }}"
+             aria-label="Next month">→</a>
+        </nav>
+      {% endif %}
     </div>
   </header>
   {% if tab == "budget" %}

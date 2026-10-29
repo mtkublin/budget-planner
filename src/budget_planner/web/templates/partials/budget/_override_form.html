@@ -1,86 +1,83 @@
-{# Override slide-over form (ADR-0031 §2).
-   Called by GET /budget/rules/{category_id}/overrides/new; posts to
-   POST /budget/rules/{category_id}/overrides which dispatches to the
-   recurring / one-off repository mutation based on `tier`. #}
-<form hx-post="/budget/rules/{{ category.id if category else 0 }}/overrides"
+{# Override card (ADR-0031 §2; manual-audit #35 rebuilt per
+   desktop-05-plan-budget.html:9). Three-tier segmented picks between a
+   one-off override for a specific month/year, a recurring override that
+   fires every given month, and setting the category's new default. #}
+{% set preset_m = preset_month if preset_month is defined and preset_month else None %}
+{% set preset_y = preset_year if preset_year is defined and preset_year else None %}
+{% set this_year = preset_y or today_year %}
+{% set this_month = preset_m or 10 %}
+{% set month_label = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][this_month - 1] %}
+<form class="rd-override"
+      hx-post="/budget/rules/{{ category.id if category else 0 }}/overrides"
       hx-swap="none"
-      class="form-stack"
+      data-override-form
       data-reset-on-submit>
   {% if category %}
-    {% set initial_tier = 'one-off' if preset_year is defined and preset_year else 'recurring' %}
-    <fieldset>
-      <legend>Tier</legend>
-      <label class="form-stack__inline">
-        <input type="radio"
-               name="tier"
-               value="recurring"
-               data-override-tier
-               {% if initial_tier == 'recurring' %}checked{% endif %}>
-        Every year · this month
+    <div class="rd-override__title">{{ category_label(category) if category_label is defined else category.name }}</div>
+    <div class="rd-segmented rd-segmented--radio rd-override__tiers"
+         role="tablist"
+         aria-label="Override scope">
+      <label class="rd-segmented__item rd-segmented__item--active">
+        <input type="radio" name="tier" value="one-off" checked class="sr-only">
+        This month only
       </label>
-      <label class="form-stack__inline">
-        <input type="radio"
-               name="tier"
-               value="one-off"
-               data-override-tier
-               {% if initial_tier == 'one-off' %}checked{% endif %}>
-        One-off · this month only
+      <label class="rd-segmented__item">
+        <input type="radio" name="tier" value="recurring" class="sr-only">
+        Every {{ month_label }}
       </label>
-    </fieldset>
-    <label>
-      Month
-      <select name="month" required>
-        {% for m in range(1, 13) %}
-          <option value="{{ m }}"
-                  {% if preset_month is defined and preset_month == m %}selected{% endif %}>{{ "%02d"|format(m) }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <label data-override-year>
-      Year
-      <input type="number"
-             name="year"
-             value="{{ preset_year if (preset_year is defined and preset_year) else today_year }}"
-             min="2000"
-             max="2100"
-             inputmode="numeric">
-    </label>
-    <label>
-      Amount
-      <input type="text"
-             name="amount"
-             inputmode="decimal"
-             data-numeric
-             placeholder="0.00">
-    </label>
+      <label class="rd-segmented__item">
+        <input type="radio" name="tier" value="default" class="sr-only">
+        New default
+      </label>
+    </div>
+    <input type="hidden" name="month" value="{{ this_month }}">
+    <input type="hidden" name="year" value="{{ this_year }}">
+    <div class="rd-override__row">
+      <span class="rd-override__input">
+        <input type="text"
+               name="amount"
+               inputmode="decimal"
+               data-numeric
+               placeholder="0.00"
+               autofocus
+               required>
+        <span class="cur">{{ base_ccy }}</span>
+      </span>
+      <button type="submit" class="rd-btn rd-btn--primary">Save ↵</button>
+    </div>
+    {% if default_amount_minor is defined and default_amount_minor %}
+      <p class="rd-override__hint mut" data-override-hint>
+        Default {{ "{:,.2f}".format(default_amount_minor / 100.0) }} · <span data-override-hint-tail>wins over default for {{ month_label }} {{ this_year }} only</span>
+      </p>
+    {% endif %}
   {% endif %}
   {% include "partials/_form_errors.html" %}
-  <div class="form-stack__actions">
-    <button type="submit" class="btn-accent">Save override</button>
-  </div>
 </form>
 <script>
   (function () {
     var form = document.currentScript.previousElementSibling;
+    while (form && !form.matches("[data-override-form]")) {
+      form = form.previousElementSibling;
+    }
     if (!form) return;
-    var yearField = form.querySelector("[data-override-year]");
-    var yearInput = yearField ? yearField.querySelector("input[name='year']") : null;
-    var radios = form.querySelectorAll("[data-override-tier]");
+    var tiers = form.querySelectorAll("input[name='tier']");
+    var hintTail = form.querySelector("[data-override-hint-tail]");
     function sync() {
-      var picked = form.querySelector("[data-override-tier]:checked");
-      var isOneOff = picked && picked.value === "one-off";
-      if (!yearField) return;
-      if (isOneOff) {
-        yearField.removeAttribute("hidden");
-        yearField.removeAttribute("aria-hidden");
-        if (yearInput) yearInput.disabled = false;
+      var picked = form.querySelector("input[name='tier']:checked");
+      form.querySelectorAll(".rd-override__tiers .rd-segmented__item").forEach(function (item) {
+        var r = item.querySelector("input[name='tier']");
+        item.classList.toggle("rd-segmented__item--active", !!(r && r.checked));
+      });
+      if (!hintTail || !picked) return;
+      if (picked.value === "default") {
+        hintTail.textContent = "replaces the default";
+      } else if (picked.value === "recurring") {
+        hintTail.textContent = "replaces default every {{ month_label }}";
       } else {
-        yearField.setAttribute("hidden", "");
-        yearField.setAttribute("aria-hidden", "true");
-        if (yearInput) yearInput.disabled = true;
+        hintTail.textContent = "wins over default for {{ month_label }} {{ this_year }} only";
       }
     }
-    radios.forEach(function (r) { r.addEventListener("change", sync); });
+    tiers.forEach(function (t) { t.addEventListener("change", sync); });
     sync();
   })();
 </script>
