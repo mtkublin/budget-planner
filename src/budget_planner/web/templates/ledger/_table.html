@@ -1,19 +1,30 @@
 {% from "_partials/kebab_menu.html" import kebab_menu %}
-{# Ledger table (T-064, T-092).
+{# Ledger table (T-064, T-092; refactored for manual-audit #25-#30).
 
-   Renders one of three view variants — Actual · Planned · Recurring — picked
-   by the ``view`` context var. Shared columns (date, direction, amount,
-   category, account, description) come first; view-specific extras follow.
-
-   Outer wrapper id ``ledger-table`` is the single swap target for the
-   segmented control and filters in ``ledger/index.html``. Inner id
-   (``txn-table`` / ``planned-table`` / ``recurring-table``) is preserved so
-   pre-T-064 scripts + tests continue to find it by substring. #}
+   Three view variants — Actual · Planned · Recurring — picked by the
+   ``view`` context var. Column shape matches the designer handoff
+   (`desktop-02-ledger-actual.html` / -03 / -04): Actual + Planned carry
+   `Date · Description+Account · Category · Amount · Actions`, Recurring
+   carries `Next due · Rule · Category · Amount · Overrides · Actions`.
+   The Actual day-group header surfaces the group net on the right. #}
 {% set table_id = (
   "txn-table" if view == "actual"
   else "planned-table" if view == "planned"
   else "recurring-table"
 ) %}
+{# Precompute per-day net (expense negative, income positive, transit excluded)
+   so the day-group header can show it on the right. Keyed by ISO date. #}
+{% set day_nets = namespace(by_date={}) %}
+{% if view == "actual" %}
+  {% for row in rows %}
+    {% set key = row.operation_date.isoformat() %}
+    {% set dir_value = row.category.direction.value if row.category else '' %}
+    {% if dir_value != "transit" %}
+      {% set sign = 1 if dir_value == 'income' else -1 %}
+      {% set _ = day_nets.by_date.update({key: day_nets.by_date.get(key, 0) + sign * row.amount}) %}
+    {% endif %}
+  {% endfor %}
+{% endif %}
 <div id="ledger-table"
      data-ledger-table-root
      data-view="{{ view }}"
@@ -29,70 +40,59 @@
         <thead>
           <tr>
             {% if view == "recurring" %}
-              <th scope="col">Cadence</th>
               <th scope="col">Next due</th>
               <th scope="col">Account</th>
               <th scope="col">Category</th>
-              <th scope="col">Description</th>
               <th scope="col" class="text-right">Amount</th>
-              <th scope="col">Active</th>
               <th scope="col">Overrides</th>
-              <th scope="col" class="text-right">Actions</th>
+              <th scope="col"><span class="sr-only">Actions</span></th>
             {% else %}
-              <th scope="col" class="rd-bulk-check">
-                <input type="checkbox" data-bulk-all aria-label="Select all rows">
-              </th>
               <th scope="col">Date</th>
-              <th scope="col">Direction</th>
-              <th scope="col" class="text-right">Amount</th>
+              <th scope="col">Description</th>
               <th scope="col">Category</th>
               <th scope="col">Account</th>
-              <th scope="col">Description</th>
+              <th scope="col" class="text-right">Amount</th>
               {% if view == "planned" %}
-                <th scope="col">Promoted?</th>
-                <th scope="col" class="text-right">Actions</th>
-              {% else %}
-                <th scope="col" class="text-right">Actions</th>
+                <th scope="col">Status</th>
               {% endif %}
+              <th scope="col"><span class="sr-only">Actions</span></th>
             {% endif %}
           </tr>
         </thead>
         <tbody>
-          {# Day grouping (ADR-0056 §4). For `actual`, insert a group header
-             <tr> every time the operation_date changes with net sum (transit
-             rows excluded from the sum). The ns.* namespace tracks the
-             running day + net. #}
-          {%- set ns = namespace(day=none, day_net_minor=0, day_rows=[]) -%}
+          {%- set ns = namespace(day=none) -%}
           {% for row in rows %}
             {% if view == "actual" %}
               {%- if ns.day != row.operation_date -%}
-                {%- if ns.day is not none -%}
-                  {# Flush the previous day group header before starting a new one. #}
-                {%- endif -%}
                 {%- set ns.day = row.operation_date -%}
+                {%- set day_net = day_nets.by_date.get(row.operation_date.isoformat(), 0) -%}
                 <tr class="rd-day-head">
-                  <td colspan="8">
+                  <td colspan="5">
                     <span class="rd-eyebrow">{{ row.operation_date.strftime("%a %d %b") }}</span>
+                  </td>
+                  <td class="text-right">
+                    {% if day_net != 0 %}
+                      <span class="num {{ 'pos' if day_net > 0 else 'neg' }}">net {{ '{:+,.2f}'.format(day_net / 100.0) }}</span>
+                    {% endif %}
                   </td>
                 </tr>
               {%- endif -%}
+              {% set dir_value = row.category.direction.value if row.category else '' %}
+              {% set is_income = dir_value == 'income' %}
               <tr id="txn-{{ row.id }}" class="row">
-                <td class="rd-bulk-check">
-                  <input type="checkbox"
-                         data-bulk-row
-                         value="{{ row.id }}"
-                         aria-label="Select transaction {{ row.id }}">
-                </td>
-                <td class="whitespace-nowrap font-semibold">{{ row.operation_date|date_fmt }}</td>
-                <td>{% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}</td>
-                <td class="text-right"><span class="tabular-nums">{{ row.amount|money(row.currency) }}</span></td>
-                <td>{{ category_label(row.category) }}</td>
+                <td class="whitespace-nowrap">{{ row.operation_date|date_fmt }}</td>
                 <td>
+                  <strong>{{ row.description or '—' }}</strong>
+                </td>
+                <td>{{ category_label(row.category) }}</td>
+                <td class="rd-desc">
                   {{ row.account.name if row.account else '' }}
                   {% if row.dest_account %}→ {{ row.dest_account.name }}{% endif %}
                 </td>
-                <td class="text-muted">{{ row.description }}</td>
-                <td class="text-right rd-actions">
+                <td class="text-right num {{ 'pos' if is_income else '' }}">
+                  {{ '+' if is_income else '' }}{{ row.amount|money(row.currency) }}
+                </td>
+                <td class="rd-actions">
                   {% call kebab_menu(id="txn-" ~ row.id) %}
                     <li role="none">
                       <button type="button"
@@ -115,25 +115,17 @@
               </tr>
             {% elif view == "planned" %}
               {% set days_delta = (row.operation_date - today_date).days if today_date is defined else 0 %}
+              {% set dir_value = row.category.direction.value if row.category else '' %}
+              {% set is_income = dir_value == 'income' %}
               <tr id="planned-{{ row.key }}"
                   class="row {% if (not row.is_promoted) and days_delta < 0 %}rd-row--overdue{% endif %}">
-                <td class="rd-bulk-check">
-                  {% if row.kind == "persisted" %}
-                    <input type="checkbox"
-                           data-bulk-row
-                           value="{{ row.persisted_id }}"
-                           aria-label="Select planned entry {{ row.persisted_id }}">
-                  {% endif %}
-                </td>
-                <td class="whitespace-nowrap font-semibold">{{ row.operation_date|date_fmt }}</td>
-                <td>{% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}</td>
-                <td class="text-right"><span class="tabular-nums">{{ row.amount_minor|money(row.currency) }}</span></td>
+                <td class="whitespace-nowrap">{{ row.operation_date|date_fmt }}</td>
+                <td><strong>{{ row.description or '—' }}</strong></td>
                 <td>{{ category_label(row.category) }}</td>
-                <td class="rd-desc">
-                  <strong>{{ row.description or '—' }}</strong>
-                  <small>{{ row.account.name if row.account else '' }}</small>
+                <td class="rd-desc">{{ row.account.name if row.account else '' }}</td>
+                <td class="text-right num {{ 'pos' if is_income else '' }}">
+                  {{ '+' if is_income else '' }}{{ row.amount_minor|money(row.currency) }}
                 </td>
-                <td class="text-muted"></td>
                 <td>
                   {% if row.is_promoted %}
                     <span class="rd-pill rd-pill--income">✓ Promoted</span>
@@ -145,7 +137,7 @@
                     <span class="rd-pill rd-pill--neutral">in {{ days_delta }} days</span>
                   {% endif %}
                 </td>
-                <td class="text-right">
+                <td class="rd-actions">
                   {% if row.kind == "persisted" %}
                     {% call kebab_menu(id="planned-" ~ row.key) %}
                       <li role="none">
@@ -182,13 +174,14 @@
               {%- if ns.day != rec_cadence -%}
                 {%- set ns.day = rec_cadence -%}
                 <tr class="rd-day-head">
-                  <td colspan="9">
+                  <td colspan="6">
                     <span class="rd-eyebrow">{{ rec_cadence|capitalize }}</span>
                   </td>
                 </tr>
               {%- endif -%}
+              {% set dir_value = row.category.direction.value if row.category else '' %}
+              {% set is_income = dir_value == 'income' %}
               <tr id="recurring-{{ row.id }}" class="row">
-                <td data-cadence>{{ row.cadence.value|capitalize }}</td>
                 <td class="whitespace-nowrap tabular-nums" data-next-due>
                   {% if row.override_present %}
                     <strong data-override-present>{{ row.next_due|date_fmt }}</strong>
@@ -196,23 +189,25 @@
                     {{ row.next_due|date_fmt }}
                   {% endif %}
                 </td>
-                <td>{{ row.account.name if row.account else '' }}</td>
+                <td>
+                  <strong>{{ row.default_description or '—' }}</strong>
+                  {% if not row.active %}<span class="rd-pill rd-pill--muted">inactive</span>{% endif %}
+                </td>
                 <td>{{ category_label(row.category) }}</td>
-                <td class="text-muted">{{ row.default_description or '' }}</td>
-                <td class="text-right">
+                <td class="text-right num {{ 'pos' if is_income else '' }}"
+                    data-cadence="{{ rec_cadence }}">
                   {% if row.amount_overridden %}
                     <em data-amount-overridden
-                        class="tabular-nums">{{ row.effective_amount_minor|money(row.currency) }}</em>
+                        class="num {{ 'pos' if is_income else '' }}">{{ '+' if is_income else '' }}{{ row.effective_amount_minor|money(row.currency) }}</em>
                   {% elif row.is_formula %}
-                    <span class="tabular-nums" data-formula-amount title="{% for t in row.amount_formula.terms %}{{ t.sign }} {{ (t.coefficient_bps / 100)|round(2) }}% of {{ t.source_category_ids|length }} categor{{ 'y' if t.source_category_ids|length == 1 else 'ies' }}{% if not loop.last %} {% endif %}{% endfor %}">
-                      {{ row.effective_amount_minor|money(row.currency) }}
+                    <span class="num {{ 'pos' if is_income else '' }}" data-formula-amount title="{% for t in row.amount_formula.terms %}{{ t.sign }} {{ (t.coefficient_bps / 100)|round(2) }}% of {{ t.source_category_ids|length }} categor{{ 'y' if t.source_category_ids|length == 1 else 'ies' }}{% if not loop.last %} {% endif %}{% endfor %}">
+                      {{ '+' if is_income else '' }}{{ row.effective_amount_minor|money(row.currency) }}
                       <span class="formula-chip" aria-label="computed amount">ƒ</span>
                     </span>
                   {% else %}
-                    <span class="tabular-nums">{{ row.effective_amount_minor|money(row.currency) }}</span>
+                    <span class="num {{ 'pos' if is_income else '' }}">{{ '+' if is_income else '' }}{{ row.effective_amount_minor|money(row.currency) }}</span>
                   {% endif %}
                 </td>
-                <td>{{ 'Yes' if row.active else 'No' }}</td>
                 <td>
                   <details class="overrides-accordion">
                     <summary>{{ row.overrides|length }} override{{ '' if row.overrides|length == 1 else 's' }}</summary>
@@ -235,9 +230,26 @@
                     {% else %}
                       <p class="text-faint text-sm">No overrides</p>
                     {% endif %}
+                    {% if row.is_formula %}
+                      <div class="rd-formula-breakdown">
+                        <div class="rd-eyebrow">Formula</div>
+                        <table class="rd-formula-breakdown__table">
+                          <tbody>
+                            {% for t in row.amount_formula.terms %}
+                              <tr>
+                                <td class="num">{{ t.sign }}</td>
+                                <td class="num">{{ (t.coefficient_bps / 100)|round(2) }}%</td>
+                                <td class="text-muted">of {{ t.source_category_ids|length }} categor{{ 'y' if t.source_category_ids|length == 1 else 'ies' }}</td>
+                              </tr>
+                            {% endfor %}
+                          </tbody>
+                        </table>
+                        <p class="text-muted text-sm">Resolves to {{ row.effective_amount_minor|money(row.currency) }} for {{ row.next_due|date_fmt }}.</p>
+                      </div>
+                    {% endif %}
                   </details>
                 </td>
-                <td class="text-right">
+                <td class="rd-actions">
                   {% call kebab_menu(id="recurring-" ~ row.id) %}
                     <li role="none">
                       <button type="button"
@@ -316,22 +328,21 @@
       {% endif %}
     {% endif %}
     {% if view == "actual" %}
-      <nav class="pagination mt-4 flex items-center gap-3 text-sm"
-           aria-label="Pagination">
+      <nav class="rd-pagination" aria-label="Pagination">
         {% if page > 1 %}
-          <a class="link-muted"
-             hx-get="/ledger/table?view={{ view }}&page={{ page - 1 }}"
-             hx-target="#ledger-table"
-             hx-swap="outerHTML"
-             href="/ledger?view={{ view }}&page={{ page - 1 }}">← Newer</a>
+          <button type="button"
+                  class="rd-btn rd-btn--sm"
+                  hx-get="/ledger/table?view={{ view }}&page={{ page - 1 }}"
+                  hx-target="#ledger-table"
+                  hx-swap="outerHTML">← Newer</button>
         {% endif %}
-        <span class="text-muted">Page {{ page }}</span>
+        <span class="rd-pagination__state">Page {{ page }}</span>
         {% if has_next %}
-          <a class="link-muted"
-             hx-get="/ledger/table?view={{ view }}&page={{ page + 1 }}"
-             hx-target="#ledger-table"
-             hx-swap="outerHTML"
-             href="/ledger?view={{ view }}&page={{ page + 1 }}">Older →</a>
+          <button type="button"
+                  class="rd-btn rd-btn--sm"
+                  hx-get="/ledger/table?view={{ view }}&page={{ page + 1 }}"
+                  hx-target="#ledger-table"
+                  hx-swap="outerHTML">Older →</button>
         {% endif %}
       </nav>
     {% endif %}

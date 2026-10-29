@@ -110,9 +110,9 @@ def test_ledger_view_planned(client: TestClient, seeded: dict[str, int]) -> None
     container = soup.select_one("[data-ledger-table]")
     assert container is not None and isinstance(container, Tag)
     assert container.get("data-view") == "planned"
-    # Promoted? column header present.
+    # Status column header present (manual-audit #25 renamed Promoted? → Status).
     headers = {th.get_text(strip=True) for th in soup.select("table.ledger thead th")}
-    assert "Promoted?" in headers
+    assert "Status" in headers
     # Promote button targets the modal root.
     btn = soup.find("button", string=lambda s: s is not None and "Promote" in s)
     assert btn is not None and isinstance(btn, Tag)
@@ -127,8 +127,9 @@ def test_ledger_view_recurring(client: TestClient, seeded: dict[str, int]) -> No
     assert container is not None and isinstance(container, Tag)
     assert container.get("data-view") == "recurring"
     headers = {th.get_text(strip=True) for th in soup.select("table.ledger thead th")}
-    assert "Cadence" in headers
+    # Manual-audit #25 — Cadence folded into group header, Next due stays.
     assert "Next due" in headers
+    assert "Overrides" in headers
     # Overrides disclosure present per row.
     details = soup.find_all("details")
     assert any("override" in d.get_text().lower() for d in details)

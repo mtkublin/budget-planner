@@ -569,8 +569,10 @@ def test_recurring_row_renders_next_due_column(
     (not `start_date`) with the five row actions in place."""
     r = client.get("/ledger?view=recurring")
     assert r.status_code == 200
-    # Table headers include the new column set.
-    for header in ("Cadence", "Next due", "Account", "Category", "Amount", "Active"):
+    # Table headers include the mockup column set (manual-audit #25 removed
+    # the separate Cadence + Active columns — Cadence is now a group header
+    # and Active status folds into the description column).
+    for header in ("Next due", "Account", "Category", "Amount", "Overrides"):
         assert f'<th scope="col">{header}</th>' in r.text or '<th scope="col" ' in r.text
     # Row carries data-next-due with the rule's next_due date (not start_date).
     expected_next = _get_rule_next_due(_migrated, ctx["rule"]).isoformat()

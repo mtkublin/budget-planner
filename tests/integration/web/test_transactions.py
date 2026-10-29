@@ -298,7 +298,8 @@ def test_filter_by_category(
     r = client.get(f"/transactions/table?category_id={seeded['groc']}")
     assert r.status_code == 200
     soup = BeautifulSoup(r.text, "html.parser")
-    descs = {td.text.strip() for td in soup.find_all("td", class_="text-muted")}
+    # Manual-audit #25 — description cell wraps the text in <strong>.
+    descs = {strong.text.strip() for strong in soup.select("table.ledger tbody tr td strong")}
     assert "g" in descs
     assert "s" not in descs
 

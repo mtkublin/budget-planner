@@ -1,6 +1,15 @@
 # Changelog
 
 ## 2026-10-29
+- **Manual-audit remediation Phase C.2 + C.3 — Ledger table reshape + recurring formula breakdown (audit ids #25, #26, #27, #28, #29, #30)**:
+  (#25) Columns reshuffled per mockup. Actual + Planned now carry `Date · Description · Category · Account · Amount · (Status for Planned only) · Actions`; the bulk-check column is gone. Recurring now carries `Next due · Account · Category · Amount · Overrides · Actions` — the standalone `Cadence` and `Active` columns are gone; Cadence remains a `.rd-day-head` group header; inactive rules surface a muted `inactive` pill in the description column.
+  (#26) Actual day-group header spans five columns on the left and renders `net ±X.XX` on the right (transit rows excluded from the sum, income positive, expense negative). Precomputed in Jinja via a `namespace` dict so the header has the group total before the row loop starts.
+  (#27) Income amounts now carry `.pos` + a `+` sign across all three tabs. The `category.direction` drives the sign, not the raw amount sign.
+  (#28) Actions `<th>` carries only an `.sr-only` label; the row-level ⋯ kebab menu remains the entry point.
+  (#29) `← Newer` / `Older →` pagination are now `rd-btn rd-btn--sm` buttons in a `.rd-pagination` row.
+  (#30 — C.3) Recurring overrides accordion gains a `.rd-formula-breakdown` block when the rule is formula-based: eyebrow, per-term table (`sign · coefficient% · "of N categories"`), and the resolved amount for the current `next_due`.
+  Tests updated: `test_ledger_view_planned` asserts `Status` instead of `Promoted?`; `test_ledger_view_recurring` asserts `Next due` + `Overrides` and drops the `Cadence` assertion; `test_filter_by_category` reads descriptions from the new `<td><strong>` cell; `test_recurring_row_renders_next_due_column` updated to the new header set.
+  1080 tests pass. mypy --strict clean. ruff + djlint + sqlfluff + stylelint green.
 - **Manual-audit remediation Phase C.1 — Ledger toolbar (audit ids #22, #23, #24)**:
   (#22) `.rd-ledger-chips` constrained to a single row at ≥960 px with a 15 rem search field anchored to the right (`.rd-ledger-chips .rd-chips__search { flex: 0 0 15rem; margin-left: auto }`). Below 960 px the chips wrap and the search spans the full width.
   (#23) `[` / `]` keyboard shortcut hint moved out of the header-actions bar and into a `.rd-ledger-tabs__hint` sitting next to the segmented tabs — matches `desktop-02-ledger-actual.html:5`.

@@ -1813,6 +1813,23 @@ kbd.rd-kbd {
 .pos { color: var(--income); }
 .neg { color: var(--expense); }
 
+/* ─── Ledger · pagination + formula breakdown ─────────────────────── */
+.rd-pagination {
+  margin-top: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.rd-pagination__state { color: var(--mute); font-size: 0.8rem; }
+
+.rd-formula-breakdown {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--line);
+}
+.rd-formula-breakdown__table { width: 100%; font-size: 0.8rem; }
+.rd-formula-breakdown__table td { padding: 0.15rem 0.4rem; }
+
 /* ─── Ledger · tabs + chips (desktop-02-ledger-actual.html:5-6) ───── */
 .rd-ledger-tabs {
   display: flex;
