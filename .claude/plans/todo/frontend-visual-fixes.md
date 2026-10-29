@@ -122,10 +122,10 @@ Mockup `overlay-11-reconcile.html`:
 
 ## Execution order (impact-ranked)
 
-1. **Centered-modal shell** (one CSS pattern, applied to every overlay host) → single commit fixes shape for 5 overlays.
-2. **Today hero typography fix** (remove `.num` from big amount span).
-3. **Today promote-all-due** button variant swap.
-4. **Ledger column rewrite** (desc+account, drop Date, restore Direction).
+1. **Centered-modal shell** (one CSS pattern, applied to every overlay host) → single commit fixes shape for 5 overlays. ✅ `6ddb4e0`
+2. **Today hero typography fix** (remove `.num` from big amount span). ✅ `6ddb4e0`
+3. **Today promote-all-due** button variant swap. ✅ `6ddb4e0`
+4. **Ledger column rewrite** (desc+account, drop Date, restore Direction). ✅ `6ddb4e0`
 5. **Accounts row rewrite** (inline name + type, drop kebab col, inline liability pill).
 6. **Settings Categories rewrite** (remove thead, inline anchor bar, Edit·Archive links).
 7. **Plan Analytics** (selector back into tab body, raw delta column, column headers).
@@ -133,3 +133,23 @@ Mockup `overlay-11-reconcile.html`:
 9. **Add-entry modal field order** (no Dest, big amount preview, footer hint).
 10. **Add-entry Repeats formula** (From/To, flat term grid, Next due row).
 11. **Plan Forecast caption + annotations** (muted strip + footer).
+
+## Session-2 additions (user-reported after audit)
+
+**V.9 Ledger/Planned rows missing.** Planned header shows count 2 and the forecast table emits the rows, but the Ledger `/ledger?view=planned` table body is empty. Likely a filter in the ledger router that passes `promoted=False` but reads from a different repository call than Overview. Trace `routers/ledger.py` → `_hydrate_planned_rows` → `planned_repo.list_filtered`.
+
+**V.10 "Can I afford it?" calc broken.** `services/today.py::afford` returns `delta_minor = per_day - baseline_per_day` where `per_day` is clamped at zero when the hypothetical spend exceeds remaining. For `amount=1000` with `days_left=9` and `remaining=1910.78`, expected `per_day_after = (1910.78 - 1000) / 9 ≈ 101.20`, delta ≈ `−111.08`. Live shows `−1.11 / day` which is way off — likely a division-by-months bug or an off-by-100 (minor units). Add a focused unit test with fixed inputs and fix.
+
+**V.11 Ledger · Recurring expand UX.** Current expand uses a `<details>` chevron accordion that renders the raw list of overrides + a formula breakdown table. Mockup `desktop-04-ledger-recurring.html:10-13` expects a single chevron per row that reveals a card showing: formula terms grid (`+ ▾ source ▾ 100 % value`) + overrides list formatted like inline chips. Current markup is both ugly and inside a `<details>` instead of HTMX reveal.
+
+**V.12 Plan monthly selector.** `plan/index.html` renders `<a>` arrows and plain `<span>` label. (a) The links target `/plan?tab=budget&year=&month=` but the router computes `prev/next` months — need to verify the URL actually loads a different `month`; current audit shows the URL changes but the summary doesn't. (b) The label `October 2026` must be clickable → opens a lightweight month-picker (12-cell grid). Change label from `<span>` to a `<details>` disclosure OR `<button>` that renders a popover.
+
+**V.13 Plan · Year grid colours + margins.** Mockup `desktop-06-plan-year.html:6-7` uses soft expense-wash tiles with tight 2-3 px gaps. Current `rd-table` renders tiles with large padding and heavier expense red. Shrink padding on `.rd-plan-year__table td`, swap the active-cell fill to `var(--expense-soft)` with `color: var(--expense)` text, and the one-off/recurring markers to the typography-only versions from the mockup legend.
+
+**V.14 Analytics period selector dead.** `plan/_analytics_tab.html` currently emits `segmented(..., base_href='/plan?tab=analytics&')` — but the shared Plan header already renders the month selector and the segmented should sit INSIDE the tab body (per mockup `desktop-08-plan-analytics.html:5`). The segmented links point at `/plan?tab=analytics&period=…`; router reads `period` only via `request.query_params.get("period", "month")`. Verify URL round-trip. Likely the issue is that `period` isn't threaded into the `ctx` returned from the `/plan` dispatcher when `tab == "analytics"` — the current code only reads `period` for the fallback `else` branch, not when the shared selector loop is active.
+
+**V.15 Add-entry chip row.** Mockup renders three chip buttons `Happened / Planned / Repeats` sharing a thin line border, with the active one filled dark (`.chip.on` → `background:var(--ink); color:var(--bg)`). Current markup uses `rd-segmented` with a tight bordered box, so the active chip blends into the modal background and the inactive text looks faint. Rebuild as free-standing `.rd-chip` pills using the same `rd-chip` util used elsewhere (not inside `.rd-segmented`).
+
+**V.16 Modal scrim overlay.** User reports modals appear on a BLANK page — the host page vanishes when the modal opens. Root cause: HTMX `hx-get` fires with `hx-target="#modal-root"` + `hx-swap="innerHTML"` which should ONLY replace `#modal-root` contents. BUT: `transactions/new`, `planned/new`, `recurring/new`, `accounts/new`, `categories/new`, `/add` responses return a full `base.html`-extended page (not a fragment). When injected into `#modal-root` they bring their own `<header>`+`<main>`+rail, bloating the DOM, and the CSS `.slide-over-root { position:fixed; inset:0; background:oklch(82% 0.01 85) }` paints a solid tan sheet over the viewport that happens to look like a blank page. Fix:
+- All modal GET endpoints must return a bare fragment (`partials/_slideover_page.html` wrapper around the form body), NEVER a full page.
+- Scrim colour: switch from `oklch(82% 0.01 85)` (opaque tan matching the body!) to `color-mix(in oklab, var(--ink) 32%, transparent)` (semi-transparent ink) so the host page shows through.

@@ -20,12 +20,10 @@
      onclick="if(event.target===this){this.parentElement.innerHTML='';}">
   <aside class="slide-over slide-over--add" tabindex="-1">
     {{ slide_over_header(title="New entry") }}
-    <div class="slide-over__tabs rd-add-entry-tabs"
-         role="tablist"
-         aria-label="Entry type">
+    <div class="rd-entry-chips" role="tablist" aria-label="Entry type">
       {% for key, label in [("happened", "Happened"), ("planned", "Planned"), ("repeats", "Repeats")] %}
         <button type="button"
-                class="rd-segmented__item{% if key == active_tab %} rd-segmented__item--active{% endif %}"
+                class="rd-entry-chip{% if key == active_tab %} rd-entry-chip--active{% endif %}"
                 role="tab"
                 aria-selected="{{ 'true' if key == active_tab else 'false' }}"
                 hx-get="/add?when={{ key }}"

@@ -1396,7 +1396,8 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
 .slide-over-root {
   position: fixed;
   inset: 0;
-  background: oklch(82% 0.01 85);
+  background: color-mix(in oklab, var(--ink) 32%, transparent);
+  backdrop-filter: blur(3px);
   display: flex;
   justify-content: center;
   align-items: center;

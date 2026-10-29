@@ -84,21 +84,14 @@ def today(
 def _parse_amount_arg(raw: str) -> int | None:
     """Parse the ``amount=`` query arg into minor units.
 
-    Accepts either a pure integer (minor units — ADR-0056 §3) or a decimal
-    major-unit value for backwards-compat with the Jinja form that posts
-    ``step="0.01"``. Returns ``None`` on invalid input so the router can
-    surface a 422.
+    The afford input in `today/index.html` is `<input type="number"
+    step="0.01">` — users type a MAJOR-unit decimal. Treat every value
+    as major units and multiply by 100 to minor. Returns ``None`` on
+    invalid input so the router can surface a 422.
     """
     stripped = (raw or "").strip()
     if stripped == "":
         return 0
-    # Minor-unit path: integer in, integer out.
-    if stripped.lstrip("-").isdigit():
-        try:
-            return int(stripped)
-        except ValueError:  # pragma: no cover — isdigit already guards
-            return None
-    # Backwards-compat: decimal major units (e.g. "250.00").
     try:
         major = float(stripped)
     except (TypeError, ValueError):

@@ -9,7 +9,7 @@ one template. See ADR-0023 for the information-architecture decision.
 from __future__ import annotations
 
 import sqlite3
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request
@@ -199,9 +199,13 @@ def _actual_rows(conn: sqlite3.Connection, filters: LedgerFilters) -> list[dict[
 
 
 def _planned_rows(conn: sqlite3.Connection, filters: LedgerFilters) -> list[dict[str, Any]]:
+    # Ledger · Planned should surface the pending backlog + the forward
+    # window, not the current calendar month (the service default). Expand
+    # to [today-30d, today+180d] when the user hasn't filtered.
+    today = date.today()  # noqa: DTZ011 — naive date filter
     pl_filter = PlannedFilter(
-        date_from=filters.date_from,
-        date_to=filters.date_to,
+        date_from=filters.date_from or (today - timedelta(days=30)),
+        date_to=filters.date_to or (today + timedelta(days=180)),
         account_ids=filters.account_ids,
         category_ids=filters.category_ids,
     )

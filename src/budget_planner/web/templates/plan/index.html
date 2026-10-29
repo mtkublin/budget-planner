@@ -12,13 +12,32 @@
       {{ segmented([('budget', 'Budget'), ('year', 'Year'), ('forecast', 'Forecast'), ('analytics', 'Analytics')], tab, name='tab', base_href='/plan') }}
       {% if tab in ("budget", "analytics") %}
         {# Monthly selector in the shared header slot for Budget +
-           Analytics (manual-audit #32). #}
+           Analytics (manual-audit #32). Arrow anchors step one month;
+           label toggles a 12-month grid picker. #}
         {% set m_date = today.replace(year=year, month=month, day=1) %}
+        {% set months_short = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] %}
         <nav class="rd-period-nav" aria-label="Change month">
           <a class="rd-period-nav__btn"
              href="/plan?tab={{ tab }}&year={{ period_prev_year }}&month={{ period_prev_month }}"
              aria-label="Previous month">←</a>
-          <span class="rd-period-nav__label">{{ m_date.strftime("%B %Y") }}</span>
+          <details class="rd-period-nav__picker">
+            <summary class="rd-period-nav__label">{{ m_date.strftime("%B %Y") }}</summary>
+            <div class="rd-period-nav__popover" role="dialog" aria-label="Pick month">
+              <div class="rd-period-nav__year">
+                <a href="/plan?tab={{ tab }}&year={{ year - 1 }}&month={{ month }}"
+                   aria-label="Previous year">←</a>
+                <span class="num">{{ year }}</span>
+                <a href="/plan?tab={{ tab }}&year={{ year + 1 }}&month={{ month }}"
+                   aria-label="Next year">→</a>
+              </div>
+              <div class="rd-period-nav__grid">
+                {% for mm in range(1, 13) %}
+                  <a href="/plan?tab={{ tab }}&year={{ year }}&month={{ mm }}"
+                     class="rd-period-nav__cell{% if mm == month %} rd-period-nav__cell--active{% endif %}">{{ months_short[mm - 1] }}</a>
+                {% endfor %}
+              </div>
+            </div>
+          </details>
           <a class="rd-period-nav__btn"
              href="/plan?tab={{ tab }}&year={{ period_next_year }}&month={{ period_next_month }}"
              aria-label="Next month">→</a>

@@ -984,21 +984,28 @@ kbd.rd-kbd {
 
 /* ─── Heatmap cell ────────────────────────────────────────────────── */
 .rd-heat {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 2.75rem;
-  padding: 0.3rem 0.4rem;
+  width: 100%;
+  min-width: 2.5rem;
+  height: 34px;
+  padding: 0 0.3rem;
   font-family: var(--font-mono);
-  font-size: 0.78rem;
-  background: color-mix(in oklab, var(--expense) var(--weight, 0%), var(--surface));
+  font-size: 0.72rem;
+  font-weight: 500;
+  background: var(--expense-soft);
   color: var(--ink);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
+  border: 0;
+  border-radius: 3px;
 }
-.rd-heat--one-off  { outline: 1px dashed var(--transit); }
-.rd-heat--recurring{ outline: 1px solid var(--adjust); }
-.rd-heat--unset    { color: var(--mute); background: var(--sunk); }
+.rd-heat--one-off { font-weight: 700; box-shadow: inset 0 0 0 1.5px var(--accent); }
+
+.rd-heat--recurring {
+  font-style: italic;
+  background-image: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in oklab, var(--accent) 12%, transparent) 4px 5px);
+}
+.rd-heat--unset { color: var(--mute); background: transparent; border: 1px dashed var(--line); }
 
 /* ─── Legacy `.ledger` table ↦ Rising Dough look ──────────────────── */
 .ledger {
@@ -1573,11 +1580,14 @@ kbd.rd-kbd {
 .rd-plan-year__header h2 { margin: 0; }
 .rd-plan-year__nav { display: flex; gap: 0.4rem; }
 
+.rd-plan-year__table { border-spacing: 2px 2px; border-collapse: separate; }
+
 .rd-plan-year__table th:not(:first-child),
-.rd-plan-year__table td:not(:first-child) { text-align: right; }
+.rd-plan-year__table td:not(:first-child) { text-align: right; padding: 0; }
+.rd-plan-year__table td.rd-plan-year__cell { padding: 0; }
 
 .rd-plan-year__table thead th:first-child,
-.rd-plan-year__table tbody td:first-child { position: sticky; left: 0; background: var(--paper); z-index: 1; }
+.rd-plan-year__table tbody td:first-child { position: sticky; left: 0; background: var(--paper); z-index: 1; padding-right: 0.75rem; }
 
 /* Heatmap tier accents layered on top of the base .rd-heat defined above.
  * ADR-0051 §5.3 — one-off bold+outline, recurring italic+hatch, default plain,
@@ -1764,6 +1774,32 @@ kbd.rd-kbd {
   }
 }
 
+/* ─── New entry chip row (per overlay-13-add-fixed.html) ──────────── */
+.rd-entry-chips {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.rd-entry-chip {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--mute);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.rd-entry-chip:hover { color: var(--ink); background: var(--sunk); }
+
+.rd-entry-chip--active {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+
 /* ─── Utility atoms shared with the designer handoff tokens ───────── */
 .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .cur { color: var(--mute); font-size: 0.72em; margin-left: 0.3em; font-weight: 400; }
@@ -1932,7 +1968,52 @@ kbd.rd-kbd {
   font-size: 0.85rem;
   font-family: var(--font-mono);
   color: var(--ink);
+  cursor: pointer;
+  list-style: none;
 }
+.rd-period-nav__label::-webkit-details-marker { display: none; }
+
+.rd-period-nav__picker { position: relative; }
+
+.rd-period-nav__popover {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 60;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow, 0 10px 30px rgb(30 20 10 / 0.14));
+  padding: 0.6rem;
+  min-width: 15rem;
+}
+
+.rd-period-nav__year {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+  font-size: 0.85rem;
+}
+.rd-period-nav__year a { color: var(--mute); text-decoration: none; padding: 0 0.4rem; }
+.rd-period-nav__year a:hover { color: var(--ink); }
+
+.rd-period-nav__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.2rem;
+}
+
+.rd-period-nav__cell {
+  padding: 0.4rem 0.5rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--ink);
+  text-decoration: none;
+  border-radius: 4px;
+}
+.rd-period-nav__cell:hover { background: var(--sunk); }
+.rd-period-nav__cell--active { background: var(--ink); color: var(--paper); }
 
 /* ─── Ledger · pagination + formula breakdown ─────────────────────── */
 .rd-pagination {
