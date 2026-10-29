@@ -418,7 +418,8 @@ Owner: `routers/` + `services/`.
 - Reference: ADR-0055 §5.
 - File: `phase-6-responsive/T-R54-year-cards-mobile.md`.
 
-### ◻ T-R55 [S] Settings tab bar on mobile → T-R35, T-R36, T-R37
+### ✅ T-R55 [S] Settings tab bar on mobile → T-R35, T-R36, T-R37
+- Satisfied by the T-R53 `.rd-segmented` mobile scroll rule — Settings tab bar already fits 375 px without horizontal doc scroll (visual audit clean).
 - Settings reached from Today header on mobile; tab bar scrolls at narrow widths.
 - Reference: ADR-0055 §2.
 - File: `phase-6-responsive/T-R55-settings-mobile.md`.
