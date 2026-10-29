@@ -85,7 +85,20 @@ def plan(
     if tab_norm == "budget":
         ctx["summary"] = budget_service.month_summary(conn, year, month, today=today_d)
     elif tab_norm == "year":
-        ctx["cells"] = []  # heatmap stub (T-R31)
+        year_param = request.query_params.get("year")
+        selected_year = year
+        if year_param is not None:
+            try:
+                selected_year = int(year_param)
+            except ValueError:
+                selected_year = year
+        rows = budget_service.yearly_grid(conn, selected_year)
+        column_totals = [sum((r.cells[i].amount_minor or 0) for r in rows) for i in range(12)]
+        grand_total = sum(r.total_minor for r in rows)
+        ctx["year_rows"] = rows
+        ctx["year_selected"] = selected_year
+        ctx["year_column_totals"] = column_totals
+        ctx["year_grand_total"] = grand_total
     elif tab_norm == "forecast":
         projection = forecast_service.monthly_projection(
             conn, settings, today_d, horizon=_FORECAST_HORIZON_MONTHS

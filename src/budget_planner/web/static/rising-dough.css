@@ -1175,6 +1175,28 @@ kbd.rd-kbd {
   color: var(--mute);
 }
 
+/* ─── Plan · Year heatmap (T-R31) ──────────────────────────────────── */
+.rd-plan-year__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 0 0 0.5rem;
+}
+
+.rd-plan-year__header h2 { margin: 0; }
+.rd-plan-year__nav { display: flex; gap: 0.4rem; }
+
+.rd-plan-year__table th:not(:first-child),
+.rd-plan-year__table td:not(:first-child) { text-align: right; }
+
+.rd-plan-year__table thead th:first-child,
+.rd-plan-year__table tbody td:first-child { position: sticky; left: 0; background: var(--paper); z-index: 1; }
+
+/* Heatmap tier accents layered on top of the base .rd-heat defined above. */
+.rd-plan-year__cell .rd-heat--one-off { font-weight: 600; }
+.rd-plan-year__cell .rd-heat--recurring { font-style: italic; }
+
 /* ─── Mobile table scroll wrapper (T-R53) ──────────────────────────── */
 
 /* Position:relative anchors absolute descendants (e.g. .sr-only) to this

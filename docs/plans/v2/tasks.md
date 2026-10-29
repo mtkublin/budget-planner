@@ -240,7 +240,7 @@ Owner: `web/templates/{today,ledger,plan,accounts,settings}/`.
 - Reference: handoff §Plan · Budget, ADR-0031.
 - File: `phase-3-screens/T-R30-plan-budget.md`.
 
-### ◻ T-R31 [S] Plan · Year → T-R19, T-R29
+### ✅ T-R31 [S] Plan · Year → T-R19, T-R29
 - Heatmap grid + cell edit popover (Alpine or native CSS Anchor Positioning).
 - Reference: handoff §Plan · Year, ADR-0056 §2.
 - File: `phase-3-screens/T-R31-plan-year.md`.

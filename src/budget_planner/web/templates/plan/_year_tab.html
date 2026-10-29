@@ -1,24 +1,62 @@
 {% from "_partials/components/_heatmap_cell.html" import heatmap_cell %}
-<section>
-  <p class="text-muted">Year heatmap · 12 months × categories. Each cell is a planned amount; one-off and recurring tiers overlay the base. Click a cell to edit.</p>
-  <table class="rd-table" style="margin-top: 1rem">
-    <caption class="sr-only">Yearly budget heatmap · 12 months × categories</caption>
-    <thead>
-      <tr>
-        <th scope="col">Category</th>
-        {% for m in range(1, 13) %}
-          <th scope="col"
-              class="num">{{ ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1] }}</th>
+{% set months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] %}
+{% set tier_map = {"one_off": "one-off", "recurring": "recurring", "default": "default", "unset": "unset"} %}
+<section class="rd-plan-year" aria-labelledby="plan-year-heading">
+  <header class="rd-plan-year__header">
+    <h2 id="plan-year-heading">Year · <span class="numeric">{{ year_selected }}</span></h2>
+    <nav class="rd-plan-year__nav" aria-label="Year selector">
+      <a class="rd-btn rd-btn--sm"
+         href="/plan?tab=year&year={{ year_selected - 1 }}"
+         hx-boost="true">← {{ year_selected - 1 }}</a>
+      <a class="rd-btn rd-btn--sm"
+         href="/plan?tab=year&year={{ year_selected + 1 }}"
+         hx-boost="true">{{ year_selected + 1 }} →</a>
+    </nav>
+  </header>
+  <p class="rd-field__help">
+    One-off (bold) and recurring (hatched) tiers overlay the default per ADR-0014. Click a cell to edit via the Budget tab.
+  </p>
+  <div class="rd-table-scroll rd-plan-year__scroll">
+    <table class="rd-table rd-plan-year__table">
+      <caption class="sr-only">Yearly budget heatmap · 12 months × {{ year_rows|length }} categories</caption>
+      <thead>
+        <tr>
+          <th scope="col">Category</th>
+          {% for name in months %}
+            <th scope="col" class="num">{{ name }}</th>
+          {% endfor %}
+          <th scope="col" class="num">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in year_rows %}
+          <tr>
+            <td class="rd-desc">{{ row.category_name }}</td>
+            {% for cell in row.cells %}
+              <td class="num rd-plan-year__cell">
+                {{ heatmap_cell(cell.amount_minor or 0, tier=tier_map.get(cell.origin, "default")) }}
+              </td>
+            {% endfor %}
+            <td class="num"><strong>{{ "{:,.0f}".format(row.total_minor / 100.0) }}</strong></td>
+          </tr>
         {% endfor %}
-        <th scope="col" class="num">Total</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td colspan="14"
-            class="text-muted"
-            style="padding: 1rem">Heatmap renders once the Year endpoint lands (ADR-0056 §2 / T-R31). Phase 1 placeholder.</td>
-      </tr>
-    </tbody>
-  </table>
+        {% if not year_rows %}
+          <tr>
+            <td colspan="14" class="text-muted" style="padding: 1rem">No expense categories yet.</td>
+          </tr>
+        {% endif %}
+      </tbody>
+      {% if year_rows %}
+        <tfoot>
+          <tr>
+            <td><strong>Total</strong></td>
+            {% for ct in year_column_totals %}
+              <td class="num"><strong>{{ "{:,.0f}".format(ct / 100.0) }}</strong></td>
+            {% endfor %}
+            <td class="num"><strong>{{ "{:,.0f}".format(year_grand_total / 100.0) }}</strong></td>
+          </tr>
+        </tfoot>
+      {% endif %}
+    </table>
+  </div>
 </section>
