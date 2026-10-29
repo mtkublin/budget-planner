@@ -59,8 +59,8 @@
           <td class="rd-actions">
             <button type="button"
                     class="rd-btn rd-btn--sm rd-btn--ghost"
-                    hx-get="/budget/rules/{{ row.category_id }}/overrides/new"
-                    hx-target="#modal-root"
+                    hx-get="/budget/rules/{{ row.category_id }}/overrides/new?inline=1"
+                    hx-target="#budget-override-slot"
                     hx-swap="innerHTML"
                     aria-label="Override {{ row.category_name }}">⋯</button>
           </td>
@@ -77,3 +77,20 @@
     </tbody>
   </table>
 </div>
+<div id="budget-override-slot" class="rd-budget-override-slot"></div>
+<script>
+  (function () {
+    function closeSlot() {
+      var slot = document.getElementById('budget-override-slot');
+      if (slot && slot.innerHTML) slot.innerHTML = '';
+    }
+    document.addEventListener('click', function (evt) {
+      var slot = document.getElementById('budget-override-slot');
+      if (!slot || !slot.innerHTML) return;
+      if (slot.contains(evt.target)) return;
+      if (evt.target.closest('[hx-get*="overrides/new"]')) return;
+      closeSlot();
+    });
+    document.addEventListener('keydown', function (evt) { if (evt.key === 'Escape') closeSlot(); });
+  })();
+</script>

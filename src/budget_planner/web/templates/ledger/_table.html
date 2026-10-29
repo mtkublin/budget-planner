@@ -218,8 +218,11 @@
                   {% endif %}
                 </td>
                 <td>
-                  <details class="overrides-accordion">
-                    <summary>{{ row.overrides|length }} override{{ '' if row.overrides|length == 1 else 's' }}</summary>
+                  <details class="rd-rec-expand">
+                    <summary aria-label="Toggle details">
+                      <span class="rd-rec-expand__chev">▸</span>
+                      <span class="mut rd-rec-expand__count">{{ row.overrides|length }}{% if row.is_formula %} · ƒ{% endif %}</span>
+                    </summary>
                     {% if row.overrides %}
                       <ul class="overrides-list">
                         {% for ov in row.overrides %}

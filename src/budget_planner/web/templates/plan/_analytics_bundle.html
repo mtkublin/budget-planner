@@ -22,12 +22,17 @@
     <div class="rd-analytics__spend-body">
       {% if bundle.spend_by_category %}
         {% set max_amount = bundle.spend_by_category[0].amount_minor if bundle.spend_by_category else 1 %}
+        <div class="rd-analytics__row rd-analytics__row--head mut">
+          <span>Category</span>
+          <span></span>
+          <span class="rd-eyebrow">Period</span>
+          <span class="rd-eyebrow">vs 12-mo avg</span>
+        </div>
         <ul class="rd-analytics__spend-list" aria-label="Spend by category">
           {% for row in bundle.spend_by_category %}
             {% set bar_pct = (100.0 * row.amount_minor / max_amount) if max_amount > 0 else 0 %}
             {% set avg_minor = (twelve_mo_avg_by_cat.get(row.category_id, 0) if twelve_mo_avg_by_cat is defined else 0) %}
             {% set delta_minor = row.amount_minor - avg_minor %}
-            {% set delta_pct = (100.0 * delta_minor / avg_minor) if avg_minor > 0 else 0 %}
             <li data-category-id="{{ row.category_id }}">
               <a class="rd-analytics__row"
                  href="/ledger?view=actual&category_id={{ row.category_id }}&date_from={{ bundle.period_start.isoformat() }}&date_to={{ bundle.period_end.isoformat() }}">
@@ -38,8 +43,10 @@
                 <strong class="num">{{ "{:,.2f}".format(row.amount_minor / 100.0) }}</strong>
                 {% if avg_minor > 0 %}
                   <span class="num rd-analytics__delta rd-analytics__delta--{{ 'over' if delta_minor > 0 else 'under' if delta_minor < 0 else 'flat' }}">
-                    {{ '+' if delta_minor > 0 else '' }}{{ "{:.0f}".format(delta_pct) }}% vs 12-mo avg
+                    {{ '+' if delta_minor > 0 else '' }}{{ "{:,.2f}".format(delta_minor / 100.0) }}
                   </span>
+                {% else %}
+                  <span class="mut">—</span>
                 {% endif %}
               </a>
             </li>
