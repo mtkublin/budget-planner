@@ -2,7 +2,27 @@
 {% from "_partials/components/_segmented.html" import segmented %}
 {% block title %}Plan · Rising Dough{% endblock %}
 {% block main %}
-  {% set titles = {'budget': 'October budget', 'year': 'Budget ' ~ year, 'forecast': 'Projected balance', 'analytics': 'Where it went'} %}
+  {% set months_long = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+  ] %}
+  {% set m_name = months_long[month - 1] %}
+  {% set titles = {
+    'budget': m_name ~ ' budget',
+    'year': 'Budget ' ~ (year_selected if year_selected is defined else year),
+    'forecast': 'Projected balance',
+    'analytics': 'Where it went'
+  } %}
   <header class="rd-screen-header">
     <div class="rd-screen-header__title">
       <div class="rd-eyebrow">Plan</div>

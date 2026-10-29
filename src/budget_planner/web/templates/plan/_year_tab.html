@@ -31,15 +31,17 @@
           <tr>
             <td class="rd-desc">{{ category_label_parts(row.category_name, row.category_direction, row.category_color) }}</td>
             {% for cell in row.cells %}
-              <td class="num rd-plan-year__cell">
+              <td class="num rd-plan-year__cell"
+                  id="yc-{{ row.category_id }}-{{ loop.index }}">
                 <button type="button"
                         class="rd-plan-year__cell-btn"
-                        hx-get="/budget/rules/{{ row.category_id }}/overrides/new?month={{ loop.index }}&year={{ year_selected }}"
-                        hx-target="#modal-root"
+                        hx-get="/budget/rules/{{ row.category_id }}/overrides/new?month={{ loop.index }}&year={{ year_selected }}&inline=1"
+                        hx-target="#yc-{{ row.category_id }}-{{ loop.index }} .rd-year-popover-slot"
                         hx-swap="innerHTML"
                         aria-label="Edit {{ row.category_name }} · {{ months[loop.index0] }} {{ year_selected }}">
                   {{ heatmap_cell(cell.amount_minor or 0, tier=tier_map.get(cell.origin, "default")) }}
                 </button>
+                <div class="rd-year-popover-slot"></div>
               </td>
             {% endfor %}
             <td class="num"><strong>{{ "{:,.0f}".format(row.total_minor / 100.0) }}</strong></td>

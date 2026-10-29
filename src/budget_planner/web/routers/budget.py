@@ -199,6 +199,18 @@ def new_override_form(
             status_code=404,
         )
     default_row = budgets_repo.get_default(conn, category_id)
+    inline = q.get("inline") == "1"
+    if inline:
+        return render(
+            request,
+            "partials/budget/_override_form.html",
+            category=cat,
+            errors={},
+            today_year=tz_year,
+            preset_month=preset_month,
+            preset_year=preset_year,
+            default_amount_minor=default_row.amount if default_row else None,
+        )
     return render(
         request,
         "partials/_slideover.html",

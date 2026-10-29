@@ -108,7 +108,18 @@ def plan(  # noqa: PLR0912, PLR0915 — one dispatcher per tab, kept flat for re
     }
 
     if tab_norm == "budget":
-        ctx["summary"] = budget_service.month_summary(conn, year, month, today=today_d)
+        # When the picker selects a non-current month, feed month_summary a
+        # synthetic "today" pointing at either the first-of-month (future) or
+        # end-of-month (past) so period_start / next_income_date resolve
+        # inside the selected month, not around today.
+        import calendar as _cal  # noqa: PLC0415 — local import keeps top clean
+
+        if (year, month) == (today_d.year, today_d.month):
+            ref = today_d
+        else:
+            ref_last = _cal.monthrange(year, month)[1]
+            ref = today_d.replace(year=year, month=month, day=min(today_d.day, ref_last))
+        ctx["summary"] = budget_service.month_summary(conn, year, month, today=ref)
     elif tab_norm == "year":
         year_param = request.query_params.get("year")
         selected_year = year
@@ -158,7 +169,17 @@ def plan(  # noqa: PLR0912, PLR0915 — one dispatcher per tab, kept flat for re
             if period_raw == candidate:
                 period_norm = candidate
                 break
-        bundle = analytics_service.bundle(conn, today=today_d, period=period_norm)
+        # Analytics month selector feeds the service a synthetic "today"
+        # anchored to the selected month-end so period math respects the
+        # picker instead of pinning to real today.
+        import calendar as _cal  # noqa: PLC0415
+
+        if (year, month) == (today_d.year, today_d.month):
+            ref_today = today_d
+        else:
+            ref_last = _cal.monthrange(year, month)[1]
+            ref_today = today_d.replace(year=year, month=month, day=ref_last)
+        bundle = analytics_service.bundle(conn, today=ref_today, period=period_norm)
         ctx["bundle"] = bundle
         ctx["period"] = period_norm
         # Build a `category_id → 12-mo avg minor` map so the Spend-by-category

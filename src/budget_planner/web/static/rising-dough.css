@@ -1631,6 +1631,22 @@ kbd.rd-kbd {
 }
 .rd-plan-year__cell-btn:hover .rd-heat { filter: brightness(0.95); }
 
+.rd-plan-year__cell { position: relative; }
+
+.rd-year-popover-slot:not(:empty) {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: 60;
+  min-width: 18rem;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-card);
+  box-shadow: 0 10px 30px rgb(30 20 10 / 0.14);
+  padding: 0.75rem 0.9rem;
+  text-align: left;
+}
+
 /* T-R54 — Mobile cards swap for the Plan · Year heatmap. */
 .rd-plan-year__cards { display: none; }
 
@@ -1777,6 +1793,7 @@ kbd.rd-kbd {
 /* ─── New entry chip row (per overlay-13-add-fixed.html) ──────────── */
 .rd-entry-chips {
   display: flex;
+  justify-content: center;
   gap: 0.5rem;
   margin: 0.5rem 0 1rem;
 }

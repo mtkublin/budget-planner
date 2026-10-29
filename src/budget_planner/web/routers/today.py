@@ -81,6 +81,36 @@ def today(
     )
 
 
+@router.get("/today/upcoming", response_class=HTMLResponse)
+def today_upcoming_fragment(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
+) -> HTMLResponse:
+    """HTMX fragment for Today's #upcoming-root.
+
+    Returned by inline-promote Esc + after-promote refresh paths so the
+    swap preserves the Today surface's row shape (category pill +
+    direction-aware amount) instead of falling back to the legacy
+    `home/_upcoming_fragment.html` layout.
+    """
+    today_d = datetime.now(ZoneInfo(settings.display_timezone)).date()
+    window_label, window_days = home_router._window_from(request)
+    upcoming = home_router._list_upcoming(conn, today_d, window_days)
+    categories_by_id = {c.id: c for c in categories_repo.list_all(conn)}
+    accounts_by_id = {a.id: a for a in accounts_repo.list_all(conn)}
+    return render(
+        request,
+        "today/_upcoming.html",
+        upcoming=upcoming,
+        today=today_d,
+        window_label=window_label,
+        base_ccy=settings.base_currency,
+        categories_by_id=categories_by_id,
+        accounts_by_id=accounts_by_id,
+    )
+
+
 def _parse_amount_arg(raw: str) -> int | None:
     """Parse the ``amount=`` query arg into minor units.
 

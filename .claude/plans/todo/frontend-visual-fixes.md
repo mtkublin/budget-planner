@@ -134,6 +134,28 @@ Mockup `overlay-11-reconcile.html`:
 10. **Add-entry Repeats formula** (From/To, flat term grid, Next due row).
 11. **Plan Forecast caption + annotations** (muted strip + footer).
 
+## Session-3 additions (user-reported after wave-1 fixes)
+
+**V.17 Upcoming revert after Esc.** Promote inline → Esc hits GET `/overview/upcoming` which returns `home/_upcoming_fragment.html` (the legacy Overview surface). Today's `#upcoming-root` swaps in a different template structure, breaking the pills + row grid. Fix: `/overview/upcoming` needs to detect the referer / add a `?for=today` variant that returns `today/_upcoming.html` with the categories_by_id + accounts_by_id context the new template expects. Alternatively, swap the inline promote cancel to re-fetch `/today` and `hx-select="#upcoming-root"`.
+
+**V.18 Entry chips centered.** `.rd-entry-chips` currently `justify-content: flex-start`. Change to `justify-content: center`.
+
+**V.19 Ledger/Planned table formatting broken.** Likely a rendering fallout from V.4 column rewrite because planned rows use `row.operation_date|date_fmt` in the muted sub-line but the old `Date` col removal left a tbody col-count mismatch. Needs a direct screenshot comparison vs `desktop-03-ledger-planned.html`.
+
+**V.20 Budget tab month full sync.** `plan/_budget_tab.html` top bar reads `summary.period_start → summary.next_income_date` which are computed by `budget_service.month_summary(year, month)`. Threading year+month into the summary already works (the per-day amount changed in the audit). But the header `<h1>October budget</h1>` is a static title map in `plan/index.html` + the period_start/next_income_date might still reflect anchor-based calculation using *today's* position, not the start of the selected month. Verify: when month=9 (September), period_start should be in Sep. Fix the service to accept an explicit `month_start` ref, not use `today` for anchor lookup.
+
+**V.21 Analytics month selector effect.** The shared Plan header month selector only threads year+month into `budget_service.month_summary`. Analytics bundle computed via `analytics_service.bundle(conn, today=today_d, period=period_norm)` — `today_d` is always the real today. Need to swap `today_d` for `date(year, month, 1 + last_day_of_month(year, month))` when `month != today's month` so the Analytics period respects the picker.
+
+**V.22 Year grid colors v2.** First attempt kept the `.rd-heat` width 100% + height 34px + expense-soft bg but the tiles still render with heavy red fills. Audit — likely the `color-mix` falls back to full `--expense` at 100% weight CSS var still set from the heatmap_cell macro. Delete `--weight` plumbing + accept the plain expense-soft fill. Reference mockup inline style: `background: oklch(0.955 0.035 28)` which is `var(--expense-soft)` directly.
+
+**V.23 Year override popover inline.** Year cell button currently HTMX-swaps into `#modal-root`. Change to inject into a `.rd-year-popover` positioned absolute beneath the clicked tile. HTMX supports this via `hx-target="closest td"` + a wrapper div.
+
+**V.24 Modal no scroll fit.** `.slide-over` has `overflow-y: auto; max-height: calc(100vh - 80px)`. Modal body content exceeds that → scroll. Switch to `max-height: 95vh` and shrink interior padding; critical content (header + chip row + fields + footer) must fit without scroll on 1440×900. Narrow bodies via `max-width` already; need vertical compression on `.rd-form` default row gap.
+
+**V.25 Reconcile fit.** Same fix as V.24; reconcile body is long because it has 3 steps + Previous Checks list. Hide Previous Checks on height-constrained viewports or collapse behind a toggle.
+
+**V.26 Year header sync.** `plan/index.html` title map uses `'Budget ' ~ year` — the context key is `year` (current year from router), not `year_selected` (user picked). Line 9 fallback should read `year_selected if tab == 'year' else year`.
+
 ## Session-2 additions (user-reported after audit)
 
 **V.9 Ledger/Planned rows missing.** Planned header shows count 2 and the forecast table emits the rows, but the Ledger `/ledger?view=planned` table body is empty. Likely a filter in the ledger router that passes `promoted=False` but reads from a different repository call than Overview. Trace `routers/ledger.py` → `_hydrate_planned_rows` → `planned_repo.list_filtered`.

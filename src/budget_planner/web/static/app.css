@@ -1409,7 +1409,7 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
 .slide-over {
   width: 100%;
   max-width: 560px;
-  max-height: calc(100vh - 80px);
+  max-height: 95vh;
   background: var(--surface-raised);
   color: var(--ink);
   border-radius: 12px;
@@ -1419,12 +1419,18 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
   overflow-y: auto;
   animation: modal-in var(--duration-normal) var(--ease-out-expo);
 }
+.slide-over--add { max-width: 620px; }
+.slide-over--repeats { max-width: 720px; }
+.slide-over .rd-form { gap: 0.6rem; }
+.slide-over .rd-form-row { gap: 0.6rem; margin: 0; }
+.slide-over .rd-field { margin: 0; }
+.slide-over .rd-slideover-footer { padding-top: 0.7rem; margin-top: 0.5rem; }
 
 .slide-over__header {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding: 22px 28px 10px;
+  padding: 16px 24px 6px;
 }
 
 .slide-over__title {
@@ -1446,7 +1452,7 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
 .slide-over__close:hover { color: var(--ink); }
 
 .slide-over__body {
-  padding: 6px 28px 8px;
+  padding: 4px 24px 6px;
 }
 
 @keyframes modal-in {

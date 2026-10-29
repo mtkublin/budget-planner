@@ -47,14 +47,18 @@
               <th scope="col" class="text-right">Amount</th>
               <th scope="col">Overrides</th>
               <th scope="col"><span class="sr-only">Actions</span></th>
+            {% elif view == "planned" %}
+              <th scope="col">Due</th>
+              <th scope="col">Description</th>
+              <th scope="col">Category</th>
+              <th scope="col" class="text-right">Amount</th>
+              <th scope="col">Status</th>
+              <th scope="col"><span class="sr-only">Actions</span></th>
             {% else %}
               <th scope="col">Description · Account</th>
               <th scope="col">Category</th>
               <th scope="col">Direction</th>
               <th scope="col" class="text-right">Amount</th>
-              {% if view == "planned" %}
-                <th scope="col">Status</th>
-              {% endif %}
               <th scope="col"><span class="sr-only">Actions</span></th>
             {% endif %}
           </tr>
@@ -120,13 +124,13 @@
               {% set is_income = dir_value == 'income' %}
               <tr id="planned-{{ row.key }}"
                   class="row {% if (not row.is_promoted) and days_delta < 0 %}rd-row--overdue{% endif %}">
+                <td class="num mut whitespace-nowrap">{{ row.operation_date.strftime("%d %b") }}</td>
                 <td>
                   <strong>{{ row.description or '—' }}</strong>
                   <br>
-                  <small class="text-muted">{{ row.operation_date|date_fmt }} · {{ row.account.name if row.account else '' }}</small>
+                  <small class="text-muted">{{ row.account.name if row.account else '' }}</small>
                 </td>
                 <td>{{ category_label(row.category) }}</td>
-                <td>{% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}</td>
                 <td class="text-right num {{ 'pos' if is_income else '' }}">
                   {{ '+' if is_income else '' }}{{ row.amount_minor|money(row.currency) }}
                 </td>
@@ -138,28 +142,24 @@
                   {% elif days_delta == 0 %}
                     <span class="rd-pill">today</span>
                   {% else %}
-                    <span class="rd-pill rd-pill--neutral">in {{ days_delta }} days</span>
+                    <span class="text-muted">in {{ days_delta }} days</span>
                   {% endif %}
                 </td>
                 <td class="rd-actions">
+                  {% if row.kind == "persisted" and not row.is_promoted %}
+                    <button type="button"
+                            class="rd-btn rd-btn--sm"
+                            hx-get="/planned/{{ row.persisted_id }}/promote"
+                            hx-target="#modal-root"
+                            hx-swap="innerHTML">Promote ↵</button>
+                  {% endif %}
                   {% if row.kind == "persisted" %}
+                    <button type="button"
+                            class="rd-btn rd-btn--sm rd-btn--ghost"
+                            hx-get="/planned/{{ row.persisted_id }}/edit"
+                            hx-target="#modal-root"
+                            hx-swap="innerHTML">Edit</button>
                     {% call kebab_menu(id="planned-" ~ row.key) %}
-                      <li role="none">
-                        <button type="button"
-                                role="menuitem"
-                                hx-get="/planned/{{ row.persisted_id }}/edit"
-                                hx-target="#modal-root"
-                                hx-swap="innerHTML">Edit</button>
-                      </li>
-                      {% if not row.is_promoted %}
-                        <li role="none">
-                          <button type="button"
-                                  role="menuitem"
-                                  hx-get="/planned/{{ row.persisted_id }}/promote"
-                                  hx-target="#modal-root"
-                                  hx-swap="innerHTML">Promote →</button>
-                        </li>
-                      {% endif %}
                       <li role="none">
                         <button type="button"
                                 role="menuitem"

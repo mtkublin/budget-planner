@@ -18,7 +18,8 @@
      aria-labelledby="add-entry-title"
      data-slideover
      onclick="if(event.target===this){this.parentElement.innerHTML='';}">
-  <aside class="slide-over slide-over--add" tabindex="-1">
+  <aside class="slide-over slide-over--add{% if active_tab == 'repeats' %} slide-over--repeats{% endif %}"
+         tabindex="-1">
     {{ slide_over_header(title="New entry") }}
     <div class="rd-entry-chips" role="tablist" aria-label="Entry type">
       {% for key, label in [("happened", "Happened"), ("planned", "Planned"), ("repeats", "Repeats")] %}

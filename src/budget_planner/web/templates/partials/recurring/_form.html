@@ -110,16 +110,14 @@
               </div>
               <div class="rd-formula__sources">
                 {% if source_categories %}
-                  {% for cat in source_categories %}
-                    <label class="rd-chip rd-chip--check">
-                      <input type="checkbox"
-                             name="terms[{{ term_idx }}][source_category_ids]"
-                             value="{{ cat.id }}"
-                             {% if cat.id in term.source_category_ids %}checked{% endif %}
-                             class="sr-only">
-                      <span>{{ cat.name }}</span>
-                    </label>
-                  {% endfor %}
+                  <select name="terms[{{ term_idx }}][source_category_ids]"
+                          class="rd-chip-select">
+                    <option value="">— pick source —</option>
+                    {% for cat in source_categories %}
+                      <option value="{{ cat.id }}"
+                              {% if cat.id in term.source_category_ids %}selected{% endif %}>{{ cat.name }}</option>
+                    {% endfor %}
+                  </select>
                 {% else %}
                   <span class="text-muted text-sm">No eligible categories.</span>
                 {% endif %}
@@ -215,15 +213,12 @@
       </div>
       <div class="rd-formula__sources">
         {% if source_categories %}
-          {% for cat in source_categories %}
-            <label class="rd-chip rd-chip--check">
-              <input type="checkbox"
-                     name="terms[__IDX__][source_category_ids]"
-                     value="{{ cat.id }}"
-                     class="sr-only">
-              <span>{{ cat.name }}</span>
-            </label>
-          {% endfor %}
+          <select name="terms[__IDX__][source_category_ids]" class="rd-chip-select">
+            <option value="">— pick source —</option>
+            {% for cat in source_categories %}
+              <option value="{{ cat.id }}">{{ cat.name }}</option>
+            {% endfor %}
+          </select>
         {% endif %}
       </div>
       <label class="rd-field rd-field--inline rd-formula__coef">

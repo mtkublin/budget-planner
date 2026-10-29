@@ -9,7 +9,7 @@
   <form class="rd-promote-inline__form"
         hx-post="/planned/{{ planned.id }}/promote"
         hx-swap="none"
-        hx-on::after-request="if(event.detail.successful){htmx.ajax('GET','/overview/upcoming',{target:'#upcoming-root',swap:'innerHTML'});}">
+        hx-on::after-request="if(event.detail.successful){htmx.ajax('GET','/today/upcoming',{target:'#upcoming-root',swap:'innerHTML'});}">
     <div class="rd-promote-inline__grid">
       <span class="num mut rd-promote-inline__date">{{ planned.operation_date.strftime("%b %d") }}</span>
       <div class="rd-promote-inline__desc">
@@ -46,7 +46,7 @@
         <button type="submit" class="rd-btn rd-btn--sm rd-btn--primary">Confirm ↵</button>
         <button type="button"
                 class="rd-btn rd-btn--sm rd-btn--ghost"
-                hx-get="/overview/upcoming"
+                hx-get="/today/upcoming"
                 hx-target="#upcoming-root"
                 hx-swap="innerHTML">Esc</button>
       </div>
