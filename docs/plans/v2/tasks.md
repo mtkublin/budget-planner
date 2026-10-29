@@ -400,7 +400,7 @@ Owner: `routers/` + `services/`.
 - Reference: ADR-0055 §2.
 - File: `phase-6-responsive/T-R51-mobile-tab-bar.md`.
 
-### ◻ T-R52 [S] `+ Add` bottom sheet → T-R51, T-R38
+### ✅ T-R52 [S] `+ Add` bottom sheet → T-R51, T-R38
 - `<dialog>` + CSS translate; three choice tiles then form swap.
 - Dismiss on 2xx + popstate (ADR-0030).
 - Reference: ADR-0055 §3.

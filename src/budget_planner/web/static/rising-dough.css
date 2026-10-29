@@ -1223,4 +1223,41 @@ kbd.rd-kbd {
     z-index: 1;
     box-shadow: 1px 0 0 var(--line);
   }
+
+  /* T-R52 — Slide-overs become bottom sheets at ≤640 px. The shared
+   * `.slide-over-root` wrapper is kept; only the inner `.slide-over` is
+   * re-anchored to the bottom edge with a translate-up animation,
+   * dynamic viewport height, rounded top corners, and a safe-area pad. */
+  .slide-over-root { justify-content: center; align-items: flex-end; }
+
+  .slide-over {
+    width: 100vw;
+    max-width: 100vw;
+    height: auto;
+    max-height: 90dvh;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 1rem 1rem 0 0;
+    animation: rd-sheet-in var(--dur) var(--ease);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .slide-over::before {
+    content: "";
+    display: block;
+    width: 2.5rem;
+    height: 4px;
+    margin: 0.5rem auto 0;
+    background: var(--line);
+    border-radius: 999px;
+  }
+}
+
+@keyframes rd-sheet-in {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide-over { animation: none; }
 }
