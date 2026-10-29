@@ -308,7 +308,7 @@ Owner: `web/templates/{today,ledger,plan,accounts,settings}/`.
 - Reference: handoff §Ledger · Actual "Bulk actions and export appear as a toolbar when rows are selected."
 - File: `phase-3-screens/T-R69-ledger-bulk-toolbar.md`.
 
-### ◻ T-R70 [S] "Recently deleted" surface → T-R26
+### ✅ T-R70 [S] "Recently deleted" surface → T-R26
 - Row ⋯ menu + `/ledger?view=recently-deleted` segmented-control extra tab (or dedicated panel) lists archived transactions + categories with Restore action.
 - Reuses soft-delete repository helpers (ADR-0019, ADR-0022).
 - Reference: handoff §Ledger · Actual "Deleted = archived; restorable from ⋯ or 'Recently deleted'."

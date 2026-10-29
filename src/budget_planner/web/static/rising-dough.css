@@ -1165,6 +1165,16 @@ kbd.rd-kbd {
 .rd-reconcile-header { align-items: flex-start; }
 .rd-reconcile-header .rd-eyebrow { margin-bottom: 0.2rem; }
 
+/* ─── Recently deleted (T-R70) ─────────────────────────────────────── */
+.rd-recently-deleted { margin-top: 1.75rem; }
+.rd-recently-deleted h2 { margin: 0 0 0.75rem; font-size: 1.15rem; }
+
+.rd-recently-deleted .rd-count {
+  font-family: var(--font-mono);
+  font-size: 0.75em;
+  color: var(--mute);
+}
+
 /* ─── Mobile table scroll wrapper (T-R53) ──────────────────────────── */
 
 /* Position:relative anchors absolute descendants (e.g. .sr-only) to this

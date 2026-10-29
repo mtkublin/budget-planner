@@ -95,5 +95,11 @@
   <section style="margin-top: 1rem;">
     {% include "ledger/_table.html" %}
   </section>
+  <p style="margin-top: 1.5rem; font-size: 0.85rem; color: var(--mute)">
+    Deleted = archived; restorable from
+    <a href="/ledger/recently-deleted"
+       style="color: var(--accent);
+              text-underline-offset: 2px">Recently deleted →</a>
+  </p>
   <div id="modal-root"></div>
 {% endblock %}

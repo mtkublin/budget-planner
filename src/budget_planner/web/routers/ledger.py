@@ -20,6 +20,7 @@ from budget_planner.domain.transactions import TransactionFilter
 from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
+    planned as planned_repo,
     recurring as recurring_repo,
     transactions as transactions_repo,
 )
@@ -261,6 +262,28 @@ def table_fragment(request: Request, conn: sqlite3.Connection = Depends(get_db))
     view = coerce_view(request.query_params.get("view"))
     filters = parse_filters(request)
     return _render_table(request, conn, view, filters)
+
+
+@router.get("/recently-deleted", response_class=HTMLResponse)
+def recently_deleted(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLResponse:
+    """T-R70 — list soft-deleted transactions, planned, and categories (90-day cutoff).
+
+    ADR-0019 (soft delete + audit); ADR-0022 (archived categories).
+    """
+    txns = transactions_repo.list_recently_deleted(conn, days=90)
+    planned_items = planned_repo.list_recently_deleted(conn, days=90)
+    cats = categories_repo.list_recently_deleted(conn, days=90)
+    accounts_by_id = {a.id: a for a in accounts_repo.list_all(conn)}
+    categories_by_id = {c.id: c for c in categories_repo.list_all(conn)}
+    return render(
+        request,
+        "ledger/_recently_deleted.html",
+        txns=txns,
+        planned_items=planned_items,
+        categories=cats,
+        accounts_by_id=accounts_by_id,
+        categories_by_id=categories_by_id,
+    )
 
 
 def render_table_for(

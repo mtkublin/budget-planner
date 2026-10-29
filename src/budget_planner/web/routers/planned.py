@@ -369,6 +369,18 @@ def delete_planned(planned_id: int, conn: sqlite3.Connection = Depends(get_db)) 
     return resp
 
 
+@router.post("/{planned_id}/restore")
+def restore_planned(planned_id: int, conn: sqlite3.Connection = Depends(get_db)) -> Response:
+    """T-R70 — undo a soft-delete (ADR-0019)."""
+    try:
+        planned_repo.undelete(conn, planned_id)
+    except LookupError:
+        return Response(status_code=404, content="not found")
+    resp = Response(content="", media_type="text/html")
+    trigger(resp, "forecast-stale", "ledger-stale")
+    return resp
+
+
 @router.get("/{planned_id}/promote", response_class=HTMLResponse)
 def promote_form(
     planned_id: int, request: Request, conn: sqlite3.Connection = Depends(get_db)

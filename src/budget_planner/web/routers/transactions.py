@@ -413,6 +413,18 @@ def delete_txn(txn_id: int, conn: sqlite3.Connection = Depends(get_db)) -> Respo
     return resp
 
 
+@router.post("/{txn_id}/restore")
+def restore_txn(txn_id: int, conn: sqlite3.Connection = Depends(get_db)) -> Response:
+    """T-R70 — undo a soft-delete (ADR-0019)."""
+    try:
+        transactions_repo.undelete(conn, txn_id)
+    except LookupError:
+        return Response(status_code=404, content="not found")
+    resp = Response(content="", media_type="text/html")
+    trigger(resp, "balance-stale", "forecast-stale", "ledger-stale")
+    return resp
+
+
 @router.get("/export")
 def export(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> Response:
     fmt = request.query_params.get("format", "csv")

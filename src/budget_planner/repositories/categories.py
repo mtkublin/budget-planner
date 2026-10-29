@@ -38,6 +38,21 @@ def find_by_id(
     return _row_to_category(row) if row is not None else None
 
 
+def list_recently_deleted(
+    conn: sqlite3.Connection, *, days: int = 90, limit: int = 500
+) -> list[Category]:
+    """T-R70 — soft-deleted (archived) categories within the last `days` days."""
+    sql = (
+        f"SELECT {_COLUMNS} FROM categories "
+        "WHERE deleted_at IS NOT NULL "
+        "AND deleted_at > datetime('now', ?) "
+        "ORDER BY deleted_at DESC "
+        "LIMIT ?"
+    )
+    rows = conn.execute(sql, (f"-{days} days", limit)).fetchall()
+    return [_row_to_category(r) for r in rows]
+
+
 def find_by_name(
     conn: sqlite3.Connection,
     name: str,
@@ -144,6 +159,7 @@ __all__ = [
     "find_by_id",
     "find_by_name",
     "list_all",
+    "list_recently_deleted",
     "soft_delete",
     "undelete",
     "update",
