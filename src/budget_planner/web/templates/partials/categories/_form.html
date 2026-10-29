@@ -183,7 +183,11 @@
         var color = activeColor() || FALLBACK[dir];
         if (previewPill) {
           previewPill.textContent = name;
-          previewPill.setAttribute("style", "--hue:" + hexToHue(color));
+          // Mirror the live chip chrome used elsewhere: color-mix wash + hex fg.
+          previewPill.setAttribute(
+            "style",
+            "background: color-mix(in oklab, " + color + " 16%, transparent); color: " + color
+          );
         }
         if (previewDir) {
           previewDir.className = "rd-dir rd-dir--" + dir;

@@ -100,8 +100,8 @@ def test_left_daily_spend_card_shows_end_of_month_fallback_when_anchor_unset(
 def test_settings_prefs_lists_income_categories_in_select(
     client: TestClient, world: dict[str, int]
 ) -> None:
-    """ADR-0031 §1 — income anchor selector relocated to Settings → Preferences."""
-    r = client.get("/settings?tab=prefs")
+    """Manual-audit #54 — income anchor lives on Settings · Categories now."""
+    r = client.get("/settings?tab=categories")
     assert r.status_code == 200
     assert "Income anchor" in r.text
     assert 'id="anchor-select"' in r.text

@@ -1,6 +1,14 @@
 # Changelog
 
 ## 2026-10-29
+- **Manual-audit remediation Phase I — Settings rework (audit ids #52, #53, #54, #55, #56)**:
+  (#54) Income anchor removed from `settings/_prefs.html` entirely. Preferences now carries just the base-currency + display-timezone read-only strip, and the help copy points at the Categories tab for the anchor.
+  (#52) `settings/_categories.html` top bar rebuilt as `.rd-settings-anchor`: eyebrow + `rd-chip-select` + muted help copy. The redundant `Save` button is gone — the form carries `hx-trigger="change from:find select"` so swapping the option auto-saves.
+  (#53) The old `.rd-settings-anchor` CSS block (the full-width `.drawer-section` card) is retired; the new compact `.rd-settings-anchor` lives next to the manual-audit section.
+  (#55) Category modal preview was setting `--hue` custom property, but the pill chrome keyed on the `[data-hue]` attribute selector — the live preview never reflected the picked hex. Rewrote `syncPreview` to apply `background: color-mix(in oklab, {hex} 16%, transparent); color: {hex}` inline so the chip mirrors the production rendering.
+  (#56) The modal already uses `.rd-form` chrome from T-R66 (verified against `overlay-15-create-category.html`); category table + modal cosmetic polish complete.
+  `test_settings_prefs_lists_income_categories_in_select` rewritten to hit `/settings?tab=categories` (per audit #54 relocation).
+  1080 tests pass. mypy --strict clean. ruff + djlint + sqlfluff + stylelint green.
 - **Manual-audit remediation Phase H — Accounts polish (audit ids #50, #51)**:
   (#50) New-account modal was already aligned to `overlay-14-create-account.html` after T-R65. No shape change needed; verified field order (`Name / [Currency | Type] / help / [Opening | As-of] / liability toggle / credit limit`) matches the mockup.
   (#51) Accounts hero rebuilt with `.rd-accounts-hero` grid class (replaces the inline-styled `<section style=…>` + nested `<div style=…>`). Net worth total uses `.num + .cur`; Assets stat uses `.num`; Liabilities stat uses `.num.neg` so the colour tracks the standard expense token instead of inline `color: var(--expense)`. Balance cell in the accounts table now also uses `.num/.cur/.neg` instead of the ad-hoc `.rd-amount__currency` structure.

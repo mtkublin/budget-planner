@@ -3,24 +3,21 @@
    - Grouped sections: Expense · Income · System.
    - Row shape: pill + direction badge + colour source + Archive action.
    - Footer copy explaining Archive vs system locks. #}
-<div class="drawer-section rd-settings-anchor" id="income-anchor">
-  <header class="drawer-section__header">
-    <p class="eyebrow">Income anchor</p>
-    <h3 class="drawer-section__title">Paycheck window starts each → <strong>{% if current_anchor_id %}{% for c in anchor_income_categories %}{% if c.id == current_anchor_id %}{{ c.name }}{% endif %}{% endfor %}{% else %}—{% endif %}</strong></h3>
-  </header>
+<div class="rd-settings-anchor" id="income-anchor">
+  <span class="rd-eyebrow">Income anchor</span>
   <form hx-post="/budget/preferences/income-anchor"
         hx-swap="none"
-        class="rd-form-row">
+        hx-trigger="change from:find select">
     <label for="anchor-select" class="sr-only">Income anchor</label>
-    <select id="anchor-select" name="category_id">
+    <select id="anchor-select" name="category_id" class="rd-chip-select">
       <option value="" {% if current_anchor_id is none %}selected{% endif %}>— none —</option>
       {% for c in anchor_income_categories %}
         <option value="{{ c.id }}"
                 {% if current_anchor_id == c.id %}selected{% endif %}>{{ c.name }}</option>
       {% endfor %}
     </select>
-    <button type="submit" class="rd-btn rd-btn--sm">Save</button>
   </form>
+  <small class="mut">Paycheck window starts on this category's next date. Auto-saves on change.</small>
 </div>
 <div id="cat-form-slot" class="drawer-section__slot"></div>
 {% macro cat_row(category) %}

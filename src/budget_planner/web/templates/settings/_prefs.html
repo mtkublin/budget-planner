@@ -1,5 +1,6 @@
-{# T-067 — Preferences tab. ADR-0031 §1 — income anchor selector moved here
-   from `/budget` section 2b. #}
+{# T-067 — Preferences tab. Income anchor relocated to Settings · Categories
+   per manual-audit #54; the anchor-pick UI lives at the top of
+   `settings/_categories.html`. #}
 <div class="drawer-section">
   <header class="drawer-section__header">
     <p class="eyebrow">Workspace</p>
@@ -21,32 +22,7 @@
   </dl>
   <p class="text-muted drawer-section__hint">
     These values are configured via the <code>BUDGET_*</code> environment
-    and will be editable here in a future release.
-  </p>
-</div>
-<div id="income-anchor" class="drawer-section">
-  <header class="drawer-section__header">
-    <p class="eyebrow">Budget</p>
-    <h3 class="drawer-section__title">Income anchor</h3>
-  </header>
-  <p class="text-muted drawer-section__hint">
-    Picks the paycheck category whose next planned date divides the remaining
-    budget into the <strong>Left to spend per day</strong> figure on
-    <a href="/plan?tab=budget">Plan · Budget</a>. Also available at the top of
+    and will be editable here in a future release. Income anchor lives on
     the <a href="/settings?tab=categories#income-anchor">Categories tab</a>.
-    Leave blank to fall back to end of month.
   </p>
-  <form hx-post="/budget/preferences/income-anchor"
-        hx-swap="none"
-        class="budget-rule-form">
-    <label for="anchor-select" class="sr-only">Income anchor</label>
-    <select id="anchor-select" name="category_id">
-      <option value="" {% if current_anchor_id is none %}selected{% endif %}>— none —</option>
-      {% for c in income_categories %}
-        <option value="{{ c.id }}"
-                {% if current_anchor_id == c.id %}selected{% endif %}>{{ c.name }}</option>
-      {% endfor %}
-    </select>
-    <button type="submit" class="btn-ghost">Save</button>
-  </form>
 </div>
