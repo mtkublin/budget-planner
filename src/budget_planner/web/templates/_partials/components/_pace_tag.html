@@ -2,14 +2,14 @@
 {%- macro pace_tag(kind, label=None) -%}
   {%- set cls = "rd-pace" -%}
   {%- if kind == "tight" or kind == "pacing_high" %}{% set cls = cls + ' rd-pace--tight' %}
-  {%- elif kind == "overdue" or kind == "over_budget" %}{% set cls = cls + ' rd-pace--overdue' %}
+  {%- elif kind == "over_limit" or kind == "over_budget" %}{% set cls = cls + ' rd-pace--over-limit' %}
   {%- endif %}
   {%- set labels = {
     "on_track": "On track",
     "tight": "Tight",
-    "overdue": "Overdue",
+    "over_limit": "Over limit",
     "pacing_high": "Tight",
-    "over_budget": "Over budget"
+    "over_budget": "Over limit"
   } -%}
   <span class="{{ cls }}">{{ label or labels.get(kind, kind) }}</span>
 {%- endmacro -%}

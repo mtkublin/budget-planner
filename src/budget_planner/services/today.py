@@ -16,7 +16,7 @@ from typing import Literal
 
 from budget_planner.services import budget as budget_service
 
-PaceTag = Literal["on_track", "tight", "overdue"]
+PaceTag = Literal["on_track", "tight", "over_limit"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,7 +38,7 @@ class AffordResult:
 
 # Boundary at which the recomputed per-day drops below a "tight" threshold.
 # Treats "half of the current left-per-day" as the handoff between on_track
-# and tight; zero after the hypothetical spend lands on overdue. Keeps the
+# and tight; zero after the hypothetical spend lands on over_limit. Keeps the
 # tag deterministic for a given summary without a new preference.
 _TIGHT_FRACTION_BPS = 5_000  # 50% of baseline, in basis points.
 
@@ -57,7 +57,7 @@ def _pace_tag_for(
 ) -> PaceTag:
     """Map ``per_day_minor`` into one of three pace tags.
 
-    - ``overdue`` when the hypothetical per-day drops to zero (either
+    - ``over_limit`` when the hypothetical per-day drops to zero (either
       because the user has no budget headroom or the proposed amount
       wipes it out).
     - ``tight`` when the new per-day is strictly below half the current
@@ -65,7 +65,7 @@ def _pace_tag_for(
     - ``on_track`` otherwise.
     """
     if per_day_minor <= 0:
-        return "overdue"
+        return "over_limit"
     if baseline_per_day_minor <= 0:
         return "on_track"
     threshold = (Decimal(baseline_per_day_minor) * Decimal(_TIGHT_FRACTION_BPS)) / Decimal(10_000)

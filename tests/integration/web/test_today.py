@@ -14,21 +14,21 @@ def test_today_renders(client: TestClient) -> None:
 def test_afford_endpoint_minor_units(client: TestClient) -> None:
     r = client.get("/today/afford?amount=10000")
     assert r.status_code == 200
-    assert "afford__per-day" in r.text
+    assert "rd-afford__new" in r.text
 
 
 def test_afford_endpoint_zero(client: TestClient) -> None:
     r = client.get("/today/afford?amount=0")
     assert r.status_code == 200
     # No delta is shown with zero amount — just the per-day line.
-    assert "afford__per-day" in r.text
+    assert "rd-afford__new" in r.text
 
 
 def test_afford_endpoint_major_units_fallback(client: TestClient) -> None:
     # Backwards-compat: the existing form posts step=0.01 decimals.
     r = client.get("/today/afford?amount=100.00")
     assert r.status_code == 200
-    assert "afford__per-day" in r.text
+    assert "rd-afford__new" in r.text
 
 
 def test_afford_endpoint_invalid_amount(client: TestClient) -> None:
@@ -54,4 +54,4 @@ def test_afford_alias_route(client: TestClient) -> None:
     """Legacy ``/afford`` alias keeps working."""
     r = client.get("/afford?amount=10000")
     assert r.status_code == 200
-    assert "afford__per-day" in r.text
+    assert "rd-afford__new" in r.text

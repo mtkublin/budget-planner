@@ -56,7 +56,7 @@ class TestAfford:
         result = today_svc.afford(conn, date(2026, 1, 10), 0)
         assert result.per_day_minor >= 0
         assert result.delta_minor == 0
-        assert result.pace_tag in ("on_track", "tight", "overdue")
+        assert result.pace_tag in ("on_track", "tight", "over_limit")
 
     def test_positive_amount_lowers_per_day(
         self,
@@ -68,14 +68,14 @@ class TestAfford:
         assert hypothetical.per_day_minor <= baseline.per_day_minor
         assert hypothetical.delta_minor <= 0
 
-    def test_amount_greater_than_remaining_clamps_to_zero_and_overdue(
+    def test_amount_greater_than_remaining_clamps_to_zero_and_over_limit(
         self,
         conn: sqlite3.Connection,
         seeded: dict[str, int],
     ) -> None:
         result = today_svc.afford(conn, date(2026, 1, 10), 999_999)
         assert result.per_day_minor == 0
-        assert result.pace_tag == "overdue"
+        assert result.pace_tag == "over_limit"
 
     def test_negative_amount_raises(
         self,
@@ -92,7 +92,7 @@ class TestAfford:
         # No budgets seeded → remaining stays 0.
         result = today_svc.afford(conn, date(2026, 1, 10), 0)
         assert result.per_day_minor == 0
-        assert result.pace_tag == "overdue"
+        assert result.pace_tag == "over_limit"
 
     def test_pace_tag_tight_fires_between_half_and_full_baseline(
         self,
@@ -103,7 +103,7 @@ class TestAfford:
         # A hypothetical 15000 lowers remaining to 5000 / 22 ≈ 227/day,
         # which is well under half of baseline → tight.
         tight = today_svc.afford(conn, date(2026, 1, 10), 15_000)
-        assert tight.pace_tag in {"tight", "overdue"}
+        assert tight.pace_tag in {"tight", "over_limit"}
 
     def test_days_left_floored_at_one(
         self,

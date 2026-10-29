@@ -1,13 +1,9 @@
 {# ADR-0056 §3 — Can-I-afford live preview fragment. #}
+<span class="mut">→ per day becomes</span>
+<span class="num rd-afford__new">{{ "{:,.2f}".format(new_left_per_day / 100.0) }}</span>
 {% if amount_minor > 0 %}
-  Would leave
-  <strong class="afford__per-day">{{ "{:,.2f}".format(new_left_per_day / 100.0) }} {{ base_ccy }} / day</strong>
-  <span class="afford__delta text-muted amt--{{ 'expense' if delta < 0 else 'income' }}">
-    ({{ "%+.2f"|format(delta / 100.0) }} / day)
-  </span>
-  {% if result is defined %}
-    <span class="afford__pace afford__pace--{{ result.pace_tag }}">{{ result.pace_tag.replace('_', ' ') }}</span>
-  {% endif %}
-{% else %}
-  Would leave <strong class="afford__per-day">{{ "{:,.2f}".format(new_left_per_day / 100.0) }} {{ base_ccy }} / day</strong>
+  <span class="num rd-afford__delta {{ 'neg' if delta < 0 else 'pos' }}">{{ "{:+,.2f}".format(delta / 100.0) }} / day</span>
+{% endif %}
+{% if result is defined %}
+  <span class="rd-afford__pace rd-afford__pace--{{ result.pace_tag }}">{{ {'on_track':'on track','tight':'tight','over_limit':'over limit'}[result.pace_tag] }}</span>
 {% endif %}

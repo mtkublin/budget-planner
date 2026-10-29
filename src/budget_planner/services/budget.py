@@ -77,6 +77,7 @@ class MonthSummary:
     next_income_date: date
     days_until_next_income: int
     anchor_category_name: str | None
+    period_start: date
 
 
 # ADR-0031 §3 — Yearly budget grid origin tag for cell typography.
@@ -410,6 +411,7 @@ def month_summary(
         next_income_date=next_income_date,
         days_until_next_income=days_until_next_income,
         anchor_category_name=anchor_category_name,
+        period_start=period_start,
     )
 
 
