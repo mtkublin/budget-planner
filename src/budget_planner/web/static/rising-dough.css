@@ -1197,6 +1197,56 @@ kbd.rd-kbd {
 .rd-plan-year__cell .rd-heat--one-off { font-weight: 600; }
 .rd-plan-year__cell .rd-heat--recurring { font-style: italic; }
 
+/* T-R54 — Mobile cards swap for the Plan · Year heatmap. */
+.rd-plan-year__cards { display: none; }
+
+.rd-year-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 0.75rem 0.9rem;
+  margin-top: 0.75rem;
+}
+
+.rd-year-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+}
+
+.rd-year-card__name { font-weight: 500; }
+.rd-year-card__total { color: var(--mute); font-family: var(--font-mono); font-size: 0.9rem; }
+
+.rd-year-card__strip {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 0.2rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.rd-year-card__cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  font-size: 0.65rem;
+  color: var(--mute);
+}
+
+.rd-year-card__m { font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; }
+
+.rd-year-card .rd-heat {
+  width: 100%;
+  min-width: 0;
+  padding: 0.4rem 0.1rem;
+  font-size: 0.65rem;
+  text-align: center;
+  justify-content: center;
+}
+
 /* ─── Mobile table scroll wrapper (T-R53) ──────────────────────────── */
 
 /* Position:relative anchors absolute descendants (e.g. .sr-only) to this
@@ -1223,6 +1273,10 @@ kbd.rd-kbd {
     z-index: 1;
     box-shadow: 1px 0 0 var(--line);
   }
+
+  /* T-R54 — Swap the Plan · Year heatmap table for per-category cards. */
+  .rd-plan-year__scroll { display: none; }
+  .rd-plan-year__cards { display: block; }
 
   /* T-R52 — Slide-overs become bottom sheets at ≤640 px. The shared
    * `.slide-over-root` wrapper is kept; only the inner `.slide-over` is

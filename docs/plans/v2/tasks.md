@@ -412,7 +412,7 @@ Owner: `routers/` + `services/`.
 - Reference: ADR-0055 §4.
 - File: `phase-6-responsive/T-R53-narrow-table-scroll.md`.
 
-### ◻ T-R54 [S] Year grid → category cards (mobile) → T-R31
+### ✅ T-R54 [S] Year grid → category cards (mobile) → T-R31
 - At ≤ 640 px replace heatmap with per-category horizontal strip cards.
 - Cell tap opens the Phase 3 cell edit popover.
 - Reference: ADR-0055 §5.

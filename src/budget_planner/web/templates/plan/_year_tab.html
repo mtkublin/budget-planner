@@ -16,6 +16,7 @@
   <p class="rd-field__help">
     One-off (bold) and recurring (hatched) tiers overlay the default per ADR-0014. Click a cell to edit via the Budget tab.
   </p>
+  {# Desktop + tablet — 12-month heatmap table (hidden at ≤640 px via T-R54). #}
   <div class="rd-table-scroll rd-plan-year__scroll">
     <table class="rd-table rd-plan-year__table">
       <caption class="sr-only">Yearly budget heatmap · 12 months × {{ year_rows|length }} categories</caption>
@@ -58,5 +59,28 @@
         </tfoot>
       {% endif %}
     </table>
+  </div>
+  {# Mobile — per-category horizontal strip cards (T-R54). #}
+  <div class="rd-plan-year__cards" aria-hidden="false">
+    {% for row in year_rows %}
+      <article class="rd-year-card" id="year-card-{{ row.category_id }}">
+        <header class="rd-year-card__head">
+          <span class="rd-year-card__name">{{ row.category_name }}</span>
+          <span class="rd-year-card__total numeric">{{ "{:,.0f}".format(row.total_minor / 100.0) }}</span>
+        </header>
+        <ol class="rd-year-card__strip"
+            aria-label="12-month breakdown for {{ row.category_name }}">
+          {% for cell in row.cells %}
+            <li class="rd-year-card__cell" aria-label="{{ months[loop.index0] }}">
+              <span class="rd-year-card__m">{{ months[loop.index0][0] }}</span>
+              {{ heatmap_cell(cell.amount_minor or 0, tier=tier_map.get(cell.origin, "default")) }}
+            </li>
+          {% endfor %}
+        </ol>
+      </article>
+    {% endfor %}
+    {% if not year_rows %}
+      <p class="text-muted">No expense categories yet.</p>
+    {% endif %}
   </div>
 </section>
