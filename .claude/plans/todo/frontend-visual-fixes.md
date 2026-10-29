@@ -1,0 +1,135 @@
+# Frontend Visual Audit — fix list (post-sweep 2026-10-29)
+
+Audit ran at desktop 1440 against live app + every modal captured. Each
+line below quotes the mockup file + the live screenshot where the delta
+shows up. All mockups live under `docs/application_redesign_handoff/`
+(screens/ for raw HTML, mockups/screenshots/ for PNG renders).
+
+Legend: **S** = screen, **M** = modal.
+
+## Critical: modal paradigm
+
+Every mockup overlay is a CENTERED modal card (scrim behind). Current
+implementation renders every overlay as a right-slide-over, which is a
+whole-shape divergence.
+
+- **M · all overlays** · `partials/_slideover_page.html` + `partials/_slideover.html` + `partials/_add_entry_overlay.html` → rebuild as `.rd-modal` centered-scrim shell. Current slide-over markup + CSS stays only for narrow mobile (`@media (width <= 640px)` sheet-up variant).
+- **M · add-entry** · host markup must be a centered `.rd-modal` card max-width 560–640px; header carries `New entry` + `Esc` chip right.
+- **M · create-account / create-category / reconcile** · same centered pattern.
+
+## Today — `desktop___today.png`
+
+- **S · hero amount** · mockup `desktop-01-today.html:8` renders big number in `font: 400 96px 'Newsreader'`. Current (`rd-hero__amount > span.num`) forces IBM Plex Mono. Remove `.num` from span, let `.rd-hero__amount` use `var(--font-display)` + `font-variant-numeric: tabular-nums`. Separate `.rd-hero__cur` already OK.
+- **S · promote-all-due button** · mockup `desktop-01-today.html:17` renders all three buttons as `.btn.s` (grey outline). Current renders `Promote all due` with `rd-btn--primary` (blue). Drop `--primary`, keep ghost. All three identical.
+
+## Ledger — `desktop___ledger.png`
+
+- **S · columns** · mockup `desktop-02-ledger-actual.html:7-9` has: Description(+account subtitle) | Category pill | Direction chip | Amount | ⋯. Current adds Date column + drops Direction column. Fix: delete Date `<th>` and date `<td>`, restore Direction `<th>` + `<td>` with `direction_badge`.
+- **S · description cell** · mockup renders `<strong>cinema city</strong><br><span class="mut">karta kredytowa</span>`. Current renders `<strong>desc</strong>` on one line + account on a separate col. Collapse into one cell `<strong>desc</strong><br><small class="mut">account</small>`.
+- **S · day group header** · OK (left date band + right net).
+- **S · pagination** · "← Newer / Older →" as `.btn.s` outline buttons. Already applied.
+
+## Accounts — `desktop___accounts.png`
+
+- **S · account cell** · mockup `desktop-09-accounts.html:7` has name + type inline (`<span serif>IKZE (mBank)</span> <span mut 12px>investment</span>`). Current renders name on top + type in `<small>` on next line. Switch to inline.
+- **S · kebab column** · mockup has NO `⋯` kebab column; only `Reconcile` button. Delete the trailing kebab TD (actions header already `.sr-only`).
+- **S · liability row** · mockup `desktop-09-accounts.html:7` last row shows `<span class="pill rd-pill--expense">credit card · liability</span>` inline next to the account name + a limit bar + "Limit N · Available N · Used N%" line. Current partially matches but liability pill wraps on second line because it's inside `.rd-desc` instead of inline next to the name.
+- **S · "Checked" chip** · mockup varies ("today" / "14 Oct" / "14 days ago"). My live screenshot shows all rows "01 Apr" — fixture seed doesn't exercise the branch; verify tag logic + colour tokens.
+
+## Plan — Budget — `desktop___plan_tab_budget.png`
+
+OK overall. Minor:
+
+- **S · top-right period selector** · mockup label is "October 2026" (no change) — ✓.
+- **S · bar top-row amount** · number is mono 26px per mockup — ✓.
+
+## Plan — Year — `desktop___plan_tab_year.png`
+
+- **S · year selector** · mockup `desktop-06-plan-year.html:4` places selector in header slot — ✓.
+- **S · cell colouring** · mockup cells use `--expense-soft` background on all expense months. Current renders mostly red fills with heavier contrast; verify `heatmap_cell` tier colours against mockup swatches.
+- **S · legend ordering** · mockup has 4 swatches with the labels I've shipped — ✓.
+
+## Plan — Forecast — `desktop___plan_tab_forecast.png`
+
+Mockup `desktop-07-plan-forecast.html`:
+
+- **S · annotation strip** · mockup renders a muted `Oct 2026 → Sep 2027 · PLN · budget overlay on` caption directly beneath the h1. Current drops it. Add.
+- **S · chart annotations** · mockup shows per-dot callouts (e.g. "Mar: +43,200 unit8 PROFIT SHARE" + "Sep: 22,195 planned, incl. 16,000 holiday"). Current never emits these. Add service-level annotation extraction; for now wire data=None path gracefully.
+- **S · footer caption** · "Oct row comes from the Budget summary so both pages agree. All figures in PLN base." Current drops it. Add.
+- **S · NET column** · mockup shows per-row dot marker alongside the value (green/red). Current renders colour-only. Dot marker is cosmetic; keep deferred.
+
+## Plan — Analytics — `desktop___plan_tab_analytics.png`
+
+- **S · period selector in body** · mockup `desktop-08-plan-analytics.html:5` places month-nav + Month/3 months/YTD/12 months segmented INSIDE the tab body (not in the shared Plan header). Current puts them in the shared header. Move back into the body + duplicate month-nav from shared slot when `tab == "analytics"` to match. (D.1 was over-eager; Analytics selector is a different widget.)
+- **S · "VS 12-MO AVG" column** · mockup shows raw signed delta `+1,162.90` / `−205.12`, not a percent. Current shows `+236% vs 12-mo avg` label. Fix: render the raw delta as `.num.{pos|neg}`.
+- **S · column headers** · mockup emits `CATEGORY | OCTOBER | VS 12-MO AVG` eyebrow headers above the list. Current list has no column headers. Add.
+- **S · footer caption** · "Click a category to open its transactions in Ledger. Red means above the 12-month average." Current already renders this.
+- **S · Income-vs-expense panel** · mockup caption below bars: "Bars follow your current chart (approximate). Oct: about +11.2k surplus." Current drops it.
+- **S · Largest items** · mockup: `VAT · 15 Oct` left, `5,441.00` right. Current shows: name + date together left, amount right. OK.
+
+## Settings — Categories — `desktop___settings_tab_categories.png`
+
+- **S · anchor bar** · mockup `desktop-10-settings-categories.html:6` is single-line: `<p class="eyebrow">Income anchor</p>` + body + green pill selector right. Current wraps into 2–3 lines. Rebuild as flex row.
+- **S · column headers** · mockup has NO `NAME DIRECTION COLOUR ACTIONS` row. Each section (`Expense 16`, `Income 6`, `System read-only`) is just a short header + rows. Remove `<thead>`.
+- **S · section headers** · mockup renders `Expense 16` with light-weight prefix + size badge. Current renders uppercase eyebrow `EXPENSE · 16`. Convert to display font `h3 class="rd-settings-cats__group"` with inline count badge.
+- **S · row actions** · mockup renders `Edit · Archive` as plain text links separated by middle-dot. Current uses button-styled chips. Convert to `<a>`-styled text links.
+- **S · colour cell** · mockup renders `<span class="dot" style="background:#hex"></span> Override · magenta` (name of hue). Current shows `● Override`. Add colour name.
+
+## Settings — modal (Create category)
+
+- **M · overlay chrome** · as above: must be centered modal, not right slide-over.
+- **M · preview strip** · mockup `overlay-15-create-category.html` renders a tinted strip at bottom "PREVIEW   zwierzęta ↓ EXPENSE". Current shows preview but needs the muted strip background wrap.
+- **M · colour swatches** · mockup renders filled circles (not oklch rings). Current uses `.rd-swatch` with `--swatch` filled circle — likely close; verify size + border.
+
+## Modal — Create account
+
+- Wrap in centered modal.
+- Row layout matches mockup after that.
+
+## Modal — Add entry (Happened)
+
+- **M · remove Dest field** · mockup `overlay-13-add-fixed.html` has only Category / Amount / Account+Date / Note. Dest is Repeats-only.
+- **M · Amount block** · mockup renders big display-font amount `32.00 PLN` with underline accent + "leaves 187.87 / day after this" callout. Current renders Amount as a plain text input w/ cur suffix. Add live preview below the input.
+- **M · "Fixed value / Formula ƒ" segmented** · mockup places this on the Amount row, right-aligned. Current puts it only inside the Recurring tab. For Actual + Planned the segmented should still show (even if Formula is disabled for Actual) — defer.
+- **M · footer** · mockup footer: left = `⌘↵ save and add another`, right = `Cancel` `Save ↩`. Current has only right side. Add the left-side hint.
+
+## Modal — Add entry (Repeats, formula)
+
+Mockup `overlay-12-add-formula.html`:
+
+- **M · Repeats sub-label** · tab reads `Repeats · monthly` when cadence is picked. Current shows `Repeats`.
+- **M · Transit indicator** · when category is Transit, header shows two chips (`TRANSIT`, `⇄ TRANSIT`) + "direction comes from the category" muted. Add.
+- **M · From / To row** · when transit, Account splits into From | To. Current only has Account | Dest. Rename to From / To when direction is transit; omit Dest for non-transit.
+- **M · Formula terms row grid** · mockup is `62px 1fr 76px 120px` grid: `+ ▾` sign chip | source selector | `100 %` | computed amount. Current renders chips + checkbox list below each term. Flatten to a single row per term.
+- **M · Result footer** · mockup shows `+ Add term` left + `result 15,650.66 PLN` right. Current only has `+ Add term`.
+- **M · Description + Next due row** · mockup: Description (full-width input) + Next due · Cadence (2-chip row). Current has Day of month + Note. Add Next due date + cadence selector.
+- **M · Save button copy** · "Save rule ↩" (not generic "Add rule").
+
+## Modal — Budget override
+
+- **S/M · placement** · mockup `desktop-05-plan-budget.html:9` renders the override as an INLINE card beneath the table (not a modal). Current launches as a modal. Fix: GET `/budget/rules/{id}/overrides/new` should return a fragment that mounts into `#budget-override-slot` under the table; close by HTMX swap replacing the slot.
+- **M · card chrome** · once inline, use accent-border card w/ segmented tier chips + bordered amount input + Save button + default hint. Already have the markup — just change host from `#modal-root` to a dedicated slot.
+
+## Modal — Reconcile
+
+Mockup `overlay-11-reconcile.html`:
+
+- **M · chrome** · centered modal (not slide-over).
+- **M · step chips** · ① Open your bank · ② Enter its balance · ③ Review. Already present in `T-R39` but formatting looks off in live render — verify after moving to modal.
+- **M · two-input layout** · `RISING DOUGH SAYS | YOUR BANK SAYS` with big display-font numbers. Already present.
+- **M · Difference callout** · amber-tinted block showing `−28.90 PLN` + explanatory copy. Present.
+- **M · Record-as combobox** · select category for the adjustment (defaults to `± ADJUST Reconciliation (system)`). May be stubbed in current markup.
+
+## Execution order (impact-ranked)
+
+1. **Centered-modal shell** (one CSS pattern, applied to every overlay host) → single commit fixes shape for 5 overlays.
+2. **Today hero typography fix** (remove `.num` from big amount span).
+3. **Today promote-all-due** button variant swap.
+4. **Ledger column rewrite** (desc+account, drop Date, restore Direction).
+5. **Accounts row rewrite** (inline name + type, drop kebab col, inline liability pill).
+6. **Settings Categories rewrite** (remove thead, inline anchor bar, Edit·Archive links).
+7. **Plan Analytics** (selector back into tab body, raw delta column, column headers).
+8. **Budget override inline** (not modal).
+9. **Add-entry modal field order** (no Dest, big amount preview, footer hint).
+10. **Add-entry Repeats formula** (From/To, flat term grid, Next due row).
+11. **Plan Forecast caption + annotations** (muted strip + footer).

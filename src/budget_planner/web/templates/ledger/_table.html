@@ -41,16 +41,16 @@
           <tr>
             {% if view == "recurring" %}
               <th scope="col">Next due</th>
-              <th scope="col">Account</th>
+              <th scope="col">Rule</th>
               <th scope="col">Category</th>
+              <th scope="col">Direction</th>
               <th scope="col" class="text-right">Amount</th>
               <th scope="col">Overrides</th>
               <th scope="col"><span class="sr-only">Actions</span></th>
             {% else %}
-              <th scope="col">Date</th>
-              <th scope="col">Description</th>
+              <th scope="col">Description · Account</th>
               <th scope="col">Category</th>
-              <th scope="col">Account</th>
+              <th scope="col">Direction</th>
               <th scope="col" class="text-right">Amount</th>
               {% if view == "planned" %}
                 <th scope="col">Status</th>
@@ -67,7 +67,7 @@
                 {%- set ns.day = row.operation_date -%}
                 {%- set day_net = day_nets.by_date.get(row.operation_date.isoformat(), 0) -%}
                 <tr class="rd-day-head">
-                  <td colspan="5">
+                  <td colspan="4">
                     <span class="rd-eyebrow">{{ row.operation_date.strftime("%a %d %b") }}</span>
                   </td>
                   <td class="text-right">
@@ -75,20 +75,21 @@
                       <span class="num {{ 'pos' if day_net > 0 else 'neg' }}">net {{ '{:+,.2f}'.format(day_net / 100.0) }}</span>
                     {% endif %}
                   </td>
+                  <td></td>
                 </tr>
               {%- endif -%}
               {% set dir_value = row.category.direction.value if row.category else '' %}
               {% set is_income = dir_value == 'income' %}
               <tr id="txn-{{ row.id }}" class="row">
-                <td class="whitespace-nowrap">{{ row.operation_date|date_fmt }}</td>
                 <td>
                   <strong>{{ row.description or '—' }}</strong>
+                  <br>
+                  <small class="text-muted">
+                    {{ row.account.name if row.account else '' }}{% if row.dest_account %} → {{ row.dest_account.name }}{% endif %}
+                  </small>
                 </td>
                 <td>{{ category_label(row.category) }}</td>
-                <td class="rd-desc">
-                  {{ row.account.name if row.account else '' }}
-                  {% if row.dest_account %}→ {{ row.dest_account.name }}{% endif %}
-                </td>
+                <td>{% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}</td>
                 <td class="text-right num {{ 'pos' if is_income else '' }}">
                   {{ '+' if is_income else '' }}{{ row.amount|money(row.currency) }}
                 </td>
@@ -119,10 +120,13 @@
               {% set is_income = dir_value == 'income' %}
               <tr id="planned-{{ row.key }}"
                   class="row {% if (not row.is_promoted) and days_delta < 0 %}rd-row--overdue{% endif %}">
-                <td class="whitespace-nowrap">{{ row.operation_date|date_fmt }}</td>
-                <td><strong>{{ row.description or '—' }}</strong></td>
+                <td>
+                  <strong>{{ row.description or '—' }}</strong>
+                  <br>
+                  <small class="text-muted">{{ row.operation_date|date_fmt }} · {{ row.account.name if row.account else '' }}</small>
+                </td>
                 <td>{{ category_label(row.category) }}</td>
-                <td class="rd-desc">{{ row.account.name if row.account else '' }}</td>
+                <td>{% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}</td>
                 <td class="text-right num {{ 'pos' if is_income else '' }}">
                   {{ '+' if is_income else '' }}{{ row.amount_minor|money(row.currency) }}
                 </td>
@@ -174,7 +178,7 @@
               {%- if ns.day != rec_cadence -%}
                 {%- set ns.day = rec_cadence -%}
                 <tr class="rd-day-head">
-                  <td colspan="6">
+                  <td colspan="7">
                     <span class="rd-eyebrow">{{ rec_cadence|capitalize }}</span>
                   </td>
                 </tr>
@@ -191,9 +195,14 @@
                 </td>
                 <td>
                   <strong>{{ row.default_description or '—' }}</strong>
+                  <br>
+                  <small class="text-muted">
+                    {{ row.account.name if row.account else '' }}{% if row.dest_account is defined and row.dest_account %} → {{ row.dest_account.name }}{% endif %}
+                  </small>
                   {% if not row.active %}<span class="rd-pill rd-pill--muted">inactive</span>{% endif %}
                 </td>
                 <td>{{ category_label(row.category) }}</td>
+                <td>{% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}</td>
                 <td class="text-right num {{ 'pos' if is_income else '' }}"
                     data-cadence="{{ rec_cadence }}">
                   {% if row.amount_overridden %}

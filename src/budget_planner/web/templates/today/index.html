@@ -35,7 +35,7 @@
       {% set period_total_days = ((summary.next_income_date - summary.period_start).days) or 1 %}
       {% set period_day_x = ((today - summary.period_start).days) + 1 %}
       <div class="rd-hero__amount">
-        <span class="num">{{ "{:,.2f}".format(left_per_day) }}</span>
+        <span>{{ "{:,.2f}".format(left_per_day) }}</span>
         <span class="rd-hero__cur num mut">{{ base_ccy }} / day</span>
       </div>
       <div class="rd-hero__meta num">
@@ -115,7 +115,7 @@
       </div>
       <div class="rd-panel__filters">
         <button type="button"
-                class="rd-btn rd-btn--sm rd-btn--primary"
+                class="rd-btn rd-btn--sm"
                 hx-post="/planned/batch/promote-due"
                 hx-swap="none"
                 hx-on::after-request="if(event.detail.successful){htmx.ajax('GET','/overview/upcoming',{target:'#upcoming-root',swap:'innerHTML'});}"

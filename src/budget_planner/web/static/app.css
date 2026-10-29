@@ -1388,36 +1388,42 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
 .overrides-list__remove:hover,
 .overrides-list__remove:focus-visible { color: var(--ink); }
 
-/* ---- Slide-over wrapper (shared, used by every entry overlay) ------------- */
+/* ---- Modal shell (shared, used by every entry overlay) -------------------- *
+ * Mockups render overlays as CENTERED scrim modals (overlay-11..15 all show
+ * a centred card over a dim scrim). Legacy class names (.slide-over*) keep
+ * so existing templates do not need to be renamed. Mobile ≤640px flips to
+ * a bottom-sheet variant that rises from the bottom. */
 .slide-over-root {
   position: fixed;
   inset: 0;
-  background: color-mix(in oklab, var(--ink) 32%, transparent);
+  background: oklch(82% 0.01 85);
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
   z-index: 50;
   animation: slide-over-fade var(--duration-normal) var(--ease-out-expo);
 }
 
 .slide-over {
-  width: min(480px, 100vw);
-  height: 100%;
+  width: 100%;
+  max-width: 560px;
+  max-height: calc(100vh - 80px);
   background: var(--surface-raised);
   color: var(--ink);
-  border-left: 1px solid var(--rule);
-  box-shadow: var(--elevation-2);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgb(30 20 10 / 0.14);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  animation: slide-over-in var(--duration-normal) var(--ease-out-expo);
+  animation: modal-in var(--duration-normal) var(--ease-out-expo);
 }
 
 .slide-over__header {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding: var(--space-5) var(--space-5) var(--space-3);
-  border-bottom: 1px solid var(--rule);
+  padding: 22px 28px 10px;
 }
 
 .slide-over__title {
@@ -1439,12 +1445,12 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
 .slide-over__close:hover { color: var(--ink); }
 
 .slide-over__body {
-  padding: var(--space-4) var(--space-5) var(--space-5);
+  padding: 6px 28px 8px;
 }
 
-@keyframes slide-over-in {
-  from { transform: translateX(100%); opacity: 0; }
-  to   { transform: translateX(0);    opacity: 1; }
+@keyframes modal-in {
+  from { transform: scale(0.98); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
 }
 
 @keyframes slide-over-fade {
@@ -1455,6 +1461,22 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
 @media (prefers-reduced-motion: reduce) {
   .slide-over-root,
   .slide-over { animation: none; }
+}
+
+@media (width <= 640px) {
+  .slide-over-root { align-items: flex-end; padding: 0; }
+
+  .slide-over {
+    max-width: 100vw;
+    max-height: 90dvh;
+    border-radius: 12px 12px 0 0;
+    animation: sheet-up var(--duration-normal) var(--ease-out-expo);
+  }
+
+  @keyframes sheet-up {
+    from { transform: translateY(100%); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
 }
 
 /* ---------------------------------------------------------------------- *
