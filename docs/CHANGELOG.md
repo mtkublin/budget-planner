@@ -1,6 +1,12 @@
 # Changelog
 
 ## 2026-10-29
+- **Manual-audit remediation Phase G — Plan · Analytics rework (audit ids #46, #47, #48, #49)**:
+  (#46) `.rd-analytics-bundle` grid simplified to `1.5fr 1fr` with the right column rebuilt as a flex `.rd-analytics__right` stack (`Income vs expense` on top, `Largest single items` below). Matches `desktop-08-plan-analytics.html:6`.
+  (#47) Removed both `<details class="rd-chart__fallback">` blocks — the spend-by-category list + flow chart are now the only renderings; the raw SVG `h-bars` fallback is gone, and the Income-vs-Expense "Data table" expandable table is gone too.
+  (#48) `_DEFAULT_LARGEST_LIMIT` dropped from `10` to `3` so the Largest-items box caps at three rows per `desktop-08-plan-analytics.html:12`.
+  (#49) Largest-items rows reshaped to a two-column `minmax(0, 1fr) auto` grid with a hairline divider; description + muted date on the left (`<strong>name</strong> · <span class="mut">10 Oct</span>`), amount on the right in mono-tabular (`.num`). Spend-by-category badge uses `.num` + `.cur` conventions. Spend-list bar uses `--pct` custom property for the fill width.
+  1080 tests pass. mypy --strict clean. ruff + djlint + sqlfluff + stylelint green.
 - **Manual-audit remediation Phase F — Plan · Forecast rework (audit ids #42, #43, #44, #45)**:
   (#42) Horizon segmented moved into the shared Plan header slot (`plan/index.html`) with numeric-only labels (`6 / 12 / 24 / 60`). The old `6 mo / 12 mo / 24 mo / 60 mo` labels + duplicate selector inside the tab body are gone.
   (#43) Summary row rebuilt as `.rd-forecast__summary` — three equal cells carrying eyebrow + big display-font number + muted `cur` currency suffix (`Now`, `End · {month}`, `Peak · {month}`). The `.rd-forecast__annotations` paragraph underneath the chart was redundant with the row and is removed.

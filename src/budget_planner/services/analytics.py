@@ -31,7 +31,7 @@ from budget_planner.repositories import (
 Period = Literal["month", "year", "trailing-12"]
 
 _TRAILING_MONTHS = 12
-_DEFAULT_LARGEST_LIMIT = 10
+_DEFAULT_LARGEST_LIMIT = 3  # manual-audit #48 — mockup caps the box at 3 rows.
 
 
 @dataclass(frozen=True, slots=True)

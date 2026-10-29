@@ -588,20 +588,17 @@ nav[aria-label="Primary navigation"] { flex: 1; display: flex; flex-direction: c
 
 .rd-analytics-bundle {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-  grid-template-areas: "spend flow" "spend largest";
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 1.25rem;
 }
-.rd-analytics-bundle > .rd-analytics__spend { grid-area: spend; }
-.rd-analytics-bundle > .rd-analytics__flow { grid-area: flow; }
-.rd-analytics-bundle > .rd-analytics__largest { grid-area: largest; }
+.rd-analytics__right { display: flex; flex-direction: column; gap: 1.25rem; }
 
 @media (width <= 900px) {
-  .rd-analytics-bundle {
-    grid-template-columns: 1fr;
-    grid-template-areas: "spend" "flow" "largest";
-  }
+  .rd-analytics-bundle { grid-template-columns: 1fr; }
 }
+
+.rd-analytics__spend-body { padding: 0.5rem 1.25rem 1.25rem; }
+.rd-analytics__flow-body { padding: 1rem 1.25rem 1.25rem; }
 
 .rd-analytics__badge {
   font-family: var(--font-mono);
@@ -643,10 +640,18 @@ nav[aria-label="Primary navigation"] { flex: 1; display: flex; flex-direction: c
 .rd-analytics__delta--under { color: var(--income); }
 .rd-analytics__delta--flat { color: var(--mute); }
 
-.rd-analytics__largest-list { list-style: none; padding: 0 1rem 1rem; margin: 0; display: grid; gap: 0.6rem; }
-.rd-analytics__largest-list li { padding: 0.6rem 0.8rem; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--paper); }
-.rd-analytics__largest-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; }
-.rd-analytics__largest-meta { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.3rem; font-size: 0.8rem; }
+.rd-analytics__largest-list { list-style: none; padding: 0 1.25rem 1.25rem; margin: 0; display: grid; gap: 0; }
+
+.rd-analytics__largest-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  font-size: 0.9rem;
+  border-top: 1px solid var(--line);
+}
+.rd-analytics__largest-list li:first-child { border-top: 0; }
 
 .rd-analytics__footer { margin: 1rem 0 0; font-size: 0.85rem; }
 
