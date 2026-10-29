@@ -34,7 +34,9 @@ def index() -> RedirectResponse:
 def new_form(request: Request) -> HTMLResponse:
     return render(
         request,
-        "partials/categories/_form.html",
+        "partials/_slideover.html",
+        slide_over_title="New category",
+        form_include="partials/categories/_form.html",
         category=None,
         action="/categories",
         errors={},
@@ -127,7 +129,9 @@ def edit_form(
         )
     return render(
         request,
-        "partials/categories/_form.html",
+        "partials/_slideover.html",
+        slide_over_title="Edit category",
+        form_include="partials/categories/_form.html",
         category=cat,
         action=f"/categories/{category_id}",
         errors={},

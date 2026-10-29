@@ -291,7 +291,7 @@ Owner: `web/templates/{today,ledger,plan,accounts,settings}/`.
 - Reference: handoff §Create account, ADR-0024, ADR-0030.
 - File: `phase-3-screens/T-R65-create-account-overlay.md`.
 
-### ◻ T-R66 [S] Create category overlay reskin → T-R24, T-R35
+### ✅ T-R66 [S] Create category overlay reskin → T-R24, T-R35
 - Rebuild handoff screen 2d: name · direction (Expense / Income only — ADR-0023 scope) · colour (direction default or 10 swatches) · live preview of pill + badge.
 - Reference: handoff §Create category, ADR-0048, ADR-0023.
 - File: `phase-3-screens/T-R66-create-category-overlay.md`.
