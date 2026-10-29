@@ -1817,6 +1817,105 @@ kbd.rd-kbd {
 .pos { color: var(--income); }
 .neg { color: var(--expense); }
 
+/* ─── Today · Upcoming (grid rows, per desktop-01-today.html:16-22) ─ */
+.rd-panel__head-left { display: flex; align-items: center; gap: 1rem; }
+.rd-upcoming { padding: 0.5rem 1.25rem 0.75rem; }
+
+.rd-upcoming__group {
+  padding: 0.9rem 0 0.3rem;
+}
+
+.rd-upcoming__row {
+  display: grid;
+  grid-template-columns: 52px 1fr 160px 150px minmax(220px, auto);
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--line);
+}
+.rd-upcoming__group + .rd-upcoming__row { border-top: 0; }
+.rd-upcoming__row--overdue { background: color-mix(in oklab, var(--expense) 5%, transparent); }
+.rd-upcoming__date { font-size: 0.78rem; }
+.rd-upcoming__desc { display: flex; align-items: baseline; gap: 0.4rem; min-width: 0; overflow: hidden; }
+.rd-upcoming__name { font-weight: 500; }
+.rd-upcoming__acct { font-size: 0.8rem; }
+.rd-upcoming__cat { justify-self: start; }
+.rd-upcoming__amt { text-align: right; }
+.rd-upcoming__actions { display: inline-flex; gap: 0.4rem; justify-content: flex-end; }
+.rd-upcoming__more { padding: 0.75rem 1.25rem; font-size: 0.85rem; margin: 0; }
+.rd-upcoming__empty { padding: 1.25rem; }
+
+/* Inline promote card (per overlay in desktop-01-today.html:19). */
+.rd-promote-inline {
+  border: 1.5px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent-soft);
+  padding: 0.75rem 0.9rem;
+  margin: 0.25rem 1.25rem;
+}
+
+.rd-promote-inline__grid {
+  display: grid;
+  grid-template-columns: 52px 1.3fr 130px 150px auto;
+  gap: 0.75rem;
+  align-items: end;
+}
+.rd-promote-inline__meta { font-size: 0.72rem; margin-bottom: 0.25rem; }
+
+.rd-promote-inline__chip {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+}
+.rd-promote-inline__label { font-size: 0.7rem; margin-bottom: 0.2rem; }
+
+.rd-promote-inline__input {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+.rd-promote-inline__amount {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 0 0 3px #fff;
+}
+
+.rd-promote-inline__input--amount {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  text-align: right;
+  width: 5.5rem;
+}
+.rd-promote-inline__input--amount:focus { outline: none; }
+.rd-promote-inline__actions { display: inline-flex; gap: 0.4rem; justify-content: flex-end; }
+.rd-promote-inline__note { font-size: 0.75rem; margin: 0.6rem 0 0; }
+
+@media (width <= 640px) {
+  .rd-upcoming__row {
+    grid-template-columns: 44px 1fr auto;
+    grid-template-areas:
+      "date desc amt"
+      "date cat  actions";
+  }
+  .rd-upcoming__date { grid-area: date; }
+  .rd-upcoming__desc { grid-area: desc; }
+  .rd-upcoming__cat { grid-area: cat; }
+  .rd-upcoming__amt { grid-area: amt; }
+  .rd-upcoming__actions { grid-area: actions; flex-wrap: wrap; }
+  .rd-promote-inline__grid { grid-template-columns: 1fr; }
+}
+
 /* ─── Recurring amount source + formula builder ───────────────────── */
 .rd-amount-source__head {
   display: flex;

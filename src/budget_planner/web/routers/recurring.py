@@ -928,6 +928,7 @@ def promote_inline(
             prefill_amount = override.amount_override
         if override.description_override is not None:
             prefill_description = override.description_override
+    categories_by_id = {c.id: c for c in categories_repo.list_all(conn)}
     return render(
         request,
         "partials/recurring/_promote_inline_row.html",
@@ -936,6 +937,7 @@ def promote_inline(
         occurrence_date=occurrence,
         prefill_amount_minor=prefill_amount,
         prefill_description=prefill_description,
+        categories_by_id=categories_by_id,
     )
 
 

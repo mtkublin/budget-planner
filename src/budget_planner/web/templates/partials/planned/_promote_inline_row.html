@@ -1,45 +1,61 @@
 {# F-02 — Inline row-expand form rendered when the Today Upcoming "Promote"
-   button is clicked. Replaces the current <tr> and submits to the plain
-   /planned/{id}/promote endpoint on confirm. `Esc` reverts the row via
-   HTMX by re-fetching the Upcoming fragment. #}
-<tr id="upcoming-planned-{{ planned.id }}"
-    class="upcoming-row--editing"
-    data-inline-edit>
-  <td colspan="5">
-    <form class="rd-inline-promote"
-          hx-post="/planned/{{ planned.id }}/promote"
-          hx-swap="none"
-          hx-on::after-request="if(event.detail.successful){htmx.ajax('GET','/overview/upcoming',{target:'#upcoming-root',swap:'innerHTML'});}">
-      <label class="rd-field rd-field--inline">
-        <span class="rd-field__label">Account</span>
-        <strong>{{ account.name if account else '—' }}</strong>
-      </label>
-      <label class="rd-field rd-field--inline">
-        <span class="rd-field__label">Date</span>
+   button is clicked. Posts to the plain /planned/{id}/promote endpoint on
+   confirm. `Esc` reverts by re-fetching the Upcoming fragment. #}
+{% set category = categories_by_id.get(planned.category_id) if categories_by_id is defined and planned else none %}
+{% set direction = category.direction.value if category else "expense" %}
+<div id="upcoming-planned-{{ planned.id }}"
+     class="rd-promote-inline"
+     data-inline-edit>
+  <form class="rd-promote-inline__form"
+        hx-post="/planned/{{ planned.id }}/promote"
+        hx-swap="none"
+        hx-on::after-request="if(event.detail.successful){htmx.ajax('GET','/overview/upcoming',{target:'#upcoming-root',swap:'innerHTML'});}">
+    <div class="rd-promote-inline__grid">
+      <span class="num mut rd-promote-inline__date">{{ planned.operation_date.strftime("%b %d") }}</span>
+      <div class="rd-promote-inline__desc">
+        <div class="mut rd-promote-inline__meta">
+          {{ planned.description or '—' }}
+          {% if category %}
+            · <span class="rd-pill rd-pill--{{ direction }}"
+       {% if category.color %} style="background: color-mix(in oklab, {{ category.color }} 14%, transparent); color: {{ category.color }}"{% endif %}>{{ category.name|upper }}</span>
+          {% endif %}
+        </div>
+        <div class="rd-promote-inline__chip">{{ account.name if account else '—' }}</div>
+      </div>
+      <div class="rd-promote-inline__field">
+        <div class="mut rd-promote-inline__label">Date</div>
         <input type="date"
+               class="num rd-promote-inline__input"
                name="operation_date"
                value="{{ planned.operation_date|date_fmt }}"
                required>
-      </label>
-      <label class="rd-field rd-field--inline">
-        <span class="rd-field__label">Amount</span>
-        <input type="text"
-               name="amount"
-               value="{{ planned.amount|money_major(account.currency if account else 'PLN') }}"
-               inputmode="decimal"
-               required>
-      </label>
-      <input type="hidden"
-             name="description"
-             value="{{ planned.description or '' }}">
-      <div class="rd-inline-promote__actions">
-        <button type="submit" class="rd-btn rd-btn--primary rd-btn--sm">Confirm ↩</button>
+      </div>
+      <div class="rd-promote-inline__field">
+        <div class="mut rd-promote-inline__label">Amount</div>
+        <span class="rd-promote-inline__amount">
+          <input type="text"
+                 class="num rd-promote-inline__input rd-promote-inline__input--amount"
+                 name="amount"
+                 value="{{ planned.amount|money_major(account.currency if account else 'PLN') }}"
+                 inputmode="decimal"
+                 required>
+          <span class="cur">{{ account.currency if account else base_ccy }}</span>
+        </span>
+      </div>
+      <div class="rd-promote-inline__actions">
+        <button type="submit" class="rd-btn rd-btn--sm rd-btn--primary">Confirm ↵</button>
         <button type="button"
-                class="rd-btn rd-btn--ghost rd-btn--sm"
+                class="rd-btn rd-btn--sm rd-btn--ghost"
                 hx-get="/overview/upcoming"
                 hx-target="#upcoming-root"
                 hx-swap="innerHTML">Esc</button>
       </div>
-    </form>
-  </td>
-</tr>
+    </div>
+    <input type="hidden"
+           name="description"
+           value="{{ planned.description or '' }}">
+    <p class="rd-promote-inline__note mut">
+      Inline confirm, no modal. Records a real transaction on {{ account.name if account else 'the account' }}.
+    </p>
+  </form>
+</div>

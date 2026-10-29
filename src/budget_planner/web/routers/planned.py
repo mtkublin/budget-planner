@@ -426,11 +426,13 @@ def promote_inline(
     if pl is None:
         return Response(status_code=404, content="not found")
     acc = accounts_repo.find_by_id(conn, pl.account_id)
+    categories_by_id = {c.id: c for c in categories_repo.list_all(conn)}
     return render(
         request,
         "partials/planned/_promote_inline_row.html",
         planned=pl,
         account=acc,
+        categories_by_id=categories_by_id,
     )
 
 

@@ -56,6 +56,8 @@ def today(
 
     window_label, window_days = home_router._window_from(request)
     upcoming = home_router._list_upcoming(conn, today_d, window_days)
+    categories_by_id = {c.id: c for c in categories_repo.list_all(conn)}
+    accounts_by_id = {a.id: a for a in accounts_repo.list_all(conn)}
 
     return render(
         request,
@@ -74,6 +76,8 @@ def today(
         bar_pct=bar_pct,
         upcoming=upcoming,
         window_label=window_label,
+        categories_by_id=categories_by_id,
+        accounts_by_id=accounts_by_id,
     )
 
 
