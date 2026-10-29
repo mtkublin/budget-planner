@@ -48,75 +48,77 @@
                   color: var(--expense)">{{ "{:,.2f}".format(fortune.liabilities_base / 100.0) }}</div>
     </div>
   </section>
-  <table class="rd-table">
-    <caption class="sr-only">Accounts — balance, trend, last checked</caption>
-    <thead>
-      <tr>
-        <th scope="col">Account</th>
-        <th scope="col">Trend</th>
-        <th scope="col">Checked</th>
-        <th scope="col" class="num">Txns</th>
-        <th scope="col" class="num">Balance</th>
-        <th scope="col"><span class="sr-only">Actions</span></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for card in cards %}
-        {% set a = card.account %}
-        <tr id="account-{{ a.id }}">
-          <td class="rd-desc">
-            {{ a.name }}
-            {%- if a.is_liability %}<span class="rd-pill rd-pill--expense">credit card · liability</span>{%- endif %}
-            <small>{{ a.type or 'account' }}</small>
-          </td>
-          <td>{{ sparkline(card.sparkline_values) }}</td>
-          <td>
-            {% if card.snapshots and card.snapshots[0].taken_at %}
-              <span class="rd-checked">{{ card.snapshots[0].taken_at.strftime("%d %b") }}</span>
-            {% else %}
-              <span class="rd-checked rd-checked--stale">never</span>
-            {% endif %}
-          </td>
-          <td class="num">{{ card.stats.txn_count }}</td>
-          <td class="num">
-            <span class="rd-amount {% if card.balance < 0 %}rd-amount--expense{% endif %}">
-              {{ "{:,.2f}".format(card.balance / 100.0) }} <span class="rd-amount__currency">{{ a.currency }}</span>
-            </span>
-          </td>
-          <td class="rd-actions">
-            <button class="rd-btn rd-btn--sm"
-                    hx-get="/accounts/{{ a.id }}/reconcile"
-                    hx-target="#modal-root"
-                    hx-swap="innerHTML">Reconcile</button>
-            {% call kebab_menu(id="account-" ~ a.id) %}
-              <li role="none">
-                <button type="button"
-                        role="menuitem"
-                        hx-get="/accounts/{{ a.id }}/edit"
-                        hx-target="#modal-root"
-                        hx-swap="innerHTML">Edit</button>
-              </li>
-              <li role="none">
-                <button type="button"
-                        role="menuitem"
-                        hx-post="/accounts/{{ a.id }}/snapshot"
-                        hx-swap="none">Snapshot</button>
-              </li>
-              <li role="none">
-                <button type="button"
-                        role="menuitem"
-                        data-destructive
-                        hx-post="/accounts/{{ a.id }}/delete"
-                        hx-target="#account-{{ a.id }}"
-                        hx-swap="outerHTML"
-                        hx-confirm="Soft-delete this account? Transactions remain.">Delete</button>
-              </li>
-            {% endcall %}
-          </td>
+  <div class="rd-table-scroll">
+    <table class="rd-table">
+      <caption class="sr-only">Accounts — balance, trend, last checked</caption>
+      <thead>
+        <tr>
+          <th scope="col">Account</th>
+          <th scope="col">Trend</th>
+          <th scope="col">Checked</th>
+          <th scope="col" class="num">Txns</th>
+          <th scope="col" class="num">Balance</th>
+          <th scope="col"><span class="sr-only">Actions</span></th>
         </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {% for card in cards %}
+          {% set a = card.account %}
+          <tr id="account-{{ a.id }}">
+            <td class="rd-desc">
+              {{ a.name }}
+              {%- if a.is_liability %}<span class="rd-pill rd-pill--expense">credit card · liability</span>{%- endif %}
+              <small>{{ a.type or 'account' }}</small>
+            </td>
+            <td>{{ sparkline(card.sparkline_values) }}</td>
+            <td>
+              {% if card.snapshots and card.snapshots[0].taken_at %}
+                <span class="rd-checked">{{ card.snapshots[0].taken_at.strftime("%d %b") }}</span>
+              {% else %}
+                <span class="rd-checked rd-checked--stale">never</span>
+              {% endif %}
+            </td>
+            <td class="num">{{ card.stats.txn_count }}</td>
+            <td class="num">
+              <span class="rd-amount {% if card.balance < 0 %}rd-amount--expense{% endif %}">
+                {{ "{:,.2f}".format(card.balance / 100.0) }} <span class="rd-amount__currency">{{ a.currency }}</span>
+              </span>
+            </td>
+            <td class="rd-actions">
+              <button class="rd-btn rd-btn--sm"
+                      hx-get="/accounts/{{ a.id }}/reconcile"
+                      hx-target="#modal-root"
+                      hx-swap="innerHTML">Reconcile</button>
+              {% call kebab_menu(id="account-" ~ a.id) %}
+                <li role="none">
+                  <button type="button"
+                          role="menuitem"
+                          hx-get="/accounts/{{ a.id }}/edit"
+                          hx-target="#modal-root"
+                          hx-swap="innerHTML">Edit</button>
+                </li>
+                <li role="none">
+                  <button type="button"
+                          role="menuitem"
+                          hx-post="/accounts/{{ a.id }}/snapshot"
+                          hx-swap="none">Snapshot</button>
+                </li>
+                <li role="none">
+                  <button type="button"
+                          role="menuitem"
+                          data-destructive
+                          hx-post="/accounts/{{ a.id }}/delete"
+                          hx-target="#account-{{ a.id }}"
+                          hx-swap="outerHTML"
+                          hx-confirm="Soft-delete this account? Transactions remain.">Delete</button>
+                </li>
+              {% endcall %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
   <p style="margin-top: 1rem; font-size: 0.8rem; color: var(--mute);">
     "Checked" shows when the balance was last compared with the bank. Snapshots live inside the reconcile panel instead of a collapsed list per card.
   </p>

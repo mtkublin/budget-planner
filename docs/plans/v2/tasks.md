@@ -406,7 +406,7 @@ Owner: `routers/` + `services/`.
 - Reference: ADR-0055 §3.
 - File: `phase-6-responsive/T-R52-add-bottom-sheet.md`.
 
-### ◻ T-R53 [S] Narrow numeric table scroll wrappers → T-R30, T-R31, T-R33
+### ✅ T-R53 [S] Narrow numeric table scroll wrappers → T-R30, T-R31, T-R33
 - Reuse `.ledger-scroll` or new `.table-scroll` with sticky first column.
 - Fixes `/budget`, `/analytics`, `/forecast` overflow findings.
 - Reference: ADR-0055 §4.

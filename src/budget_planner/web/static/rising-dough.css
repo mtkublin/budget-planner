@@ -336,7 +336,8 @@ body.rd {
 }
 .rd-netcard__total small { font-family: var(--font-mono); font-size: 0.75rem; color: var(--mute); font-weight: 400; margin-left: 0.35rem; }
 .rd-netcard__rows { display: grid; gap: 0.35rem; margin-top: 0.75rem; font-size: 0.9rem; }
-.rd-netcard__row { display: grid; grid-template-columns: 1fr auto; gap: 0.75rem; align-items: baseline; color: var(--mute); }
+.rd-netcard__row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: baseline; color: var(--mute); }
+.rd-netcard__row > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rd-netcard__row .n { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink); }
 .rd-netcard__row--liab .n { color: var(--expense); }
 .rd-netcard__link { color: var(--mute); font-size: 0.8rem; text-decoration: underline; text-underline-offset: 2px; }
@@ -807,6 +808,29 @@ kbd.rd-kbd {
   .rd-rail { display: none; }
   .rd-main { padding: 1rem 1rem 5rem; }
 
+  /* Stack title / actions and allow the segmented tabs to scroll horizontally
+   * when the number of tabs or action buttons exceeds the viewport width. */
+  .rd-screen-header {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .rd-screen-header__actions {
+    justify-self: start;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .rd-segmented {
+    overflow-x: auto;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .rd-chips { flex-wrap: wrap; }
+
+  .rd-hero-grid { grid-template-columns: 1fr; }
+
   .rd-tabbar {
     position: fixed;
     bottom: 0; left: 0; right: 0;
@@ -1140,3 +1164,31 @@ kbd.rd-kbd {
 
 .rd-reconcile-header { align-items: flex-start; }
 .rd-reconcile-header .rd-eyebrow { margin-bottom: 0.2rem; }
+
+/* ─── Mobile table scroll wrapper (T-R53) ──────────────────────────── */
+
+/* Position:relative anchors absolute descendants (e.g. .sr-only) to this
+ * container, so they don't bleed into the document scrollWidth. */
+.rd-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  position: relative;
+}
+
+@media (width <= 640px) {
+  .rd-table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .rd-table-scroll .rd-table { min-width: 36rem; }
+
+  .rd-table-scroll .rd-table thead th:first-child,
+  .rd-table-scroll .rd-table tbody td:first-child {
+    position: sticky;
+    left: 0;
+    background: var(--paper);
+    z-index: 1;
+    box-shadow: 1px 0 0 var(--line);
+  }
+}
