@@ -9,25 +9,19 @@
       <div class="rd-eyebrow">Ledger</div>
       <h1>{{ titles.get(view, 'Ledger') }}</h1>
     </div>
-    <div class="rd-screen-header__actions">
-      {{ top_bar_add(view, 'n') }}
-      <span class="text-muted" style="font-size: 0.75rem; color: var(--mute);">
-        <kbd class="rd-kbd">[</kbd> <kbd class="rd-kbd">]</kbd> switch tab
-      </span>
-    </div>
+    <div class="rd-screen-header__actions">{{ top_bar_add(view, 'n') }}</div>
   </header>
-  <div data-ledger-views>
+  <div class="rd-ledger-tabs" data-ledger-views>
     {{ segmented([
       ('actual', 'Actual', tab_counts.actual if tab_counts is defined else none),
       ('planned', 'Planned', tab_counts.planned if tab_counts is defined else none),
       ('recurring', 'Recurring', tab_counts.recurring if tab_counts is defined else none),
     ], view, name='view', base_href='/ledger') }}
+    <span class="rd-ledger-tabs__hint mut">
+      <kbd class="rd-kbd">[</kbd> <kbd class="rd-kbd">]</kbd> switch tab
+    </span>
   </div>
-  <form class="rd-chips"
-        style="margin-top: 1.25rem;
-               background: var(--surface);
-               border: 1px solid var(--line);
-               border-radius: var(--radius-card)"
+  <form class="rd-chips rd-ledger-chips"
         hx-get="/ledger/table?view={{ view }}"
         hx-target="#ledger-table"
         hx-swap="outerHTML"
@@ -37,18 +31,14 @@
       <input type="date"
              name="date_from"
              value="{{ filters.date_from.isoformat() if filters.date_from else '' }}"
-             class="rd-chip-select"
-             style="padding: 0.25rem 0.5rem;
-                    border: 1px solid var(--line)">
+             class="rd-chip-select">
     </label>
     <label>
       <span class="sr-only">To</span>
       <input type="date"
              name="date_to"
              value="{{ filters.date_to.isoformat() if filters.date_to else '' }}"
-             class="rd-chip-select"
-             style="padding: 0.25rem 0.5rem;
-                    border: 1px solid var(--line)">
+             class="rd-chip-select">
     </label>
     <label>
       <span class="sr-only">Category</span>
@@ -98,36 +88,6 @@
       <kbd class="rd-kbd">/</kbd>
     </label>
   </form>
-  {# T-R69 — sticky bulk-select toolbar; revealed by static/js/bulk-select.js
-     when any row checkbox is on. Export links reuse the current filter via
-     existing /transactions/export + /planned/export endpoints. #}
-  {% if view in ("actual", "planned") %}
-    <div class="rd-bulk-toolbar"
-         data-bulk-toolbar
-         data-view="{{ view }}"
-         hidden
-         role="region"
-         aria-label="Bulk actions">
-      <span><strong data-bulk-count>0</strong> selected</span>
-      <button type="button" class="rd-btn rd-btn--sm" data-bulk-clear>Clear</button>
-      {% if view == "actual" %}
-        <a class="rd-btn rd-btn--sm"
-           href="/transactions/export?format=csv"
-           data-bulk-export>Export CSV</a>
-        <a class="rd-btn rd-btn--sm"
-           href="/transactions/export?format=parquet"
-           data-bulk-export>Export Parquet</a>
-      {% else %}
-        <a class="rd-btn rd-btn--sm"
-           href="/planned/export?format=csv"
-           data-bulk-export>Export CSV</a>
-      {% endif %}
-      <button type="button"
-              class="rd-btn rd-btn--sm"
-              data-bulk-delete
-              data-destructive>Delete selected</button>
-    </div>
-  {% endif %}
   {% if view == "recurring" and recurring_summary %}
     <aside class="rd-recurring-strip" aria-label="Monthly cash flow summary">
       <div>
@@ -156,10 +116,7 @@
   <section style="margin-top: 1rem;">
     {% include "ledger/_table.html" %}
   </section>
-  <p style="margin-top: 1.5rem; font-size: 0.85rem; color: var(--mute)">
-    Deleted = archived; restorable from
-    <a href="/ledger/recently-deleted"
-       style="color: var(--accent);
-              text-underline-offset: 2px">Recently deleted →</a>
+  <p class="rd-ledger-recently mut">
+    Deleted = archived; restorable from <a href="/ledger/recently-deleted">Recently deleted →</a>
   </p>
 {% endblock %}

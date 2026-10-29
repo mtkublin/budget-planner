@@ -1,6 +1,11 @@
 # Changelog
 
 ## 2026-10-29
+- **Manual-audit remediation Phase C.1 — Ledger toolbar (audit ids #22, #23, #24)**:
+  (#22) `.rd-ledger-chips` constrained to a single row at ≥960 px with a 15 rem search field anchored to the right (`.rd-ledger-chips .rd-chips__search { flex: 0 0 15rem; margin-left: auto }`). Below 960 px the chips wrap and the search spans the full width.
+  (#23) `[` / `]` keyboard shortcut hint moved out of the header-actions bar and into a `.rd-ledger-tabs__hint` sitting next to the segmented tabs — matches `desktop-02-ledger-actual.html:5`.
+  (#24) The dark `.rd-bulk-toolbar` block + per-row bulk-check column from `ledger/index.html` is gone (`view in ("actual","planned")` guard removed). Row-level checkbox markup still lives in `_table.html` and is Phase C.2 cleanup.
+  1080 tests pass. mypy --strict clean. lint green.
 - **Manual-audit remediation Phase C.4 — Remove FAB (audit id #31)**: no mockup carries a floating action button. Deleted `templates/partials/_fab.html`, `web/context.py` (FAB target router), the Jinja global `fab_target_for`, the `{% block fab %}` include in `base.html`, the `.fab` block in `app.css`, and the mobile-only `.fab { display: none }` override in `rising-dough.css`. `tests/integration/web/test_fab.py` rewritten as a negative-regression guard: iterates every primary surface and asserts no `<button class="fab">` renders. The `+ Add` top-bar pill + the `n` keyboard shortcut remain the only new-entry affordances. 1080 tests pass (eight prior FAB-presence tests removed). mypy --strict + lint green.
 - **Manual-audit remediation Phase B.3 — Today Upcoming (audit ids #8, #9, #10, #11, #12, #13, #14)**:
   (#8, #9) Panel header split into left-group `[title | 7/30/All segmented]` and right-group `[Promote all due · + Planned · + Recurring]` — matches `desktop-01-today.html:17`. Button copy aligned to the mockup (`Promote all due ⇧↵`, `+ Planned`, `+ Recurring`).

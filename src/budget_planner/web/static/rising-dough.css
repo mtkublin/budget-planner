@@ -1813,6 +1813,44 @@ kbd.rd-kbd {
 .pos { color: var(--income); }
 .neg { color: var(--expense); }
 
+/* ─── Ledger · tabs + chips (desktop-02-ledger-actual.html:5-6) ───── */
+.rd-ledger-tabs {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+.rd-ledger-tabs__hint { font-size: 0.75rem; }
+
+.rd-ledger-chips {
+  margin-top: 1rem;
+  padding: 0.65rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.rd-ledger-chips > label { display: inline-flex; align-items: center; }
+
+.rd-ledger-chips .rd-chip-select {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font-size: 0.85rem;
+}
+.rd-ledger-chips .rd-chips__search { flex: 0 0 15rem; margin-left: auto; }
+.rd-ledger-recently { margin-top: 1.25rem; font-size: 0.8rem; }
+.rd-ledger-recently a { color: var(--accent); text-underline-offset: 2px; }
+
+@media (width <= 960px) {
+  .rd-ledger-chips { flex-wrap: wrap; }
+  .rd-ledger-chips .rd-chips__search { flex: 1 1 100%; margin-left: 0; }
+}
+
 /* ─── Today · Upcoming (grid rows, per desktop-01-today.html:16-22) ─ */
 .rd-panel__head-left { display: flex; align-items: center; gap: 1rem; }
 .rd-upcoming { padding: 0.5rem 1.25rem 0.75rem; }
