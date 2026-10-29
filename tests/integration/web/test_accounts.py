@@ -109,7 +109,11 @@ def test_delete(client: TestClient, acc_id: int, _migrated: Settings) -> None:
     assert r.status_code == 200
     assert r.text == ""
     hx = json.loads(r.headers["HX-Trigger"])
-    assert hx == {"balance-stale": True, "forecast-stale": True}
+    assert hx == {
+        "balance-stale": True,
+        "forecast-stale": True,
+        "toast": {"kind": "success", "message": "Account deleted"},
+    }
 
 
 def test_snapshot(client: TestClient, acc_id: int, _migrated: Settings) -> None:

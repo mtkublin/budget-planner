@@ -8,6 +8,7 @@ router parses + renders.
 from __future__ import annotations
 
 import contextlib
+import json
 import sqlite3
 from datetime import date
 from decimal import Decimal, InvalidOperation
@@ -303,7 +304,13 @@ def update_account(  # noqa: PLR0917
 def delete_account(account_id: int, conn: sqlite3.Connection = Depends(get_db)) -> Response:
     accounts_repo.soft_delete(conn, account_id)
     resp = Response(content="", media_type="text/html")
-    trigger(resp, "balance-stale", "forecast-stale")
+    resp.headers["HX-Trigger"] = json.dumps(
+        {
+            "balance-stale": True,
+            "forecast-stale": True,
+            "toast": {"kind": "success", "message": "Account deleted"},
+        }
+    )
     return resp
 
 
@@ -320,12 +327,16 @@ def take_snapshot(
     snap = snapshots_repo.create(
         conn, NewAccountSnapshot(account_id=account_id, balance=bal, note="user snapshot")
     )
-    return render(
+    resp = render(
         request,
         "partials/accounts/_snapshot_item.html",
         snapshot=snap,
         account=acc,
     )
+    resp.headers["HX-Trigger"] = json.dumps(
+        {"toast": {"kind": "success", "message": "Snapshot saved"}}
+    )
+    return resp
 
 
 @router.get("/{account_id}/reconcile", response_class=HTMLResponse)

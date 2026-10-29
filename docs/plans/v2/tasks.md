@@ -296,7 +296,7 @@ Owner: `web/templates/{today,ledger,plan,accounts,settings}/`.
 - Reference: handoff §Create category, ADR-0048, ADR-0023.
 - File: `phase-3-screens/T-R66-create-category-overlay.md`.
 
-### ◻ T-R67 [S] Accounts ⋯ menu → T-R24, T-R34
+### ✅ T-R67 [S] Accounts ⋯ menu → T-R24, T-R34
 - Row ⋯ opens popover with Edit · Snapshot · Delete per handoff §Accounts "described, not drawn".
 - Edit opens the Create-account overlay (T-R65) pre-filled; Snapshot posts to existing `/accounts/{id}/snapshots`; Delete soft-deletes via existing endpoint with `hx-confirm`.
 - Reference: ADR-0051 §6.

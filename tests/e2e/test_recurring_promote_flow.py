@@ -37,7 +37,7 @@ def test_recurring_rule_and_planned_promote_cycle(
 
     page.goto(f"{base_url}/accounts")
     account_id = strip_id_prefix(
-        page.locator("article[id^='account-']").first.get_attribute("id"),
+        page.locator("tr[id^='account-']").first.get_attribute("id"),
         "account-",
     )
     page.goto(f"{base_url}/categories")

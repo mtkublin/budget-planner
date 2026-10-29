@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_partials/components/_amount.html" import amount %}
 {% from "_partials/components/_sparkline.html" import sparkline %}
+{% from "_partials/kebab_menu.html" import kebab_menu %}
 {% block title %}Accounts · Rising Dough{% endblock %}
 {% block main %}
   <header class="rd-screen-header">
@@ -15,12 +16,19 @@
               hx-swap="innerHTML">+ New account</button>
     </div>
   </header>
-
-  <section style="display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 2rem; align-items: baseline; margin-bottom: 1.75rem;">
+  <section style="display: grid;
+                  grid-template-columns: minmax(0, 1fr) auto auto;
+                  gap: 2rem;
+                  align-items: baseline;
+                  margin-bottom: 1.75rem">
     <div>
-      <div style="font-family: var(--font-display); font-size: clamp(2rem, 1.4rem + 2vw, 3rem); font-weight: 500;">
+      <div style="font-family: var(--font-display);
+                  font-size: clamp(2rem, 1.4rem + 2vw, 3rem);
+                  font-weight: 500">
         {{ "{:,.2f}".format(fortune.net_base / 100.0) }}
-        <small style="font-family: var(--font-mono); font-size: 0.4em; color: var(--mute);">{{ base_ccy }}</small>
+        <small style="font-family: var(--font-mono);
+                      font-size: 0.4em;
+                      color: var(--mute)">{{ base_ccy }}</small>
       </div>
       <div style="font-size: 0.85rem; margin-top: 0.25rem; color: var(--mute);">
         All balances in base currency {{ base_ccy }}. No FX conversions needed today.
@@ -28,14 +36,18 @@
     </div>
     <div>
       <div class="rd-eyebrow">Assets</div>
-      <div style="font-family: var(--font-mono); font-size: 1.25rem; margin-top: 0.25rem;">{{ "{:,.2f}".format(fortune.assets_base / 100.0) }}</div>
+      <div style="font-family: var(--font-mono);
+                  font-size: 1.25rem;
+                  margin-top: 0.25rem">{{ "{:,.2f}".format(fortune.assets_base / 100.0) }}</div>
     </div>
     <div>
       <div class="rd-eyebrow">Liabilities</div>
-      <div style="font-family: var(--font-mono); font-size: 1.25rem; margin-top: 0.25rem; color: var(--expense);">{{ "{:,.2f}".format(fortune.liabilities_base / 100.0) }}</div>
+      <div style="font-family: var(--font-mono);
+                  font-size: 1.25rem;
+                  margin-top: 0.25rem;
+                  color: var(--expense)">{{ "{:,.2f}".format(fortune.liabilities_base / 100.0) }}</div>
     </div>
   </section>
-
   <table class="rd-table">
     <caption class="sr-only">Accounts — balance, trend, last checked</caption>
     <thead>
@@ -54,13 +66,13 @@
         <tr id="account-{{ a.id }}">
           <td class="rd-desc">
             {{ a.name }}
-            {%- if a.is_liability %} <span class="rd-pill rd-pill--expense">credit card · liability</span>{%- endif %}
+            {%- if a.is_liability %}<span class="rd-pill rd-pill--expense">credit card · liability</span>{%- endif %}
             <small>{{ a.type or 'account' }}</small>
           </td>
           <td>{{ sparkline(card.sparkline_values) }}</td>
           <td>
             {% if card.snapshots and card.snapshots[0].taken_at %}
-              <span class="rd-checked">{{ card.snapshots[0].taken_at.strftime('%d %b') }}</span>
+              <span class="rd-checked">{{ card.snapshots[0].taken_at.strftime("%d %b") }}</span>
             {% else %}
               <span class="rd-checked rd-checked--stale">never</span>
             {% endif %}
@@ -76,6 +88,30 @@
                     hx-get="/accounts/{{ a.id }}/reconcile"
                     hx-target="#modal-root"
                     hx-swap="innerHTML">Reconcile</button>
+            {% call kebab_menu(id="account-" ~ a.id) %}
+              <li role="none">
+                <button type="button"
+                        role="menuitem"
+                        hx-get="/accounts/{{ a.id }}/edit"
+                        hx-target="#modal-root"
+                        hx-swap="innerHTML">Edit</button>
+              </li>
+              <li role="none">
+                <button type="button"
+                        role="menuitem"
+                        hx-post="/accounts/{{ a.id }}/snapshot"
+                        hx-swap="none">Snapshot</button>
+              </li>
+              <li role="none">
+                <button type="button"
+                        role="menuitem"
+                        data-destructive
+                        hx-post="/accounts/{{ a.id }}/delete"
+                        hx-target="#account-{{ a.id }}"
+                        hx-swap="outerHTML"
+                        hx-confirm="Soft-delete this account? Transactions remain.">Delete</button>
+              </li>
+            {% endcall %}
           </td>
         </tr>
       {% endfor %}
@@ -84,5 +120,4 @@
   <p style="margin-top: 1rem; font-size: 0.8rem; color: var(--mute);">
     "Checked" shows when the balance was last compared with the bank. Snapshots live inside the reconcile panel instead of a collapsed list per card.
   </p>
-  <div id="modal-root"></div>
 {% endblock %}

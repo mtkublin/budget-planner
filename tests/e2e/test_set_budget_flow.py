@@ -31,7 +31,7 @@ def test_set_budget_shows_remaining_after_spend(
     # Discover ids by scraping /accounts and /categories.
     page.goto(f"{base_url}/accounts")
     account_id = strip_id_prefix(
-        page.locator("article[id^='account-']").first.get_attribute("id"),
+        page.locator("tr[id^='account-']").first.get_attribute("id"),
         "account-",
     )
     page.goto(f"{base_url}/categories")

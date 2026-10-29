@@ -42,8 +42,8 @@ def test_add_transaction_updates_account_balance(
     # Opening balance renders as "100.00 zł".
     expect(page.get_by_text("100.00").first).to_be_visible()
 
-    # Find the account_id by inspecting the article wrapper.
-    account_el = page.locator("article[id^='account-']").first
+    # Find the account_id by inspecting the row wrapper.
+    account_el = page.locator("tr[id^='account-']").first
     account_id = strip_id_prefix(account_el.get_attribute("id"), "account-")
 
     # Find the category id by posting a form POST that reads back the row.
