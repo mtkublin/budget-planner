@@ -111,13 +111,15 @@
               <div class="rd-formula__sources">
                 {% if source_categories %}
                   <select name="terms[{{ term_idx }}][source_category_ids]"
-                          class="rd-chip-select">
-                    <option value="">— pick source —</option>
+                          class="rd-chip-select rd-chip-select--multi"
+                          multiple
+                          size="4">
                     {% for cat in source_categories %}
                       <option value="{{ cat.id }}"
                               {% if cat.id in term.source_category_ids %}selected{% endif %}>{{ cat.name }}</option>
                     {% endfor %}
                   </select>
+                  <small class="mut">Hold ⌘/Ctrl to pick multiple.</small>
                 {% else %}
                   <span class="text-muted text-sm">No eligible categories.</span>
                 {% endif %}
@@ -213,8 +215,10 @@
       </div>
       <div class="rd-formula__sources">
         {% if source_categories %}
-          <select name="terms[__IDX__][source_category_ids]" class="rd-chip-select">
-            <option value="">— pick source —</option>
+          <select name="terms[__IDX__][source_category_ids]"
+                  class="rd-chip-select rd-chip-select--multi"
+                  multiple
+                  size="4">
             {% for cat in source_categories %}
               <option value="{{ cat.id }}">{{ cat.name }}</option>
             {% endfor %}

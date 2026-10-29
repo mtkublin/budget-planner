@@ -225,6 +225,7 @@ def _render_table(
         rows = _planned_rows(conn, filters)
     else:
         rows = _hydrate_recurring_rows(conn)
+    categories_by_id = {c.id: c for c in categories_repo.list_all(conn, include_deleted=True)}
     return render(
         request,
         "ledger/_table.html",
@@ -234,6 +235,7 @@ def _render_table(
         page_size=filters.page_size,
         has_next=(view == "actual" and len(rows) == filters.page_size),
         today_date=date.today(),  # noqa: DTZ011 — status chip math only
+        categories_by_id=categories_by_id,
     )
 
 
@@ -304,6 +306,7 @@ def index(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLR
         if view == "planned"
         else 0
     )
+    cats_list = categories_repo.list_all(conn, include_deleted=True)
     return render(
         request,
         "ledger/index.html",
@@ -320,6 +323,7 @@ def index(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLR
         today_date=date.today(),  # noqa: DTZ011
         recurring_summary=recurring_summary,
         planned_total_minor=planned_total_minor,
+        categories_by_id={c.id: c for c in cats_list},
     )
 
 

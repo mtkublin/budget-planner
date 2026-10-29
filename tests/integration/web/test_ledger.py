@@ -130,9 +130,9 @@ def test_ledger_view_recurring(client: TestClient, seeded: dict[str, int]) -> No
     # Manual-audit #25 — Cadence folded into group header, Next due stays.
     assert "Next due" in headers
     assert "Overrides" in headers
-    # Overrides disclosure present per row.
-    details = soup.find_all("details")
-    assert any("override" in d.get_text().lower() for d in details)
+    # V.33 — expand reveal is now a sibling <tr>, not a <details>; the
+    # Overrides column still surfaces the per-rule override count.
+    assert "override" in r.text.lower()
 
 
 def test_ledger_recurring_lists_each_override_with_remove_button(
@@ -155,7 +155,9 @@ def test_ledger_recurring_lists_each_override_with_remove_button(
     r = client.get("/ledger?view=recurring")
     assert r.status_code == 200
     soup = BeautifulSoup(r.text, "html.parser")
-    remove_btns = soup.select("button.overrides-list__remove")
+    # V.33 — expand reveal is a sibling <tr>; Remove buttons live inside
+    # .rd-rec-over-item rows now.
+    remove_btns = soup.select(".rd-rec-over-item button")
     assert len(remove_btns) >= 2
     endpoints = {btn.get("hx-post") for btn in remove_btns}
     assert f"/recurring/{seeded['rule']}/overrides/2026-02-01/delete" in endpoints

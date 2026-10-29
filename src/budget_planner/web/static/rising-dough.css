@@ -1928,25 +1928,90 @@ kbd.rd-kbd {
 
 .rd-plan-year__hint { font-size: 0.8rem; margin: 1rem 0 0; }
 
-/* ─── Ledger · Recurring expand chevron (visual-audit V.11) ───────── */
-.rd-rec-expand summary {
+.rd-chip-select--multi {
+  width: 100%;
+  min-height: 5.2rem;
+  padding: 0.35rem 0.4rem;
+  font-family: inherit;
+  font-size: 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+
+/* ─── Ledger · Recurring expand (visual-audit V.33) ───────────────── */
+.rd-rec-chev {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  cursor: pointer;
-  list-style: none;
+  justify-content: center;
+  min-width: 1.5rem;
+  padding: 0 0.3rem;
+  background: transparent;
+  border: 0;
   color: var(--mute);
-  font-size: 0.8rem;
-}
-.rd-rec-expand summary::-webkit-details-marker { display: none; }
-
-.rd-rec-expand__chev {
-  display: inline-block;
-  transition: transform 150ms ease;
   font-family: var(--font-mono);
+  cursor: pointer;
+  margin-left: 0.3rem;
 }
-.rd-rec-expand[open] .rd-rec-expand__chev { transform: rotate(90deg); }
-.rd-rec-expand[open] { padding: 0.3rem 0; }
+.rd-rec-chev:hover { color: var(--ink); }
+.rd-rec-row--expanded td { background: var(--sunk); }
+.rd-rec-row--expanded td:first-child { font-weight: 600; }
+
+.rd-rec-expand-row > td {
+  background: var(--sunk);
+  padding: 0 0 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.rd-rec-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem 2rem;
+  padding: 0.5rem 0 0.5rem 70px;
+}
+
+@media (width <= 960px) {
+  .rd-rec-panel { grid-template-columns: 1fr; }
+}
+.rd-rec-panel .rd-eyebrow { margin-bottom: 0.4rem; }
+
+.rd-rec-panel__formula {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+}
+
+.rd-rec-formula-row {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  gap: 0.6rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px dashed var(--line);
+  align-items: baseline;
+}
+
+.rd-rec-formula-row--total {
+  font-weight: 600;
+  border-bottom: 0;
+  margin-top: 0.3rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--line);
+}
+.rd-rec-over-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; }
+
+.rd-rec-over-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+.rd-rec-over-item > span:first-child { display: inline-flex; gap: 0.5rem; align-items: baseline; }
+.rd-rec-overrides { font-size: 0.75rem; }
 
 /* ─── Budget override inline slot (visual-audit V.8) ─────────────── */
 .rd-budget-override-slot:not(:empty) { margin-top: 0.75rem; }

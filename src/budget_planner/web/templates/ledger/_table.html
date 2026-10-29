@@ -185,7 +185,10 @@
               {%- endif -%}
               {% set dir_value = row.category.direction.value if row.category else '' %}
               {% set is_income = dir_value == 'income' %}
-              <tr id="recurring-{{ row.id }}" class="row">
+              {% set has_expand = row.is_formula or (row.overrides and row.overrides|length > 0) %}
+              <tr id="recurring-{{ row.id }}"
+                  class="row{% if has_expand %} rd-rec-row--expandable{% endif %}"
+                  data-expand-row>
                 <td class="whitespace-nowrap tabular-nums" data-next-due>
                   {% if row.override_present %}
                     <strong data-override-present>{{ row.next_due|date_fmt }}</strong>
@@ -195,6 +198,7 @@
                 </td>
                 <td>
                   <strong>{{ row.default_description or '—' }}</strong>
+                  {% if row.is_formula %}<kbd class="rd-kbd">ƒ</kbd>{% endif %}
                   <br>
                   <small class="text-muted">
                     {{ row.account.name if row.account else '' }}{% if row.dest_account is defined and row.dest_account %} → {{ row.dest_account.name }}{% endif %}
@@ -208,58 +212,16 @@
                   {% if row.amount_overridden %}
                     <em data-amount-overridden
                         class="num {{ 'pos' if is_income else '' }}">{{ '+' if is_income else '' }}{{ row.effective_amount_minor|money(row.currency) }}</em>
-                  {% elif row.is_formula %}
-                    <span class="num {{ 'pos' if is_income else '' }}" data-formula-amount title="{% for t in row.amount_formula.terms %}{{ t.sign }} {{ (t.coefficient_bps / 100)|round(2) }}% of {{ t.source_category_ids|length }} categor{{ 'y' if t.source_category_ids|length == 1 else 'ies' }}{% if not loop.last %} {% endif %}{% endfor %}">
-                      {{ '+' if is_income else '' }}{{ row.effective_amount_minor|money(row.currency) }}
-                      <span class="formula-chip" aria-label="computed amount">ƒ</span>
-                    </span>
                   {% else %}
                     <span class="num {{ 'pos' if is_income else '' }}">{{ '+' if is_income else '' }}{{ row.effective_amount_minor|money(row.currency) }}</span>
                   {% endif %}
                 </td>
-                <td>
-                  <details class="rd-rec-expand">
-                    <summary aria-label="Toggle details">
-                      <span class="rd-rec-expand__chev">▸</span>
-                      <span class="mut rd-rec-expand__count">{{ row.overrides|length }}{% if row.is_formula %} · ƒ{% endif %}</span>
-                    </summary>
-                    {% if row.overrides %}
-                      <ul class="overrides-list">
-                        {% for ov in row.overrides %}
-                          <li>
-                            <span class="tabular-nums">{{ ov.occurrence_date|date_fmt }}</span>
-                            <span class="text-muted">{{ ov.state.value }}</span>
-                            <button type="button"
-                                    class="overrides-list__remove"
-                                    data-destructive
-                                    hx-post="/recurring/{{ row.id }}/overrides/{{ ov.occurrence_date }}/delete"
-                                    hx-swap="none"
-                                    hx-confirm="Remove override for {{ ov.occurrence_date }}?"
-                                    aria-label="Remove override {{ ov.occurrence_date }} on rule {{ row.id }}">Remove</button>
-                          </li>
-                        {% endfor %}
-                      </ul>
-                    {% else %}
-                      <p class="text-faint text-sm">No overrides</p>
-                    {% endif %}
-                    {% if row.is_formula %}
-                      <div class="rd-formula-breakdown">
-                        <div class="rd-eyebrow">Formula</div>
-                        <table class="rd-formula-breakdown__table">
-                          <tbody>
-                            {% for t in row.amount_formula.terms %}
-                              <tr>
-                                <td class="num">{{ t.sign }}</td>
-                                <td class="num">{{ (t.coefficient_bps / 100)|round(2) }}%</td>
-                                <td class="text-muted">of {{ t.source_category_ids|length }} categor{{ 'y' if t.source_category_ids|length == 1 else 'ies' }}</td>
-                              </tr>
-                            {% endfor %}
-                          </tbody>
-                        </table>
-                        <p class="text-muted text-sm">Resolves to {{ row.effective_amount_minor|money(row.currency) }} for {{ row.next_due|date_fmt }}.</p>
-                      </div>
-                    {% endif %}
-                  </details>
+                <td class="num mut rd-rec-overrides">
+                  {% if row.overrides and row.overrides|length > 0 %}
+                    <span class="rd-pill rd-pill--adjust">{{ row.overrides|length }} override{{ '' if row.overrides|length == 1 else 's' }}</span>
+                  {% else %}
+                    0
+                  {% endif %}
                 </td>
                 <td class="rd-actions">
                   {% call kebab_menu(id="recurring-" ~ row.id) %}
@@ -304,8 +266,79 @@
                       </li>
                     {% endif %}
                   {% endcall %}
+                  {% if has_expand %}
+                    <button type="button"
+                            class="rd-rec-chev"
+                            data-rec-chev="{{ row.id }}"
+                            aria-expanded="false"
+                            aria-controls="recurring-{{ row.id }}-expand"
+                            aria-label="Expand">▸</button>
+                  {% endif %}
                 </td>
               </tr>
+              {% if has_expand %}
+                <tr id="recurring-{{ row.id }}-expand" class="rd-rec-expand-row" hidden>
+                  <td colspan="7">
+                    <div class="rd-rec-panel">
+                      {% if row.overrides and row.overrides|length > 0 %}
+                        <div class="rd-rec-panel__overrides">
+                          <div class="rd-eyebrow">Overrides</div>
+                          <ul class="rd-rec-over-list">
+                            {% for ov in row.overrides %}
+                              <li class="rd-rec-over-item">
+                                <span>
+                                  <span class="num">{{ ov.occurrence_date|date_fmt }}</span>
+                                  <span class="rd-dir rd-dir--adjust">{{ ov.state.value }}</span>
+                                  {% if ov.amount_override %}
+                                    <span class="num">{{ ov.amount_override|money(row.currency) }}</span>
+                                  {% endif %}
+                                </span>
+                                <button type="button"
+                                        class="rd-btn rd-btn--sm rd-btn--ghost"
+                                        data-destructive
+                                        hx-post="/recurring/{{ row.id }}/overrides/{{ ov.occurrence_date }}/delete"
+                                        hx-swap="none"
+                                        hx-confirm="Remove override for {{ ov.occurrence_date }}?">Remove</button>
+                              </li>
+                            {% endfor %}
+                          </ul>
+                        </div>
+                      {% endif %}
+                      {% if row.is_formula %}
+                        <div class="rd-rec-panel__formula">
+                          <div class="rd-eyebrow">How {{ row.effective_amount_minor|money(row.currency) }} is derived</div>
+                          {% for t in row.amount_formula.terms %}
+                            {% set ns_src = namespace(names=[]) %}
+                            {% for cid in t.source_category_ids %}
+                              {% set c = categories_by_id.get(cid) if categories_by_id is defined else none %}
+                              {% if c %}
+                                {% set ns_src.names = ns_src.names + [c.name] %}
+                              {% endif %}
+                            {% endfor %}
+                            <div class="rd-rec-formula-row">
+                              <span class="num mut">{{ t.sign }}</span>
+                              <span>
+                                {{ ns_src.names|join(" + ") if ns_src.names else '— unknown source —' }}
+                                <span class="mut"
+                                      style="font-size: 0.75rem">rule · {{ (t.coefficient_bps / 100)|round(2) }}%</span>
+                              </span>
+                              <span class="num"></span>
+                            </div>
+                          {% endfor %}
+                          <div class="rd-rec-formula-row rd-rec-formula-row--total">
+                            <span class="num">=</span>
+                            <span>{{ row.default_description or 'result' }}</span>
+                            <span class="num">{{ row.effective_amount_minor|money(row.currency) }}<span class="cur"> {{ row.currency }}</span></span>
+                          </div>
+                          <p class="mut" style="font-size: 0.75rem; margin: 0.5rem 0 0;">
+                            Hover any source to jump to that rule. Editing a source updates this amount; cycles are blocked on save.
+                          </p>
+                        </div>
+                      {% endif %}
+                    </div>
+                  </td>
+                </tr>
+              {% endif %}
             {% endif %}
           {% endfor %}
         </tbody>
@@ -360,3 +393,29 @@
     {% endif %}
   </div>
 </div>
+{% if view == "recurring" %}
+  <script>
+    (function () {
+      document.addEventListener('click', function (evt) {
+        var btn = evt.target.closest('[data-rec-chev]');
+        if (!btn) return;
+        var id = btn.getAttribute('data-rec-chev');
+        var row = document.getElementById('recurring-' + id);
+        var panel = document.getElementById('recurring-' + id + '-expand');
+        if (!panel) return;
+        var open = panel.hasAttribute('hidden');
+        if (open) {
+          panel.removeAttribute('hidden');
+          btn.textContent = '▾';
+          btn.setAttribute('aria-expanded', 'true');
+          if (row) row.classList.add('rd-rec-row--expanded');
+        } else {
+          panel.setAttribute('hidden', '');
+          btn.textContent = '▸';
+          btn.setAttribute('aria-expanded', 'false');
+          if (row) row.classList.remove('rd-rec-row--expanded');
+        }
+      });
+    })();
+  </script>
+{% endif %}
