@@ -15,6 +15,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
+from budget_planner.domain.enums import Direction
 from budget_planner.domain.planned import PlannedFilter
 from budget_planner.domain.transactions import TransactionFilter
 from budget_planner.repositories import (
@@ -127,7 +128,10 @@ def _hydrate_planned_rows(conn: sqlite3.Connection, views: list[Any]) -> list[di
     return out
 
 
-def _hydrate_recurring_rows(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+def _hydrate_recurring_rows(
+    conn: sqlite3.Connection,
+    filters: LedgerFilters | None = None,
+) -> list[dict[str, Any]]:
     # Ledger Recurring tab lists only live rules (ADR-0038 §Ledger-UI):
     # Delete behaviourally deactivates, which must remove the row from view.
     rules = sorted(
@@ -136,10 +140,30 @@ def _hydrate_recurring_rows(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     )
     cats = {c.id: c for c in categories_repo.list_all(conn, include_deleted=True)}
     accts = {a.id: a for a in accounts_repo.list_all(conn, include_deleted=True)}
+    # V.34 — client-side filters (date_from / date_to / account_ids /
+    # category_ids / direction / search). Date range matches against
+    # `next_due`.
+    direction_set: set[str] = set()
+    if filters is not None and filters.direction:
+        direction_set.add(filters.direction)
+    search_lc = filters.search.lower() if filters and filters.search else None
     out: list[dict[str, Any]] = []
     for rule in rules:
         acc = accts.get(rule.account_id)
         cat = cats.get(rule.category_id)
+        if filters is not None:
+            if filters.date_from and rule.next_due < filters.date_from:
+                continue
+            if filters.date_to and rule.next_due > filters.date_to:
+                continue
+            if filters.account_ids and rule.account_id not in filters.account_ids:
+                continue
+            if filters.category_ids and rule.category_id not in filters.category_ids:
+                continue
+            if direction_set and (cat is None or cat.direction.value not in direction_set):
+                continue
+            if search_lc and search_lc not in (rule.default_description or "").lower():
+                continue
         overrides = recurring_repo.list_overrides(conn, rule.id)
         # T-122: locate the override (if any) on the current `next_due` so the
         # row can bold / italicise the appropriate cells.
@@ -184,12 +208,26 @@ def _hydrate_recurring_rows(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     return out
 
 
+def _direction_tuple(raw: str | None) -> tuple[Direction, ...]:
+    """Map the string filter from the chip select to a `Direction` tuple.
+
+    Empty / unknown value → no filter. V.34 — fixes the dead Direction chip.
+    """
+    if not raw:
+        return ()
+    try:
+        return (Direction(raw),)
+    except ValueError:
+        return ()
+
+
 def _actual_rows(conn: sqlite3.Connection, filters: LedgerFilters) -> list[dict[str, Any]]:
     txn_filter = TransactionFilter(
         date_from=filters.date_from,
         date_to=filters.date_to,
         account_ids=filters.account_ids,
         category_ids=filters.category_ids,
+        directions=_direction_tuple(filters.direction),
         description_contains=filters.search,
         limit=filters.page_size,
         offset=(filters.page - 1) * filters.page_size,
@@ -208,9 +246,14 @@ def _planned_rows(conn: sqlite3.Connection, filters: LedgerFilters) -> list[dict
         date_to=filters.date_to or (today + timedelta(days=180)),
         account_ids=filters.account_ids,
         category_ids=filters.category_ids,
+        directions=_direction_tuple(filters.direction),
     )
     views = list(planned_service.list_planned(conn, pl_filter))
-    return _hydrate_planned_rows(conn, views)
+    rows = _hydrate_planned_rows(conn, views)
+    if filters.search:
+        q = filters.search.lower()
+        rows = [r for r in rows if q in (r.get("description") or "").lower()]
+    return rows
 
 
 def _render_table(
@@ -224,7 +267,7 @@ def _render_table(
     elif view == "planned":
         rows = _planned_rows(conn, filters)
     else:
-        rows = _hydrate_recurring_rows(conn)
+        rows = _hydrate_recurring_rows(conn, filters)
     categories_by_id = {c.id: c for c in categories_repo.list_all(conn, include_deleted=True)}
     return render(
         request,
@@ -299,7 +342,7 @@ def index(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLR
     elif view == "planned":
         rows = _planned_rows(conn, filters)
     else:
-        rows = _hydrate_recurring_rows(conn)
+        rows = _hydrate_recurring_rows(conn, filters)
     recurring_summary = _recurring_summary(rows) if view == "recurring" else None
     planned_total_minor = (
         sum(r.get("amount_minor") or 0 for r in rows if not r.get("is_promoted"))
