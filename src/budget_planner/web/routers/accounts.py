@@ -428,8 +428,9 @@ def reconcile_submit(  # noqa: PLR0917
         )
     html = render(
         request,
-        "partials/accounts/_card.html",
+        "partials/accounts/_row.html",
         card=_card_context(conn, account_id),
+        today_date=_today(),
     )
     trigger(html, "balance-stale", "forecast-stale")
     return html

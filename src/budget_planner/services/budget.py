@@ -291,18 +291,25 @@ def _resolve_period_start(
     return max(row.operation_date for row in rows)
 
 
-def month_summary(
+def month_summary(  # noqa: PLR0915
     conn: sqlite3.Connection,
     year: int,
     month: int,
     *,
     today: date,
+    period_window: tuple[date, date] | None = None,
 ) -> MonthSummary:
     """Build the per-category spent / budgeted / remaining view + analytics.
 
     Lines include every live expense-direction category. Totals exclude
     unbudgeted lines (``remaining_minor is None``). ``today`` is injected
     (ADR-0007) so left-daily-spend math stays deterministic in tests.
+
+    ``period_window`` optionally caps the ``spent_minor`` lookup to an
+    explicit ``(start, end)`` range. Used by Plan · Budget when the user
+    picks a non-current month, so the "Actual" column reflects what
+    actually landed inside that calendar month instead of inheriting the
+    anchor-window Y-axis of the real today (V.32).
     """
     cats = [c for c in categories_repo.list_all(conn) if c.direction is Direction.EXPENSE]
 
@@ -323,12 +330,16 @@ def month_summary(
     # ``[last_anchor_date, today]``; analytics windows (prev / year / all)
     # stay on calendar-month windows as backward-looking references.
     month_start = date(year, month, 1)
-    if budgeted_total == 0:
+    if period_window is not None:
+        period_start, period_end = period_window
+    elif budgeted_total == 0:
         period_start = month_start
+        period_end = today
     else:
         anchor_category = preferences_svc.resolve_income_anchor_category(conn)
         period_start = _resolve_period_start(conn, today, year, month, anchor_category)
-    this_txns = _expense_txns_in_range(conn, period_start, today)
+        period_end = today
+    this_txns = _expense_txns_in_range(conn, period_start, period_end)
     prev_txns = _expense_txns_in_range(conn, prev_start, prev_end)
     year_txns = _expense_txns_in_range(conn, year_start, year_end)
     all_txns = _all_expense_txns(conn)

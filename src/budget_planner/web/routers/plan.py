@@ -108,18 +108,66 @@ def plan(  # noqa: PLR0912, PLR0915 — one dispatcher per tab, kept flat for re
     }
 
     if tab_norm == "budget":
-        # When the picker selects a non-current month, feed month_summary a
-        # synthetic "today" pointing at either the first-of-month (future) or
-        # end-of-month (past) so period_start / next_income_date resolve
-        # inside the selected month, not around today.
-        import calendar as _cal  # noqa: PLC0415 — local import keeps top clean
+        import calendar as _cal  # noqa: PLC0415
+        import dataclasses as _dc  # noqa: PLC0415
 
-        if (year, month) == (today_d.year, today_d.month):
+        from budget_planner.repositories import recurring as _rec_repo  # noqa: PLC0415
+        from budget_planner.services import preferences as _prefs  # noqa: PLC0415
+
+        is_current = (year, month) == (today_d.year, today_d.month)
+        if is_current:
             ref = today_d
+            window_override: tuple[Any, Any] | None = None
         else:
             ref_last = _cal.monthrange(year, month)[1]
             ref = today_d.replace(year=year, month=month, day=min(today_d.day, ref_last))
-        ctx["summary"] = budget_service.month_summary(conn, year, month, today=ref)
+            # Cap spent-txn window to the selected calendar month so the
+            # Actual column reflects that month only (V.32).
+            window_override = (
+                today_d.replace(year=year, month=month, day=1),
+                today_d.replace(year=year, month=month, day=ref_last),
+            )
+        summary = budget_service.month_summary(
+            conn, year, month, today=ref, period_window=window_override
+        )
+        # For non-current months, override period_start + next_income_date so
+        # the top bar reads anchor_day_in(month) → anchor_day_in(month+1).
+        # Anchor day comes from the anchor category's active monthly recurring
+        # rule; fall back to the first-of-month when no rule exists.
+        if not is_current:
+            anchor = _prefs.resolve_income_anchor_category(conn)
+            anchor_day = 1
+            if anchor is not None:
+                for rule in _rec_repo.list_rules(conn, active_only=True):
+                    if rule.category_id == anchor.id and rule.day_of_month:
+                        anchor_day = max(1, min(28, rule.day_of_month))
+                        break
+            next_m_year, next_m = _shift_month(year, month, 1)
+            start_day = min(anchor_day, _cal.monthrange(year, month)[1])
+            end_day = min(anchor_day, _cal.monthrange(next_m_year, next_m)[1])
+            new_start = ref.replace(year=year, month=month, day=start_day)
+            new_end = ref.replace(year=next_m_year, month=next_m, day=end_day)
+            # Future month: show full period length; past month: 0.
+            days_left = (new_end - new_start).days if new_end > today_d else 0
+            # Future months: no commitments yet; past months: commitments
+            # already landed as actuals. Either way, committed_total shown
+            # by month_summary (uses real "today → next_income") doesn't
+            # apply to the picker. Zero it out + rebuild totals.
+            new_committed = 0
+            new_remaining = summary.totals.budgeted_minor - summary.totals.spent_minor
+            new_totals = _dc.replace(
+                summary.totals,
+                committed_minor=new_committed,
+                remaining_minor=new_remaining,
+            )
+            summary = _dc.replace(
+                summary,
+                totals=new_totals,
+                period_start=new_start,
+                next_income_date=new_end,
+                days_until_next_income=days_left,
+            )
+        ctx["summary"] = summary
     elif tab_norm == "year":
         year_param = request.query_params.get("year")
         selected_year = year

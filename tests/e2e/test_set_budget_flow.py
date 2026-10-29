@@ -35,7 +35,7 @@ def test_set_budget_shows_remaining_after_spend(
         "account-",
     )
     page.goto(f"{base_url}/categories")
-    groceries_row = page.locator("tr[id^='category-']", has_text="Groceries").first
+    groceries_row = page.locator("[id^='category-']", has_text="Groceries").first
     category_id = strip_id_prefix(groceries_row.get_attribute("id"), "category-")
 
     # Set a default budget of 500.00 for Groceries.

@@ -41,7 +41,7 @@ def test_recurring_rule_and_planned_promote_cycle(
         "account-",
     )
     page.goto(f"{base_url}/categories")
-    rent_row = page.locator("tr[id^='category-']", has_text="Rent").first
+    rent_row = page.locator("[id^='category-']", has_text="Rent").first
     category_id = strip_id_prefix(rent_row.get_attribute("id"), "category-")
 
     # Create a monthly recurring rule starting 2026-01-15 for 50.00. The rule

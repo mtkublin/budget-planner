@@ -56,7 +56,7 @@ def _create_category(page: Page, base_url: str, *, name: str, direction: str) ->
     resp = page.request.post(f"{base_url}/categories", form={"name": name, "direction": direction})
     assert resp.ok, resp.text()
     page.goto(f"{base_url}/categories")
-    row = page.locator("tr[id^='category-']", has_text=name).first
+    row = page.locator("[id^='category-']", has_text=name).first
     return strip_id_prefix(row.get_attribute("id"), "category-")
 
 
@@ -134,7 +134,7 @@ def test_credit_card_full_journey(
 
     # 8. Pay off: transit 250.00 from Bank → Visa, zeroing the Visa balance.
     page.goto(f"{base_url}/categories")
-    transit_row = page.locator("tr[id^='category-']", has_text="Transit").first
+    transit_row = page.locator("[id^='category-']", has_text="Transit").first
     transit_id = strip_id_prefix(transit_row.get_attribute("id"), "category-")
     resp = page.request.post(
         f"{base_url}/transactions",

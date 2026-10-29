@@ -21,58 +21,46 @@
 </div>
 <div id="cat-form-slot" class="drawer-section__slot"></div>
 {% macro cat_row(category) %}
-  {% set direction_value = category.direction.value if category.direction is not string else category.direction %}
-  <tr id="category-{{ category.id }}" class="row">
-    <td>{{ category_label(category) }}{% if category.is_system %} <span class="text-muted text-xs">(system)</span>{% endif %}</td>
-    <td>{{ direction_badge(category.direction) }}</td>
-    <td>
+  <div id="category-{{ category.id }}" class="rd-cat-row">
+    <span class="rd-cat-row__name">{{ category_label(category) }}</span>
+    <span class="rd-cat-row__dir">{{ direction_badge(category.direction) }}</span>
+    <span class="rd-cat-row__col">
       {% if category.color %}
         <span class="rd-swatch-dot"
               style="--swatch: {{ category.color }}"
               aria-hidden="true"></span>
-        <small class="text-muted">Override</small>
+        <small class="text-muted">Override · {{ category.color }}</small>
       {% else %}
+        <span class="rd-swatch-dot rd-swatch-dot--mute" aria-hidden="true"></span>
         <small class="text-muted">Direction default</small>
       {% endif %}
-    </td>
-    <td class="text-right space-x-2 text-sm">
+    </span>
+    <span class="rd-cat-row__actions">
       {% if not category.is_system %}
-        <button hx-get="/categories/{{ category.id }}/edit"
-                hx-target="#cat-form-slot"
-                hx-swap="innerHTML"
-                aria-label="Edit category {{ category.id }}">Edit</button>
-        <button hx-post="/categories/{{ category.id }}/delete"
-                hx-target="#category-{{ category.id }}"
-                hx-swap="outerHTML"
-                hx-confirm="Archive this category? Its history is kept and it can be restored from Recently deleted."
-                aria-label="Archive category {{ category.id }}">Archive</button>
+        <a href="#"
+           hx-get="/categories/{{ category.id }}/edit"
+           hx-target="#cat-form-slot"
+           hx-swap="innerHTML"
+           aria-label="Edit category {{ category.id }}">Edit</a>
+        <span class="mut">·</span>
+        <a href="#"
+           hx-post="/categories/{{ category.id }}/delete"
+           hx-target="#category-{{ category.id }}"
+           hx-swap="outerHTML"
+           hx-confirm="Archive this category? Its history is kept and it can be restored from Recently deleted."
+           aria-label="Archive category {{ category.id }}">Archive</a>
       {% else %}
-        <small class="text-muted">locked</small>
+        <small class="mut">locked</small>
       {% endif %}
-    </td>
-  </tr>
+    </span>
+  </div>
 {% endmacro %}
 {% macro group(title, items) %}
   {% if items %}
-    <div class="drawer-section">
-      <header class="drawer-section__header">
-        <p class="eyebrow">{{ title }} · {{ items|length }}</p>
-      </header>
-      <table class="ledger">
-        <caption class="sr-only">{{ title }} categories</caption>
-        <thead>
-          <tr>
-            <th scope="col">Name</th>
-            <th scope="col">Direction</th>
-            <th scope="col">Colour</th>
-            <th scope="col" class="text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for category in items %}{{ cat_row(category) }}{% endfor %}
-        </tbody>
-      </table>
-    </div>
+    <section class="rd-cat-group">
+      <h3 class="rd-cat-group__title">{{ title }} <span class="mut">{{ items|length }}</span></h3>
+      {% for category in items %}{{ cat_row(category) }}{% endfor %}
+    </section>
   {% endif %}
 {% endmacro %}
 {{ group("Expense", expense_categories) }}

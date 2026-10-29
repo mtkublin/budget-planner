@@ -35,7 +35,7 @@ def test_reconcile_creates_adjustment_transaction(
     )
 
     page.goto(f"{base_url}/categories")
-    food_row = page.locator("tr[id^='category-']", has_text="Food").first
+    food_row = page.locator("[id^='category-']", has_text="Food").first
     category_id = strip_id_prefix(food_row.get_attribute("id"), "category-")
 
     assert page.request.post(

@@ -994,7 +994,7 @@ kbd.rd-kbd {
   font-family: var(--font-mono);
   font-size: 0.72rem;
   font-weight: 500;
-  background: var(--expense-soft);
+  background: color-mix(in oklab, var(--expense) var(--weight, 0%), var(--surface));
   color: var(--ink);
   border: 0;
   border-radius: 3px;
@@ -1920,6 +1920,36 @@ kbd.rd-kbd {
 
 .rd-plan-year__hint { font-size: 0.8rem; margin: 1rem 0 0; }
 
+/* ─── Settings · categories (visual-audit V.6) ────────────────────── */
+.rd-cat-group { margin-top: 1.25rem; }
+
+.rd-cat-group__title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.05rem;
+  margin: 0 0 0.5rem;
+}
+
+.rd-cat-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) 7rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.9rem;
+}
+.rd-cat-row:first-child { border-top: 0; }
+
+.rd-cat-row__actions a {
+  color: var(--mute);
+  text-decoration: none;
+  margin: 0 0.25rem;
+  cursor: pointer;
+}
+.rd-cat-row__actions a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+.rd-swatch-dot--mute { background: var(--line); }
+
 /* ─── Settings · income anchor bar (manual-audit #52, #54) ─────────── */
 .rd-settings-anchor {
   display: flex;
@@ -1935,6 +1965,14 @@ kbd.rd-kbd {
 .rd-settings-anchor form { display: inline-flex; align-items: center; margin: 0; }
 .rd-settings-anchor select { min-width: 10rem; }
 .rd-settings-anchor small { font-size: 0.75rem; }
+
+/* ─── Accounts row name + type inline (visual-audit V.5) ──────────── */
+.rd-acct-name {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+.rd-acct-type { margin-left: 0.4rem; font-size: 0.75rem; }
 
 /* ─── Accounts hero (manual-audit #51) ────────────────────────────── */
 .rd-accounts-hero {

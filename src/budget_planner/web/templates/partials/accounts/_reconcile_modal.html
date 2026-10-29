@@ -33,6 +33,7 @@
         <form hx-post="/accounts/{{ account.id }}/reconcile"
               hx-target="#account-{{ account.id }}"
               hx-swap="outerHTML"
+              hx-on::after-request="if(event.detail.successful){var r=document.querySelector('.slide-over-root');if(r&&r.parentElement){r.parentElement.innerHTML='';}}"
               class="rd-form reconcile-form"
               data-reconcile-form
               data-currency="{{ account.currency }}"

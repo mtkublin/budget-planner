@@ -48,7 +48,7 @@ def test_add_transaction_updates_account_balance(
 
     # Find the category id by posting a form POST that reads back the row.
     page.goto(f"{base_url}/categories")
-    groceries_row = page.locator("tr[id^='category-']", has_text="Groceries").first
+    groceries_row = page.locator("[id^='category-']", has_text="Groceries").first
     category_id = strip_id_prefix(groceries_row.get_attribute("id"), "category-")
 
     # 4. Post a 20.00 expense transaction.

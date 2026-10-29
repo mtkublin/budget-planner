@@ -65,9 +65,9 @@
           {%- endif -%}
           <tr id="account-{{ a.id }}">
             <td class="rd-desc">
-              {{ a.name }}
+              <span class="rd-acct-name">{{ a.name }}</span>
+              <small class="text-muted rd-acct-type">{{ a.type or 'account' }}</small>
               {%- if a.is_liability %}<span class="rd-pill rd-pill--expense">credit card · liability</span>{%- endif %}
-              <small>{{ a.type or 'account' }}</small>
               {%- if a.is_liability and a.credit_limit_minor %}
                 {%- set used_minor = -card.balance if card.balance < 0 else 0 -%}
                 {%- set available_minor = (a.credit_limit_minor - used_minor) if a.credit_limit_minor else 0 -%}
