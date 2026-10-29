@@ -424,7 +424,7 @@ Owner: `routers/` + `services/`.
 - Reference: ADR-0055 §2.
 - File: `phase-6-responsive/T-R55-settings-mobile.md`.
 
-### ◻ T-R56 [S] Mobile visual regression baselines → T-R51..T-R55
+### ✅ T-R56 [S] Mobile visual regression baselines → T-R51..T-R55
 - Regenerate baselines at 375 px for every v2 route.
 - `frontend-visual-audit` returns zero overflow findings.
 - File: `phase-6-responsive/T-R56-mobile-vr-baselines.md`.
