@@ -5,7 +5,12 @@
 <a class="rd-tabbar__item"
    href="/ledger"
    {% if path.startswith('/ledger') %}aria-current="page"{% endif %}>Ledger</a>
-<button class="rd-tabbar__add" aria-label="Add" data-rd-add>+</button>
+<button class="rd-tabbar__add"
+        aria-label="Add"
+        data-rd-add
+        hx-get="/add?when=happened"
+        hx-target="#modal-root"
+        hx-swap="innerHTML">+</button>
 <a class="rd-tabbar__item"
    href="/plan"
    {% if path.startswith('/plan') %}aria-current="page"{% endif %}>Plan</a>

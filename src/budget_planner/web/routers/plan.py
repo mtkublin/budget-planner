@@ -32,6 +32,7 @@ _VALID: tuple[PlanTab, ...] = ("budget", "year", "forecast", "analytics")
 _VALID_PERIODS: tuple[analytics_service.Period, ...] = ("month", "year", "trailing-12")
 
 _FORECAST_HORIZON_MONTHS = 12
+_FORECAST_HORIZON_CHOICES: tuple[int, ...] = (6, 12, 24, 60)
 _MINOR_UNITS_PER_MAJOR = 100.0
 
 
@@ -63,7 +64,7 @@ def _analytics_charts(bundle: analytics_service.AnalyticsBundle) -> dict[str, An
 
 
 @router.get("/plan", response_class=HTMLResponse)
-def plan(
+def plan(  # noqa: PLR0915 — one dispatcher per tab, kept flat for readability
     request: Request,
     tab: str = "budget",
     conn: sqlite3.Connection = Depends(get_db),
@@ -100,17 +101,48 @@ def plan(
         ctx["year_column_totals"] = column_totals
         ctx["year_grand_total"] = grand_total
     elif tab_norm == "forecast":
-        projection = forecast_service.monthly_projection(
-            conn, settings, today_d, horizon=_FORECAST_HORIZON_MONTHS
-        )
+        horizon_raw = request.query_params.get("horizon", str(_FORECAST_HORIZON_MONTHS))
+        try:
+            horizon = int(horizon_raw)
+        except ValueError:
+            horizon = _FORECAST_HORIZON_MONTHS
+        if horizon not in _FORECAST_HORIZON_CHOICES:
+            horizon = _FORECAST_HORIZON_MONTHS
+        projection = forecast_service.monthly_projection(conn, settings, today_d, horizon=horizon)
         ctx["forecast_points"] = projection
+        ctx["forecast_horizon"] = horizon
+        ctx["forecast_horizon_choices"] = _FORECAST_HORIZON_CHOICES
         chart_points = tuple((float(i), p.value_major) for i, p in enumerate(projection))
         chart_labels = tuple(p.label for p in projection)
         ctx["forecast_chart"] = charts.line_area(chart_points, x_labels=chart_labels)
+        # Summary strip: NOW / END / PEAK.
+        if projection:
+            start_value = projection[0].value_major
+            end_point = projection[-1]
+            peak_point = max(projection, key=lambda p: p.value_major)
+            ctx["forecast_summary"] = {
+                "now_value": start_value,
+                "end_point": end_point,
+                "peak_point": peak_point,
+            }
+        else:
+            ctx["forecast_summary"] = None
     else:
-        bundle = analytics_service.bundle(conn, today=today_d, period="month")
+        period_raw = request.query_params.get("period", "month")
+        period_norm: analytics_service.Period = "month"
+        for candidate in _VALID_PERIODS:
+            if period_raw == candidate:
+                period_norm = candidate
+                break
+        bundle = analytics_service.bundle(conn, today=today_d, period=period_norm)
         ctx["bundle"] = bundle
-        ctx["period"] = "month"
+        ctx["period"] = period_norm
+        # Build a `category_id → 12-mo avg minor` map so the Spend-by-category
+        # list can show a signed "vs 12-mo avg" delta without an extra pass.
+        ctx["twelve_mo_avg_by_cat"] = {
+            row.category_id: row.amount_minor for row in bundle.twelve_month_averages
+        }
+        ctx["spend_total_minor"] = sum(r.amount_minor for r in bundle.spend_by_category)
         ctx.update(_analytics_charts(bundle))
 
     return render(request, "plan/index.html", **ctx)

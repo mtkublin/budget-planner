@@ -903,6 +903,42 @@ def promote_form(
     return _render_promote_modal(request, conn, rule_id)
 
 
+@router.get("/{rule_id}/promote/inline", response_class=HTMLResponse)
+def promote_inline(
+    rule_id: int,
+    request: Request,
+    date: str = "",
+    conn: sqlite3.Connection = Depends(get_db),
+) -> Response:
+    """F-02 — Row-expand inline form for Today Upcoming Promote action.
+
+    Returns a <tr> fragment that replaces the current upcoming row, letting
+    the user edit `date` + `amount` and Confirm without leaving the page.
+    """
+    rule = recurring_repo.find_rule(conn, rule_id)
+    if rule is None:
+        return Response(status_code=404, content="not found")
+    account = accounts_repo.find_by_id(conn, rule.account_id, include_deleted=True)
+    occurrence = _parse_date(date) or rule.next_due
+    override = _override_on_next_due(conn, rule_id, occurrence)
+    prefill_amount = formula_svc.resolve_rule_amount(conn, rule, occurrence)
+    prefill_description = rule.default_description
+    if override is not None:
+        if override.amount_override is not None:
+            prefill_amount = override.amount_override
+        if override.description_override is not None:
+            prefill_description = override.description_override
+    return render(
+        request,
+        "partials/recurring/_promote_inline_row.html",
+        rule=rule,
+        account=account,
+        occurrence_date=occurrence,
+        prefill_amount_minor=prefill_amount,
+        prefill_description=prefill_description,
+    )
+
+
 @router.post("/{rule_id}/promote")
 def promote_submit(  # noqa: PLR0912, PLR0917
     rule_id: int,

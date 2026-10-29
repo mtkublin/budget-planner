@@ -58,7 +58,6 @@
       {% endif %}
     {% endblock %}
     {% include "partials/_palette.html" %}
-    {% include "partials/_cheatsheet.html" ignore missing %}
     {% include "partials/_shortcuts.html" %}
     <script src="{{ url_for('static', path='js/palette.js') }}" defer></script>
     <script src="{{ url_for('static', path='js/shortcuts.js') }}?v=rd1" defer></script>

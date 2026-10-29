@@ -1,32 +1,91 @@
-{# T-067 — Categories tab inside the Settings drawer.
-
-   Lifted from `categories/index.html`. Form posts still target the
-   existing `/categories` endpoints so there is a single source of truth
-   for the CRUD logic. #}
-<div class="drawer-section">
+{# ADR-0056 §8 — Settings · Categories reskin:
+   - Income anchor selector pinned at the top (mirrors Preferences).
+   - Grouped sections: Expense · Income · System.
+   - Row shape: pill + direction badge + colour source + Archive action.
+   - Footer copy explaining Archive vs system locks. #}
+<div class="drawer-section rd-settings-anchor" id="income-anchor">
   <header class="drawer-section__header">
-    <p class="eyebrow">Taxonomy</p>
-    <h3 class="drawer-section__title">Categories</h3>
-    <button type="button"
-            class="btn-ghost"
-            hx-get="/categories/new"
-            hx-target="#cat-form-slot"
-            hx-swap="innerHTML">+ New category</button>
+    <p class="eyebrow">Income anchor</p>
+    <h3 class="drawer-section__title">Paycheck window starts each → <strong>{% if current_anchor_id %}{% for c in anchor_income_categories %}{% if c.id == current_anchor_id %}{{ c.name }}{% endif %}{% endfor %}{% else %}—{% endif %}</strong></h3>
   </header>
-  <div id="cat-form-slot" class="drawer-section__slot"></div>
-  <table class="ledger">
-    <caption class="sr-only">Categories</caption>
-    <thead>
-      <tr>
-        <th scope="col">Name</th>
-        <th scope="col">Direction</th>
-        <th scope="col" class="text-right">Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for category in categories %}
-        {% include "partials/categories/_row.html" %}
+  <form hx-post="/budget/preferences/income-anchor"
+        hx-swap="none"
+        class="rd-form-row">
+    <label for="anchor-select" class="sr-only">Income anchor</label>
+    <select id="anchor-select" name="category_id">
+      <option value="" {% if current_anchor_id is none %}selected{% endif %}>— none —</option>
+      {% for c in anchor_income_categories %}
+        <option value="{{ c.id }}"
+                {% if current_anchor_id == c.id %}selected{% endif %}>{{ c.name }}</option>
       {% endfor %}
-    </tbody>
-  </table>
+    </select>
+    <button type="submit" class="rd-btn rd-btn--sm">Save</button>
+  </form>
 </div>
+
+<div id="cat-form-slot" class="drawer-section__slot"></div>
+
+{% macro cat_row(category) %}
+  {% set direction_value = category.direction.value if category.direction is not string else category.direction %}
+  <tr id="category-{{ category.id }}" class="row">
+    <td>{{ category_label(category) }}{% if category.is_system %} <span class="text-muted text-xs">(system)</span>{% endif %}</td>
+    <td>{{ direction_badge(category.direction) }}</td>
+    <td>
+      {% if category.color %}
+        <span class="rd-swatch-dot" style="--swatch: {{ category.color }};" aria-hidden="true"></span>
+        <small class="text-muted">Override</small>
+      {% else %}
+        <small class="text-muted">Direction default</small>
+      {% endif %}
+    </td>
+    <td class="text-right space-x-2 text-sm">
+      {% if not category.is_system %}
+        <button hx-get="/categories/{{ category.id }}/edit"
+                hx-target="#cat-form-slot"
+                hx-swap="innerHTML"
+                aria-label="Edit category {{ category.id }}">Edit</button>
+        <button hx-post="/categories/{{ category.id }}/delete"
+                hx-target="#category-{{ category.id }}"
+                hx-swap="outerHTML"
+                hx-confirm="Archive this category? Its history is kept and it can be restored from Recently deleted."
+                aria-label="Archive category {{ category.id }}">Archive</button>
+      {% else %}
+        <small class="text-muted">locked</small>
+      {% endif %}
+    </td>
+  </tr>
+{% endmacro %}
+
+{% macro group(title, items) %}
+  {% if items %}
+    <div class="drawer-section">
+      <header class="drawer-section__header">
+        <p class="eyebrow">{{ title }} · {{ items|length }}</p>
+      </header>
+      <table class="ledger">
+        <caption class="sr-only">{{ title }} categories</caption>
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Direction</th>
+            <th scope="col">Colour</th>
+            <th scope="col" class="text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for category in items %}{{ cat_row(category) }}{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+{% endmacro %}
+
+{{ group("Expense", expense_categories) }}
+{{ group("Income", income_categories) }}
+{{ group("System (read-only)", system_categories) }}
+
+<p class="text-muted" style="margin-top: 1rem; font-size: 0.85rem;">
+  "Archive" hides a category but keeps its history; archived categories are restorable from
+  <a href="/ledger/recently-deleted" style="color: var(--accent);">Recently deleted</a>.
+  System categories cannot be edited or archived.
+</p>

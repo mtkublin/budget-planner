@@ -1,18 +1,41 @@
-{# Rising Dough v2 — Plan · Forecast tab (T-R48, ADR-0054).
+{# Rising Dough v2 — Plan · Forecast tab (T-R48, ADR-0054, ADR-0056 §5).
 
-Renders the monthly projection as a server-computed line + area SVG. The
-<figure> carries a <figcaption> for screen readers; the <details> fallback
-exposes the same data as a table so keyboard + screen-reader users keep
-parity with the chart.
+Renders:
+  - Horizon segmented 6 · 12 · 24 · 60 months.
+  - Now / End-of-horizon / Peak summary strip.
+  - Server-computed line + area SVG chart.
+  - Monthly table inline (not collapsed) with Income · Expenses · Planned
+    budget · Net (inline bar) · End of month.
 #}
+{% from "_partials/components/_segmented.html" import segmented %}
 {% set chart = forecast_chart %}
 {% set points = forecast_points %}
+{% set horizon = forecast_horizon or 12 %}
+{% set summary = forecast_summary %}
 <section class="rd-forecast">
-  <p class="text-muted" style="margin-bottom: 1rem;">
-    <strong>NOW:</strong> {{ today.strftime("%b %Y") }} ·
-    <strong>HORIZON:</strong> {{ points|length }} months ·
-    {{ base_ccy }} budget overlay on
-  </p>
+  <header class="rd-forecast__head">
+    <div>
+      {{ segmented([
+        ('6', '6 mo'), ('12', '12 mo'), ('24', '24 mo'), ('60', '60 mo')
+      ], horizon|string, name='horizon', base_href='/plan?tab=forecast&') }}
+    </div>
+    {% if summary %}
+      <aside class="rd-forecast__summary" aria-label="Projection summary">
+        <div>
+          <span class="rd-eyebrow">Now</span>
+          <strong class="numeric">{{ "{:,.0f}".format(summary.now_value) }}</strong>
+        </div>
+        <div>
+          <span class="rd-eyebrow">{{ summary.end_point.label }}</span>
+          <strong class="numeric">{{ "{:,.0f}".format(summary.end_point.value_major) }}</strong>
+        </div>
+        <div>
+          <span class="rd-eyebrow">Peak · {{ summary.peak_point.label }}</span>
+          <strong class="numeric">{{ "{:,.0f}".format(summary.peak_point.value_major) }}</strong>
+        </div>
+      </aside>
+    {% endif %}
+  </header>
   <figure class="rd-chart rd-chart--line"
           role="img"
           aria-labelledby="forecast-caption">
@@ -44,28 +67,62 @@ parity with the chart.
       {% endfor %}
     </svg>
   </figure>
-  <details class="rd-chart__fallback">
-    <summary>Monthly table</summary>
-    <table class="rd-table">
-      <caption class="sr-only">Monthly projection fallback for the forecast chart</caption>
+  {# Peak + Now + End chart annotations (small text at the right edge). #}
+  {% if summary %}
+    <p class="rd-forecast__annotations">
+      <strong>{{ summary.peak_point.label }}</strong> peaks at
+      <span class="numeric">{{ "{:,.0f}".format(summary.peak_point.value_major) }}</span> ·
+      <strong>{{ summary.end_point.label }}</strong> lands at
+      <span class="numeric">{{ "{:,.0f}".format(summary.end_point.value_major) }}</span>.
+    </p>
+  {% endif %}
+  <h3 class="rd-forecast__table-title">Monthly table</h3>
+  <p class="text-muted" style="font-size: 0.8rem;">
+    First row is sourced from Budget summary so both pages agree.
+  </p>
+  <div class="rd-table-scroll">
+    <table class="rd-table rd-forecast__table">
+      <caption class="sr-only">Monthly projection table</caption>
       <thead>
         <tr>
           <th scope="col">Month</th>
-          <th scope="col" class="num">End of month ({{ base_ccy }})</th>
+          <th scope="col" class="num">Income</th>
+          <th scope="col" class="num">Expenses</th>
+          <th scope="col" class="num">Planned budget</th>
+          <th scope="col">Net</th>
+          <th scope="col" class="num">End of month</th>
         </tr>
       </thead>
       <tbody>
-        {% for point in points %}
-          <tr data-month="{{ point.month.isoformat() }}">
-            <td>{{ point.label }}</td>
-            <td class="num">{{ "{:,.2f}".format(point.value_major) }}</td>
+        {# Compute abs peak for Net inline bar scaling. #}
+        {% set ns = namespace(max_abs=1) %}
+        {% for p in points %}
+          {% set a = (p.net_minor|int if p.net_minor else 0) %}
+          {% if a < 0 %}{% set a = -a %}{% endif %}
+          {% if a > ns.max_abs %}{% set ns.max_abs = a %}{% endif %}
+        {% endfor %}
+        {% for p in points %}
+          {% set net = p.net_minor|int %}
+          {% set bar_pct = (100.0 * (net if net >= 0 else -net) / ns.max_abs) if ns.max_abs > 0 else 0 %}
+          <tr data-month="{{ p.month.isoformat() }}">
+            <td>{{ p.label }}</td>
+            <td class="num">{{ "{:,.0f}".format((p.income_minor or 0) / 100.0) }}</td>
+            <td class="num">{{ "{:,.0f}".format((p.expense_minor or 0) / 100.0) }}</td>
+            <td class="num">{{ "{:,.0f}".format((p.planned_budget_minor or 0) / 100.0) }}</td>
+            <td class="rd-forecast__net">
+              <span class="rd-forecast__net-bar rd-forecast__net-bar--{{ 'pos' if net >= 0 else 'neg' }}"
+                    style="--pct: {{ bar_pct }}%;"
+                    aria-hidden="true"></span>
+              <span class="numeric">{{ "{:,.0f}".format(net / 100.0) }}</span>
+            </td>
+            <td class="num">{{ "{:,.2f}".format(p.value_major) }}</td>
           </tr>
         {% else %}
           <tr>
-            <td colspan="2" class="text-muted">No projection data available.</td>
+            <td colspan="6" class="text-muted">No projection data available.</td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
-  </details>
+  </div>
 </section>

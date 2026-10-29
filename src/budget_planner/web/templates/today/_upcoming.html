@@ -1,8 +1,82 @@
 {% from "_partials/components/_amount.html" import amount %}
 {% from "_partials/components/_pill.html" import category_pill %}
+{# F-02 + /today Upcoming reskin — mock desktop-1d-today:
+   - Date-range grouping (NEXT 7 DAYS vs later weekly chunks).
+   - 6-row cap + "showing N of M" footer link into Ledger.
+   - Inline Promote (row-expand), Skip, Override, overdue chip. #}
 {% if upcoming %}
+  {% set cap = 6 %}
+  {% set total_count = upcoming|length %}
+  {% set shown = upcoming[:cap] %}
+  {% set next_7 = [] %}
+  {% set later = [] %}
+  {% for row in shown %}
+    {% set delta = (row.operation_date - today).days %}
+    {% if delta <= 7 %}
+      {% set _ = next_7.append(row) %}
+    {% else %}
+      {% set _ = later.append(row) %}
+    {% endif %}
+  {% endfor %}
+  {% macro row_tr(row) %}
+    {% set row_id = "upcoming-planned-" ~ row.planned_id if row.kind == "planned" else "upcoming-recurring-" ~ row.rule_id %}
+    <tr id="{{ row_id }}"
+        {% if row.is_overdue %}class="rd-row--overdue"{% endif %}>
+      <td style="font-family: var(--font-mono);
+                 font-size: 0.82rem;
+                 color: var(--mute)">
+        {{ row.operation_date.strftime("%d %b") }}
+        {% if row.is_overdue %}
+          <span class="rd-pill rd-pill--expense"
+                style="margin-left: 0.4rem; font-size: 0.65rem;">
+            {{ (today - row.operation_date).days }} days late
+          </span>
+        {% endif %}
+      </td>
+      <td class="rd-desc">
+        {{ row.description }}
+        <small>{{ row.kind|capitalize }}</small>
+      </td>
+      <td class="rd-cat">
+        <span class="rd-pill rd-pill--{{ 'expense' if row.amount_minor < 0 else 'income' }}">—</span>
+      </td>
+      <td class="num">{{ amount(row.amount_minor, base_ccy, direction='expense' if row.amount_minor < 0 else 'income') }}</td>
+      <td class="rd-actions">
+        {% if row.kind == "planned" %}
+          <button type="button"
+                  class="rd-btn rd-btn--sm rd-btn--primary"
+                  hx-get="/planned/{{ row.planned_id }}/promote/inline"
+                  hx-target="#{{ row_id }}"
+                  hx-swap="outerHTML">Promote</button>
+          <button type="button"
+                  class="rd-btn rd-btn--sm rd-btn--ghost"
+                  hx-get="/planned/{{ row.planned_id }}/edit"
+                  hx-target="#modal-root"
+                  hx-swap="innerHTML">Override</button>
+        {% else %}
+          <button type="button"
+                  class="rd-btn rd-btn--sm rd-btn--primary"
+                  hx-get="/recurring/{{ row.rule_id }}/promote/inline?date={{ row.operation_date.isoformat() }}"
+                  hx-target="#{{ row_id }}"
+                  hx-swap="outerHTML">Promote</button>
+          <button type="button"
+                  class="rd-btn rd-btn--sm rd-btn--ghost"
+                  hx-post="/recurring/{{ row.rule_id }}/skip-next"
+                  hx-swap="none"
+                  hx-trigger="click"
+                  hx-on::after-request="if(event.detail.successful){htmx.ajax('GET','/overview/upcoming',{target:'#upcoming-root',swap:'innerHTML'});}"
+                  hx-confirm="Skip this occurrence?">Skip</button>
+          <button type="button"
+                  class="rd-btn rd-btn--sm rd-btn--ghost"
+                  hx-get="/recurring/{{ row.rule_id }}/overrides/new?occurrence_date={{ row.operation_date.isoformat() }}"
+                  hx-target="#modal-root"
+                  hx-swap="innerHTML">Override</button>
+        {% endif %}
+      </td>
+    </tr>
+  {% endmacro %}
   <div class="rd-table-scroll">
-    <table class="rd-table">
+    <table class="rd-table rd-upcoming-table">
       <caption class="sr-only">Upcoming planned and recurring entries</caption>
       <thead>
         <tr>
@@ -14,33 +88,31 @@
         </tr>
       </thead>
       <tbody>
-        {% for row in upcoming %}
-          <tr {% if row.is_overdue %}class="rd-row--overdue"{% endif %}>
-            <td style="font-family: var(--font-mono);
-                       font-size: 0.82rem;
-                       color: var(--mute)">{{ row.operation_date.strftime("%d %b") }}</td>
-            <td class="rd-desc">
-              {{ row.description }}
-              <small>{{ row.kind|capitalize }}</small>
-            </td>
-            <td class="rd-cat">
-              <span class="rd-pill rd-pill--expense">—</span>
-            </td>
-            <td class="num">{{ amount(row.amount_minor, base_ccy, direction='expense' if row.amount_minor < 0 else 'income') }}</td>
-            <td>
-              {% if row.kind == "planned" %}
-                <a class="rd-btn rd-btn--sm"
-                   href="/planned/{{ row.planned_id }}/promote">Promote</a>
-              {% else %}
-                <a class="rd-btn rd-btn--sm"
-                   href="/recurring/{{ row.rule_id }}/promote?date={{ row.operation_date.isoformat() }}">Promote</a>
-              {% endif %}
-            </td>
+        {% if next_7 %}
+          <tr class="rd-upcoming-group">
+            <th colspan="5" scope="colgroup">
+              <span class="rd-eyebrow">Next 7 days · {{ next_7|length }}</span>
+            </th>
           </tr>
-        {% endfor %}
+          {% for row in next_7 %}{{ row_tr(row) }}{% endfor %}
+        {% endif %}
+        {% if later %}
+          <tr class="rd-upcoming-group">
+            <th colspan="5" scope="colgroup">
+              <span class="rd-eyebrow">Later · {{ later|length }}</span>
+            </th>
+          </tr>
+          {% for row in later %}{{ row_tr(row) }}{% endfor %}
+        {% endif %}
       </tbody>
     </table>
   </div>
+  {% if total_count > cap %}
+    <p class="rd-upcoming-more">
+      Showing {{ cap }} of {{ total_count }} ·
+      <a href="/ledger?view=planned" class="link-muted">open in Ledger →</a>
+    </p>
+  {% endif %}
 {% else %}
   <p class="text-muted" style="padding: 1.25rem;">Nothing upcoming in this window.</p>
 {% endif %}

@@ -9,12 +9,17 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import datetime
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, Response
 
 from budget_planner.config import Settings
+from budget_planner.repositories import (
+    accounts as accounts_repo,
+    categories as categories_repo,
+)
 from budget_planner.services import (
     budget as budget_service,
     fortune as fortune_service,
@@ -135,3 +140,43 @@ def afford_alias(
     settings: Settings = Depends(get_settings_dep),
 ) -> Response:
     return afford(request, amount, conn, settings)
+
+
+# F-04 — Unified Add entry overlay. Hosts the Happened / Planned / Repeats
+# segmented control; each tab reuses the existing /transactions, /planned,
+# /recurring form partials so submit paths stay unchanged.
+_ADD_TAB_FORMS: tuple[tuple[str, str, str, str], ...] = (
+    ("happened", "partials/transactions/_form.html", "/transactions", "txn"),
+    ("planned", "partials/planned/_form.html", "/planned", "planned"),
+    ("repeats", "partials/recurring/_form.html", "/recurring", "rule"),
+)
+
+
+@router.get("/add", response_class=HTMLResponse)
+def add_entry_overlay(
+    request: Request,
+    when: str = "happened",
+    conn: sqlite3.Connection = Depends(get_db),
+) -> HTMLResponse:
+    """Return the unified Add entry overlay (F-04)."""
+    tab = next((row for row in _ADD_TAB_FORMS if row[0] == when), _ADD_TAB_FORMS[0])
+    active_tab, form_include, action, entity_name = tab
+    ctx: dict[str, Any] = {
+        "active_tab": active_tab,
+        "form_include": form_include,
+        "action": action,
+        "categories": categories_repo.list_all(conn),
+        "accounts": accounts_repo.list_all(conn),
+        "errors": {},
+        entity_name: None,
+    }
+    if active_tab == "repeats":
+        from budget_planner.web.routers.recurring import (  # noqa: PLC0415
+            _EMPTY_TERM_INPUT,
+            _formula_source_candidates,
+        )
+
+        ctx["source_categories"] = _formula_source_candidates(conn)
+        ctx["amount_source"] = "fixed"
+        ctx["terms"] = [dict(_EMPTY_TERM_INPUT)]
+    return render(request, "partials/_add_entry_overlay.html", **ctx)

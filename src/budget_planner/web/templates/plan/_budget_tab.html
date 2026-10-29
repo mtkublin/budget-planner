@@ -1,25 +1,38 @@
 {% from "_partials/components/_amount.html" import amount %}
 {% from "_partials/components/_pill.html" import category_pill %}
 {% from "_partials/components/_progress_bar.html" import progress_bar %}
-{% set budget = (summary.totals.budgeted_minor|int) / 100.0 %}
-{% set spent = (summary.totals.spent_minor|int) / 100.0 %}
-{% set remaining = budget - spent %}
-{% set spent_pct = (100.0 * spent / budget) if budget > 0 else 0 %}
+{% set budget_minor = summary.totals.budgeted_minor|int %}
+{% set spent_minor = summary.totals.spent_minor|int %}
+{% set committed_minor = summary.totals.committed_minor|int %}
+{% set remaining_minor = summary.totals.remaining_minor|int %}
+{% set budget = budget_minor / 100.0 %}
+{% set spent = spent_minor / 100.0 %}
+{% set committed = committed_minor / 100.0 %}
+{% set remaining = remaining_minor / 100.0 %}
+{% set spent_pct = (100.0 * spent_minor / budget_minor) if budget_minor > 0 else 0 %}
+{% set committed_pct = (100.0 * committed_minor / budget_minor) if budget_minor > 0 else 0 %}
 {% set per_day = (remaining / (summary.days_until_next_income or 1)) %}
 <section class="rd-period">
   <div>
     <div class="rd-eyebrow">Period</div>
-    <div class="rd-period__range">month of {{ today.strftime("%B %Y") }}</div>
+    <div class="rd-period__range">
+      {{ today.strftime("%d %b") }} → {{ summary.next_income_date.strftime("%d %b") }}
+    </div>
     <div class="text-muted"
          style="font-size: 0.85rem;
-                margin-top: 0.25rem">anchor: {{ summary.anchor_category_name or '—' }} · <a class="link-muted" href="/settings">change</a></div>
+                margin-top: 0.25rem">anchor: {{ summary.anchor_category_name or '—' }} · <a class="link-muted" href="/settings?tab=prefs#income-anchor">change</a></div>
   </div>
   <div class="rd-period__bar">
-    <span style="width: {{ [spent_pct, 100]|min }}%"></span>
+    {{ progress_bar(spent_pct, committed_pct=committed_pct, over=(spent_minor > budget_minor and budget_minor > 0)) }}
   </div>
   <div class="rd-period__amt">
     {{ "{:,.2f}".format(per_day) }}
-    <small>{{ base_ccy }} / day · {{ summary.days_until_next_income }} days left</small>
+    <small>
+      {{ base_ccy }} / day · {{ summary.days_until_next_income }} days left
+      {% if committed > 0 %}
+        · <span class="rd-committed">{{ "{:,.2f}".format(committed) }} committed</span>
+      {% endif %}
+    </small>
   </div>
 </section>
 <div class="rd-table-scroll">
@@ -47,8 +60,12 @@
           <td class="num">{{ "{:,.2f}".format(a) }}</td>
           <td>{{ progress_bar(used, over=(a > p)) }}</td>
           <td class="num"><span class="{% if r < 0 %}rd-amount rd-amount--expense{% endif %}">{{ "{:,.2f}".format(r) }}</span></td>
-          <td class="rd-actions"><a class="rd-btn rd-btn--sm rd-btn--ghost"
-   href="/budget/overrides/new?category_id={{ row.category_id }}">⋯</a></td>
+          <td class="rd-actions"><button type="button"
+                                        class="rd-btn rd-btn--sm rd-btn--ghost"
+                                        hx-get="/budget/rules/{{ row.category_id }}/overrides/new"
+                                        hx-target="#modal-root"
+                                        hx-swap="innerHTML"
+                                        aria-label="Override {{ row.category_name }}">⋯</button></td>
         </tr>
       {% endfor %}
       <tr>

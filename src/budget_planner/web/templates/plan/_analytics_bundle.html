@@ -16,10 +16,46 @@ attributes T-R43 wired for the HTMX endpoint tests.
   <section class="rd-panel rd-analytics__spend">
     <header class="rd-panel__head">
       <h2 class="rd-panel__title">Spend by category</h2>
-      <span class="text-muted">— {{ base_ccy }} actual</span>
+      {% if spend_total_minor is defined %}
+        <span class="rd-analytics__badge numeric">
+          {{ "{:,.2f}".format(spend_total_minor / 100.0) }} {{ base_ccy }} actual
+        </span>
+      {% endif %}
     </header>
     <div style="padding: 1.25rem;">
       {% if bundle.spend_by_category %}
+        {# ADR-0056 §6 — Spend-by-category list uses the design-system
+           pill + horizontal bar + "vs 12-mo avg" delta instead of the raw
+           SVG labels. The SVG stays available as a <details> fallback. #}
+        {% set max_amount = bundle.spend_by_category[0].amount_minor if bundle.spend_by_category else 1 %}
+        <ul class="rd-analytics__spend-list" aria-label="Spend by category">
+          {% for row in bundle.spend_by_category %}
+            {% set bar_pct = (100.0 * row.amount_minor / max_amount) if max_amount > 0 else 0 %}
+            {% set avg_minor = (twelve_mo_avg_by_cat.get(row.category_id, 0) if twelve_mo_avg_by_cat is defined else 0) %}
+            {% set delta_minor = row.amount_minor - avg_minor %}
+            {% set delta_pct = (100.0 * delta_minor / avg_minor) if avg_minor > 0 else 0 %}
+            <li data-category-id="{{ row.category_id }}">
+              <a class="rd-analytics__row"
+                 href="/ledger?view=actual&category_id={{ row.category_id }}&date_from={{ bundle.period_start.isoformat() }}&date_to={{ bundle.period_end.isoformat() }}">
+                <span class="rd-pill rd-pill--expense">{{ row.category_name }}</span>
+                <span class="rd-analytics__bar"
+                      style="--pct: {{ bar_pct }}%;"
+                      aria-hidden="true"></span>
+                <strong class="numeric">{{ "{:,.2f}".format(row.amount_minor / 100.0) }}</strong>
+                {% if avg_minor > 0 %}
+                  <span class="rd-analytics__delta rd-analytics__delta--{{ 'over' if delta_minor > 0 else 'under' if delta_minor < 0 else 'flat' }}">
+                    {{ '+' if delta_minor > 0 else '' }}{{ "{:.0f}".format(delta_pct) }}% vs 12-mo avg
+                  </span>
+                {% endif %}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-muted" style="padding: 1rem 0;">No expense activity in this period.</p>
+      {% endif %}
+      <details class="rd-chart__fallback">
+        <summary>Chart fallback</summary>
         <figure class="rd-chart rd-chart--hbars"
                 role="img"
                 aria-labelledby="analytics-spend-caption">
@@ -38,20 +74,6 @@ attributes T-R43 wired for the HTMX endpoint tests.
             {% endfor %}
           </svg>
         </figure>
-      {% else %}
-        <p class="text-muted" style="padding: 1rem 0;">No expense activity in this period.</p>
-      {% endif %}
-      <details class="rd-chart__fallback">
-        <summary>Data table</summary>
-        <ul class="rd-analytics__list"
-            data-rows="{{ bundle.spend_by_category|length }}">
-          {% for row in bundle.spend_by_category %}
-            <li data-category-id="{{ row.category_id }}">
-              <span>{{ row.category_name }}</span>
-              <span class="n">{{ "{:,.2f}".format(row.amount_minor / 100.0) }}</span>
-            </li>
-          {% endfor %}
-        </ul>
       </details>
     </div>
   </section>
@@ -122,10 +144,14 @@ attributes T-R43 wired for the HTMX endpoint tests.
         data-rows="{{ bundle.largest_items|length }}">
       {% for item in bundle.largest_items %}
         <li data-transaction-id="{{ item.transaction_id }}">
-          <span>{{ item.operation_date.isoformat() }}</span>
-          <span>{{ item.category_name }}</span>
-          <span>{{ item.description }}</span>
-          <span class="n">{{ "{:,.2f}".format(item.amount_minor / 100.0) }}</span>
+          <div class="rd-analytics__largest-head">
+            <strong>{{ item.description or item.category_name }}</strong>
+            <span class="numeric n">{{ "{:,.2f}".format(item.amount_minor / 100.0) }}</span>
+          </div>
+          <div class="rd-analytics__largest-meta">
+            <span class="rd-pill rd-pill--expense">{{ item.category_name }}</span>
+            <span class="text-muted">{{ item.operation_date.strftime("%d %b %Y") }}</span>
+          </div>
         </li>
       {% else %}
         <li class="text-muted" style="padding: 0.75rem 1rem;">No expense transactions this period.</li>

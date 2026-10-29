@@ -35,7 +35,14 @@
             <td class="rd-desc">{{ row.category_name }}</td>
             {% for cell in row.cells %}
               <td class="num rd-plan-year__cell">
-                {{ heatmap_cell(cell.amount_minor or 0, tier=tier_map.get(cell.origin, "default")) }}
+                <button type="button"
+                        class="rd-plan-year__cell-btn"
+                        hx-get="/budget/rules/{{ row.category_id }}/overrides/new?month={{ loop.index }}&year={{ year_selected }}"
+                        hx-target="#modal-root"
+                        hx-swap="innerHTML"
+                        aria-label="Edit {{ row.category_name }} · {{ months[loop.index0] }} {{ year_selected }}">
+                  {{ heatmap_cell(cell.amount_minor or 0, tier=tier_map.get(cell.origin, "default")) }}
+                </button>
               </td>
             {% endfor %}
             <td class="num"><strong>{{ "{:,.0f}".format(row.total_minor / 100.0) }}</strong></td>
@@ -72,8 +79,14 @@
             aria-label="12-month breakdown for {{ row.category_name }}">
           {% for cell in row.cells %}
             <li class="rd-year-card__cell" aria-label="{{ months[loop.index0] }}">
-              <span class="rd-year-card__m">{{ months[loop.index0][0] }}</span>
-              {{ heatmap_cell(cell.amount_minor or 0, tier=tier_map.get(cell.origin, "default")) }}
+              <button type="button"
+                      class="rd-year-card__cell-btn"
+                      hx-get="/budget/rules/{{ row.category_id }}/overrides/new?month={{ loop.index }}&year={{ year_selected }}"
+                      hx-target="#modal-root"
+                      hx-swap="innerHTML">
+                <span class="rd-year-card__m">{{ months[loop.index0][0] }}</span>
+                {{ heatmap_cell(cell.amount_minor or 0, tier=tier_map.get(cell.origin, "default")) }}
+              </button>
             </li>
           {% endfor %}
         </ol>

@@ -882,11 +882,20 @@ class MonthlyProjectionPoint:
     projected end-of-month fortune in major units, convenient for SVG
     plotting (``charts.line_area`` normalises on raw floats). ``label``
     is a short month label suitable for the x-axis.
+
+    ADR-0056 Plan · Forecast reskin adds the per-month flow aggregates so
+    the inline table beneath the chart does not need a second service call.
+    All *_minor fields are in base-currency minor units.
     """
 
     month: dt.date
     label: str
     value_major: float
+    income_minor: int = 0
+    expense_minor: int = 0
+    planned_budget_minor: int = 0
+    net_minor: int = 0
+    end_balance_minor: int = 0
 
 
 def monthly_projection(
@@ -913,6 +922,11 @@ def monthly_projection(
             month=point.month,
             label=point.month.strftime("%b %Y"),
             value_major=point.end_balance_base_minor / 100.0,
+            income_minor=point.income_base_minor,
+            expense_minor=point.expense_base_minor,
+            planned_budget_minor=point.planned_budget_base_minor,
+            net_minor=point.net_base_minor,
+            end_balance_minor=point.end_balance_base_minor,
         )
         for point in series.months
     )

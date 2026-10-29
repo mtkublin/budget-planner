@@ -14,11 +14,23 @@
     return tag === "INPUT" || tag === "TEXTAREA" || a.isContentEditable;
   };
 
+  // Hard-coded fallback: ensures `g a` and friends work even if the nav
+  // partial changes shape. The DOM scan still runs so authored data-shortcut
+  // overrides win.
+  const FALLBACK_NAV = {
+    "g o": "/today",
+    "g l": "/ledger",
+    "g p": "/plan",
+    "g a": "/accounts",
+    "g s": "/settings",
+  };
+
   const navMap = () => {
-    const map = {};
-    document.querySelectorAll("nav [data-shortcut]").forEach(el => {
+    const map = { ...FALLBACK_NAV };
+    document.querySelectorAll("[data-shortcut]").forEach(el => {
       const key = el.getAttribute("data-shortcut");
-      if (key) map[key] = el.getAttribute("href");
+      const href = el.getAttribute("href");
+      if (key && href) map[key] = href;
     });
     return map;
   };

@@ -58,8 +58,24 @@
           </tr>
         </thead>
         <tbody>
+          {# Day grouping (ADR-0056 §4). For `actual`, insert a group header
+             <tr> every time the operation_date changes with net sum (transit
+             rows excluded from the sum). The ns.* namespace tracks the
+             running day + net. #}
+          {%- set ns = namespace(day=none, day_net_minor=0, day_rows=[]) -%}
           {% for row in rows %}
             {% if view == "actual" %}
+              {%- if ns.day != row.operation_date -%}
+                {%- if ns.day is not none -%}
+                  {# Flush the previous day group header before starting a new one. #}
+                {%- endif -%}
+                {%- set ns.day = row.operation_date -%}
+                <tr class="rd-day-head">
+                  <td colspan="8">
+                    <span class="rd-eyebrow">{{ row.operation_date.strftime("%a %d %b") }}</span>
+                  </td>
+                </tr>
+              {%- endif -%}
               <tr id="txn-{{ row.id }}" class="row">
                 <td class="rd-bulk-check">
                   <input type="checkbox"
@@ -76,22 +92,31 @@
                   {% if row.dest_account %}→ {{ row.dest_account.name }}{% endif %}
                 </td>
                 <td class="text-muted">{{ row.description }}</td>
-                <td class="text-right space-x-2 text-sm">
-                  <button type="button"
-                          hx-get="/transactions/{{ row.id }}/edit"
-                          hx-target="#modal-root"
-                          hx-swap="innerHTML"
-                          aria-label="Edit transaction {{ row.id }}">Edit</button>
-                  <button type="button"
-                          hx-post="/transactions/{{ row.id }}/delete"
-                          hx-target="#txn-{{ row.id }}"
-                          hx-swap="outerHTML"
-                          hx-confirm="Delete this transaction?"
-                          aria-label="Delete transaction {{ row.id }}">Delete</button>
+                <td class="text-right rd-actions">
+                  {% call kebab_menu(id="txn-" ~ row.id) %}
+                    <li role="none">
+                      <button type="button"
+                              role="menuitem"
+                              hx-get="/transactions/{{ row.id }}/edit"
+                              hx-target="#modal-root"
+                              hx-swap="innerHTML">Edit</button>
+                    </li>
+                    <li role="none">
+                      <button type="button"
+                              role="menuitem"
+                              data-destructive
+                              hx-post="/transactions/{{ row.id }}/delete"
+                              hx-target="#txn-{{ row.id }}"
+                              hx-swap="outerHTML"
+                              hx-confirm="Delete this transaction?">Delete</button>
+                    </li>
+                  {% endcall %}
                 </td>
               </tr>
             {% elif view == "planned" %}
-              <tr id="planned-{{ row.key }}" class="row">
+              {% set days_delta = (row.operation_date - today_date).days if today_date is defined else 0 %}
+              <tr id="planned-{{ row.key }}"
+                  class="row {% if (not row.is_promoted) and days_delta < 0 %}rd-row--overdue{% endif %}">
                 <td class="rd-bulk-check">
                   {% if row.kind == "persisted" %}
                     <input type="checkbox"
@@ -104,13 +129,20 @@
                 <td>{% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}</td>
                 <td class="text-right"><span class="tabular-nums">{{ row.amount_minor|money(row.currency) }}</span></td>
                 <td>{{ category_label(row.category) }}</td>
-                <td>{{ row.account.name if row.account else '' }}</td>
-                <td class="text-muted">{{ row.description }}</td>
+                <td class="rd-desc">
+                  <strong>{{ row.description or '—' }}</strong>
+                  <small>{{ row.account.name if row.account else '' }}</small>
+                </td>
+                <td class="text-muted"></td>
                 <td>
                   {% if row.is_promoted %}
-                    <span class="pill pill-income">promoted</span>
+                    <span class="rd-pill rd-pill--income">✓ Promoted</span>
+                  {% elif days_delta < 0 %}
+                    <span class="rd-pill rd-pill--expense">{{ -days_delta }} days late</span>
+                  {% elif days_delta == 0 %}
+                    <span class="rd-pill">today</span>
                   {% else %}
-                    <span class="text-faint">—</span>
+                    <span class="rd-pill rd-pill--neutral">in {{ days_delta }} days</span>
                   {% endif %}
                 </td>
                 <td class="text-right">
@@ -146,6 +178,15 @@
                 </td>
               </tr>
             {% elif view == "recurring" %}
+              {%- set rec_cadence = (row.cadence.value if row.cadence is not string else row.cadence) -%}
+              {%- if ns.day != rec_cadence -%}
+                {%- set ns.day = rec_cadence -%}
+                <tr class="rd-day-head">
+                  <td colspan="9">
+                    <span class="rd-eyebrow">{{ rec_cadence|capitalize }}</span>
+                  </td>
+                </tr>
+              {%- endif -%}
               <tr id="recurring-{{ row.id }}" class="row">
                 <td data-cadence>{{ row.cadence.value|capitalize }}</td>
                 <td class="whitespace-nowrap tabular-nums" data-next-due>
@@ -247,7 +288,32 @@
       </table>
     </div>
     {% if not rows %}
-      <p class="text-faint mt-4">No {{ view }} entries.</p>
+      {% if view == "planned" %}
+        <div class="rd-empty-state">
+          <strong>No planned entries</strong>
+          <p class="text-muted">
+            Capture one-off bills and transfers you expect to settle later.
+            They sit here until promoted into Actual.
+          </p>
+          <button type="button"
+                  class="rd-btn rd-btn--primary"
+                  hx-get="/planned/new"
+                  hx-target="#modal-root"
+                  hx-swap="innerHTML">+ Planned entry</button>
+        </div>
+      {% elif view == "recurring" %}
+        <div class="rd-empty-state">
+          <strong>No standing commitments</strong>
+          <p class="text-muted">Add rent, salary, subscriptions — anything that fires on a cadence.</p>
+          <button type="button"
+                  class="rd-btn rd-btn--primary"
+                  hx-get="/recurring/new"
+                  hx-target="#modal-root"
+                  hx-swap="innerHTML">+ Recurring rule</button>
+        </div>
+      {% else %}
+        <p class="text-faint mt-4">No entries match the current filters.</p>
+      {% endif %}
     {% endif %}
     {% if view == "actual" %}
       <nav class="pagination mt-4 flex items-center gap-3 text-sm"
@@ -257,7 +323,7 @@
              hx-get="/ledger/table?view={{ view }}&page={{ page - 1 }}"
              hx-target="#ledger-table"
              hx-swap="outerHTML"
-             href="/ledger?view={{ view }}&page={{ page - 1 }}">Prev</a>
+             href="/ledger?view={{ view }}&page={{ page - 1 }}">← Newer</a>
         {% endif %}
         <span class="text-muted">Page {{ page }}</span>
         {% if has_next %}
@@ -265,7 +331,7 @@
              hx-get="/ledger/table?view={{ view }}&page={{ page + 1 }}"
              hx-target="#ledger-table"
              hx-swap="outerHTML"
-             href="/ledger?view={{ view }}&page={{ page + 1 }}">Next</a>
+             href="/ledger?view={{ view }}&page={{ page + 1 }}">Older →</a>
         {% endif %}
       </nav>
     {% endif %}

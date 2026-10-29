@@ -16,7 +16,13 @@
       </span>
     </div>
   </header>
-  {{ segmented([('actual', 'Actual'), ('planned', 'Planned'), ('recurring', 'Recurring')], view, name='view', base_href='/ledger') }}
+  <div data-ledger-views>
+    {{ segmented([
+      ('actual', 'Actual', tab_counts.actual if tab_counts is defined else none),
+      ('planned', 'Planned', tab_counts.planned if tab_counts is defined else none),
+      ('recurring', 'Recurring', tab_counts.recurring if tab_counts is defined else none),
+    ], view, name='view', base_href='/ledger') }}
+  </div>
   <form class="rd-chips"
         style="margin-top: 1.25rem;
                background: var(--surface);
@@ -121,6 +127,31 @@
               data-bulk-delete
               data-destructive>Delete selected</button>
     </div>
+  {% endif %}
+  {% if view == "recurring" and recurring_summary %}
+    <aside class="rd-recurring-strip" aria-label="Monthly cash flow summary">
+      <div>
+        <span class="rd-eyebrow">Monthly out</span>
+        <strong class="numeric rd-amount rd-amount--expense">
+          {{ "{:,.0f}".format(recurring_summary.monthly_out_minor / 100.0) }}
+          <span class="rd-amount__currency">PLN</span>
+        </strong>
+      </div>
+      <div>
+        <span class="rd-eyebrow">Monthly in</span>
+        <strong class="numeric rd-amount rd-amount--income">
+          {{ "{:,.0f}".format(recurring_summary.monthly_in_minor / 100.0) }}
+          <span class="rd-amount__currency">PLN</span>
+        </strong>
+      </div>
+    </aside>
+  {% endif %}
+  {% if view == "planned" and rows %}
+    <aside class="rd-planned-strip">
+      <strong>{{ rows|length }}</strong> items ·
+      <strong class="numeric">{{ "{:,.2f}".format(planned_total_minor / 100.0) }} PLN</strong>
+      pending over the window.
+    </aside>
   {% endif %}
   <section style="margin-top: 1rem;">
     {% include "ledger/_table.html" %}

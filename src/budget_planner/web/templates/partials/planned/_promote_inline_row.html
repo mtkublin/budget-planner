@@ -1,0 +1,43 @@
+{# F-02 — Inline row-expand form rendered when the Today Upcoming "Promote"
+   button is clicked. Replaces the current <tr> and submits to the plain
+   /planned/{id}/promote endpoint on confirm. `Esc` reverts the row via
+   HTMX by re-fetching the Upcoming fragment. #}
+<tr id="upcoming-planned-{{ planned.id }}"
+    class="upcoming-row--editing"
+    data-inline-edit>
+  <td colspan="5">
+    <form class="rd-inline-promote"
+          hx-post="/planned/{{ planned.id }}/promote"
+          hx-swap="none"
+          hx-on::after-request="if(event.detail.successful){htmx.ajax('GET','/overview/upcoming',{target:'#upcoming-root',swap:'innerHTML'});}">
+      <label class="rd-field rd-field--inline">
+        <span class="rd-field__label">Account</span>
+        <strong>{{ account.name if account else '—' }}</strong>
+      </label>
+      <label class="rd-field rd-field--inline">
+        <span class="rd-field__label">Date</span>
+        <input type="date"
+               name="operation_date"
+               value="{{ planned.operation_date|date_fmt }}"
+               required>
+      </label>
+      <label class="rd-field rd-field--inline">
+        <span class="rd-field__label">Amount</span>
+        <input type="text"
+               name="amount"
+               value="{{ planned.amount|money_major(account.currency if account else 'PLN') }}"
+               inputmode="decimal"
+               required>
+      </label>
+      <input type="hidden" name="description" value="{{ planned.description or '' }}">
+      <div class="rd-inline-promote__actions">
+        <button type="submit" class="rd-btn rd-btn--primary rd-btn--sm">Confirm ↩</button>
+        <button type="button"
+                class="rd-btn rd-btn--ghost rd-btn--sm"
+                hx-get="/overview/upcoming"
+                hx-target="#upcoming-root"
+                hx-swap="innerHTML">Esc</button>
+      </div>
+    </form>
+  </td>
+</tr>

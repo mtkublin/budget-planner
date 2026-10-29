@@ -1,0 +1,43 @@
+{# F-02 — Inline row-expand form for recurring Promote on Today Upcoming.
+   Posts to the existing /recurring/{id}/promote endpoint. #}
+<tr id="upcoming-recurring-{{ rule.id }}"
+    class="upcoming-row--editing"
+    data-inline-edit>
+  <td colspan="5">
+    <form class="rd-inline-promote"
+          hx-post="/recurring/{{ rule.id }}/promote"
+          hx-swap="none"
+          hx-on::after-request="if(event.detail.successful){htmx.ajax('GET','/overview/upcoming',{target:'#upcoming-root',swap:'innerHTML'});}">
+      <label class="rd-field rd-field--inline">
+        <span class="rd-field__label">Account</span>
+        <strong>{{ account.name if account else '—' }}</strong>
+      </label>
+      <label class="rd-field rd-field--inline">
+        <span class="rd-field__label">Date</span>
+        <input type="date"
+               name="operation_date"
+               value="{{ occurrence_date.isoformat() }}"
+               required>
+      </label>
+      <label class="rd-field rd-field--inline">
+        <span class="rd-field__label">Amount</span>
+        <input type="text"
+               name="amount"
+               value="{{ (prefill_amount_minor / 100)|round(2) if prefill_amount_minor else '' }}"
+               inputmode="decimal"
+               placeholder="0.00">
+      </label>
+      <input type="hidden"
+             name="description"
+             value="{{ prefill_description or rule.default_description or '' }}">
+      <div class="rd-inline-promote__actions">
+        <button type="submit" class="rd-btn rd-btn--primary rd-btn--sm">Confirm ↩</button>
+        <button type="button"
+                class="rd-btn rd-btn--ghost rd-btn--sm"
+                hx-get="/overview/upcoming"
+                hx-target="#upcoming-root"
+                hx-swap="innerHTML">Esc</button>
+      </div>
+    </form>
+  </td>
+</tr>

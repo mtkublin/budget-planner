@@ -84,9 +84,23 @@
               <span class="numeric" data-reconcile-delta-amount></span>
             </div>
             <p class="rd-reconcile-delta__hint">
-              Will be saved as an adjustment in <em>Reconciliation (system)</em>. It appears in the ledger and can be undone.
+              Will be saved as an adjustment. It appears in the ledger and can be undone.
             </p>
           </aside>
+          {# F-03 — Record-as category selector + Also-save-snapshot checkbox. #}
+          <label class="rd-field">
+            <span class="rd-field__label">Record as</span>
+            <select name="category_id">
+              <option value="">±ADJUST · Reconciliation (system)</option>
+              {% for c in (categories or []) %}
+                <option value="{{ c.id }}">{{ c.direction.value|upper }} · {{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="form-stack__inline" style="margin-top: 0.25rem;">
+            <input type="checkbox" name="save_snapshot" value="1">
+            Also save a balance snapshot
+          </label>
           {% include "partials/_form_errors.html" %}
           {% if snapshots is defined and snapshots %}
             <section class="rd-reconcile-prev">
@@ -107,7 +121,7 @@
                     onclick="var r=this.closest('.slide-over-root');if(r&&r.parentElement){r.parentElement.innerHTML='';}">
               Cancel
             </button>
-            <button type="submit" class="rd-btn rd-btn--primary" data-reconcile-submit>Record</button>
+            <button type="submit" class="rd-btn rd-btn--primary" data-reconcile-submit>Record ↩</button>
           </footer>
         </form>
       {% else %}
@@ -141,7 +155,7 @@
         var val = parseMajor(input.value);
         if (val === null) {
           if (delta) delta.setAttribute("hidden", "");
-          if (submitBtn) submitBtn.textContent = "Record";
+          if (submitBtn) submitBtn.textContent = "Record ↩";
           return;
         }
         var deltaMajor = val - (derivedMinor / 100);
@@ -149,7 +163,7 @@
         var absAmount = fmt(Math.abs(deltaMajor));
         if (amountEl) amountEl.textContent = sign + absAmount + " " + ccy;
         if (delta) delta.removeAttribute("hidden");
-        if (submitBtn) submitBtn.textContent = "Record " + (deltaMajor === 0 ? "0.00" : sign + absAmount);
+        if (submitBtn) submitBtn.textContent = "Record " + (deltaMajor === 0 ? "0.00" : sign + absAmount) + " ↩";
       }
       input.addEventListener("input", sync);
       sync();

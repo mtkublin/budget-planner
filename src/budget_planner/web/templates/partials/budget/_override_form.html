@@ -7,31 +7,40 @@
       class="form-stack"
       data-reset-on-submit>
   {% if category %}
+    {% set initial_tier = 'one-off' if preset_year is defined and preset_year else 'recurring' %}
     <fieldset>
       <legend>Tier</legend>
       <label class="form-stack__inline">
-        <input type="radio" name="tier" value="recurring" data-override-tier checked>
-        Recurring (every year for this month)
+        <input type="radio"
+               name="tier"
+               value="recurring"
+               data-override-tier
+               {% if initial_tier == 'recurring' %}checked{% endif %}>
+        Every year · this month
       </label>
       <label class="form-stack__inline">
-        <input type="radio" name="tier" value="one-off" data-override-tier>
-        One-off (single year/month)
+        <input type="radio"
+               name="tier"
+               value="one-off"
+               data-override-tier
+               {% if initial_tier == 'one-off' %}checked{% endif %}>
+        One-off · this month only
       </label>
     </fieldset>
     <label>
       Month
       <select name="month" required>
         {% for m in range(1, 13) %}
-          <option value="{{ m }}">{{ "%02d"|format(m) }}</option>
+          <option value="{{ m }}"
+                  {% if preset_month is defined and preset_month == m %}selected{% endif %}>{{ "%02d"|format(m) }}</option>
         {% endfor %}
       </select>
     </label>
-    <label data-override-year
-           {% if false %}{# shown dynamically; see inline script #}{% endif %}>
+    <label data-override-year>
       Year
       <input type="number"
              name="year"
-             value="{{ today_year }}"
+             value="{{ preset_year if (preset_year is defined and preset_year) else today_year }}"
              min="2000"
              max="2100"
              inputmode="numeric">

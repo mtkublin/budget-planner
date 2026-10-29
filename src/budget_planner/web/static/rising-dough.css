@@ -358,7 +358,52 @@ body.rd {
   border-bottom: 1px solid var(--line);
 }
 .rd-panel__title { font-family: var(--font-display); font-size: 1.25rem; font-weight: 500; margin: 0; }
-.rd-panel__filters { display: flex; align-items: center; gap: 0.75rem; }
+.rd-panel__filters { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+
+/* /today Upcoming extras (segmented hero bar, day grouping, "showing N of M"). */
+.rd-hero__progress { margin-top: 0.75rem; }
+.rd-committed { color: var(--committed, var(--accent)); font-weight: 500; }
+
+.rd-upcoming-table tr.rd-upcoming-group th {
+  background: var(--paper);
+  padding: 0.75rem 0.9rem 0.4rem;
+  border-bottom: 1px solid var(--line);
+  font-weight: 400;
+}
+
+.rd-upcoming-more {
+  margin: 0.75rem 1.25rem 1.25rem;
+  color: var(--mute);
+  font-size: 0.85rem;
+}
+.rd-upcoming-more a { color: var(--accent); }
+
+/* F-02 inline row-expand promote form. */
+.rd-inline-promote {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  background: color-mix(in oklab, var(--accent) 4%, transparent);
+}
+.rd-inline-promote .rd-field--inline { flex-direction: column; gap: 0.2rem; min-width: 0; }
+.rd-inline-promote .rd-field__label { font-size: 0.65rem; }
+
+.rd-inline-promote input[type="date"],
+.rd-inline-promote input[type="text"] {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  font-family: var(--font-mono);
+}
+
+.rd-inline-promote__actions {
+  margin-left: auto;
+  display: flex;
+  gap: 0.4rem;
+}
+.upcoming-row--editing td { background: color-mix(in oklab, var(--accent) 4%, var(--paper)); }
 
 /* ─── Table-row ───────────────────────────────────────────────────── */
 .rd-table { width: 100%; border-collapse: collapse; }
@@ -404,6 +449,161 @@ body.rd {
   border-bottom: 1px solid var(--line);
 }
 .rd-day-head td .net { float: right; font-family: var(--font-mono); }
+
+/* Ledger summary strips (Monthly in/out · Planned total). */
+.rd-recurring-strip,
+.rd-planned-strip {
+  display: flex;
+  gap: 2rem;
+  align-items: baseline;
+  padding: 0.9rem 1.1rem;
+  margin: 0.9rem 0 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+.rd-recurring-strip strong,
+.rd-planned-strip strong { font-family: var(--font-display); font-size: 1.25rem; font-weight: 500; }
+.rd-planned-strip { font-size: 0.9rem; }
+
+/* Empty-state card for Planned / Recurring tabs. */
+.rd-empty-state {
+  margin: 1.25rem 0;
+  padding: 1.5rem 1.75rem;
+  background: var(--surface);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-card);
+  text-align: center;
+}
+.rd-empty-state strong { display: block; font-family: var(--font-display); font-size: 1.25rem; margin-bottom: 0.4rem; }
+.rd-empty-state p { max-width: 32rem; margin: 0 auto 1rem; }
+
+/* Fallback neutral pill. */
+.rd-pill--neutral { background: var(--sunk); color: var(--mute); }
+
+/* ─── Plan · Analytics bento + list treatment (ADR-0056 §6) ──────── */
+.rd-analytics__chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.rd-analytics-bundle {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-areas: "spend flow" "spend largest";
+  gap: 1rem;
+}
+.rd-analytics-bundle > .rd-analytics__spend { grid-area: spend; }
+.rd-analytics-bundle > .rd-analytics__flow { grid-area: flow; }
+.rd-analytics-bundle > .rd-analytics__largest { grid-area: largest; }
+
+@media (width <= 900px) {
+  .rd-analytics-bundle {
+    grid-template-columns: 1fr;
+    grid-template-areas: "spend" "flow" "largest";
+  }
+}
+
+.rd-analytics__badge {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--mute);
+}
+
+.rd-analytics__spend-list { list-style: none; padding: 0; margin: 0; }
+
+.rd-analytics__row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 10rem) minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.4rem;
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in oklab, var(--line) 50%, transparent);
+}
+.rd-analytics__row:hover { background: color-mix(in oklab, var(--accent) 4%, transparent); }
+
+.rd-analytics__bar {
+  position: relative;
+  height: 8px;
+  background: var(--sunk);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.rd-analytics__bar::after {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: var(--pct, 0%);
+  background: var(--ink);
+}
+.rd-analytics__delta { font-size: 0.75rem; font-family: var(--font-mono); }
+.rd-analytics__delta--over { color: var(--expense); }
+.rd-analytics__delta--under { color: var(--income); }
+.rd-analytics__delta--flat { color: var(--mute); }
+
+.rd-analytics__largest-list { list-style: none; padding: 0 1rem 1rem; margin: 0; display: grid; gap: 0.6rem; }
+.rd-analytics__largest-list li { padding: 0.6rem 0.8rem; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--paper); }
+.rd-analytics__largest-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; }
+.rd-analytics__largest-meta { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.3rem; font-size: 0.8rem; }
+
+.rd-analytics__footer { margin: 1rem 0 0; font-size: 0.85rem; }
+
+/* ─── Plan · Forecast layout extras ──────────────────────────────── */
+.rd-forecast__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.rd-forecast__summary {
+  display: flex;
+  gap: 1.5rem;
+  align-items: baseline;
+}
+.rd-forecast__summary div { text-align: right; }
+.rd-forecast__summary strong { font-family: var(--font-display); font-size: 1.25rem; display: block; }
+
+.rd-forecast__annotations {
+  margin: 0.5rem 0 1rem;
+  color: var(--mute);
+  font-size: 0.85rem;
+}
+.rd-forecast__table-title { margin: 2rem 0 0.5rem; font-family: var(--font-display); font-weight: 500; font-size: 1.1rem; }
+
+.rd-forecast__net {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rd-forecast__net-bar {
+  position: relative;
+  display: block;
+  height: 6px;
+  background: var(--sunk);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.rd-forecast__net-bar::after {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0;
+  width: var(--pct, 0%);
+}
+.rd-forecast__net-bar--pos::after { left: 50%; background: var(--income); }
+.rd-forecast__net-bar--neg::after { right: 50%; background: var(--expense); }
 
 /* ─── Amount styling ──────────────────────────────────────────────── */
 .rd-amount {
@@ -515,14 +715,18 @@ kbd.rd-kbd {
 /* ─── Progress bar ────────────────────────────────────────────────── */
 .rd-progress {
   display: inline-block;
-  width: 220px;
-  height: 6px;
+  width: 100%;
+  min-width: 180px;
+  max-width: 320px;
+  height: 8px;
   background: var(--sunk);
-  border-radius: 3px;
+  border-radius: 4px;
   overflow: hidden;
   position: relative;
   vertical-align: middle;
 }
+
+.rd-period__bar .rd-progress { width: 100%; max-width: none; height: 10px; border-radius: 5px; }
 
 .rd-progress__spent {
   position: absolute; left: 0; top: 0; bottom: 0;
@@ -798,7 +1002,83 @@ kbd.rd-kbd {
   color: var(--mute);
 }
 .rd-checked--today { background: var(--income-soft); color: var(--income); }
-.rd-checked--stale { background: var(--adjust-soft); color: var(--adjust); }
+.rd-checked--warn { background: color-mix(in oklab, var(--adjust) 20%, transparent); color: var(--adjust); }
+.rd-checked--stale { background: color-mix(in oklab, var(--expense) 15%, transparent); color: var(--expense); }
+
+/* ─── Credit-card utilisation bar (ADR-0056 §7) ──────────────────── */
+.rd-credit-bar {
+  display: block;
+  margin-top: 0.4rem;
+  max-width: 32rem;
+}
+
+.rd-credit-bar__track {
+  display: block;
+  position: relative;
+  height: 6px;
+  background: var(--sunk);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.rd-credit-bar__track::after {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: var(--used-pct, 0%);
+  background: var(--expense);
+}
+
+.rd-credit-bar__meta {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--mute);
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+}
+
+/* Colour-swatch dot used in Settings · Categories to indicate per-category
+ * colour overrides vs direction-default. */
+.rd-swatch-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--swatch, var(--mute));
+  margin-right: 0.4rem;
+  vertical-align: middle;
+  border: 1px solid color-mix(in oklab, var(--ink) 15%, transparent);
+}
+
+.rd-settings-anchor {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  background: color-mix(in oklab, var(--accent) 4%, var(--surface));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+.rd-settings-anchor .rd-form-row { display: flex; gap: 0.5rem; align-items: center; }
+
+/* F-04 Add entry overlay — tabs + footer hint. */
+.rd-add-entry-tabs {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.rd-add-entry-tabs .rd-segmented__item { border: 0; background: transparent; cursor: pointer; }
+
+.rd-add-entry__hint {
+  padding: 0.75rem 1.25rem 1.25rem;
+  margin: 0;
+  font-size: 0.8rem;
+}
 
 /* ─── Mobile tab bar (Phase 6 stub, hidden desktop) ───────────────── */
 .rd-tabbar { display: none; }
@@ -857,15 +1137,46 @@ kbd.rd-kbd {
   .rd-tabbar__add {
     background: var(--accent);
     color: #fff;
+    border: 0;
     border-radius: 999px;
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     margin-top: -1.25rem;
     box-shadow: var(--shadow-overlay);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
   }
+
+  /* L-05 — Hide the legacy FAB on mobile so it stops overlapping the fixed
+   * bottom tab bar. Phase 7 cleanup (T-R58) removes the FAB entirely. */
+  .fab { display: none !important; }
+
+  /* L-02 — Make row action controls meet the 44 px tap-target floor without
+   * forcing the whole desktop table to grow. */
+  .rd-actions .rd-btn,
+  .rd-actions button,
+  .rd-actions [data-kebab-trigger] {
+    min-height: 44px;
+    min-width: 44px;
+    padding-inline: 0.75rem;
+  }
+}
+
+/* L-03/L-04 — Accounts hero stacks and liability pill flows under the account
+ * name on narrow widths so numbers never collide and the pill doesn't wrap
+ * mid-word. Scoped to the hero + first row cell to avoid affecting other
+ * dense tables. */
+@media (width <= 640px) {
+  /* Fortune hero: stack columns vertically so Assets/Liabilities don't
+   * overlap the headline total. */
+  .rd-accounts-hero { grid-template-columns: 1fr !important; gap: 0.75rem !important; }
+
+  .rd-table .rd-desc { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; }
+  .rd-table .rd-desc > .rd-pill { white-space: nowrap; }
 }
 
 /* ─── View Transitions (feature-detected, reduced-motion safe) ────── */
@@ -1193,9 +1504,47 @@ kbd.rd-kbd {
 .rd-plan-year__table thead th:first-child,
 .rd-plan-year__table tbody td:first-child { position: sticky; left: 0; background: var(--paper); z-index: 1; }
 
-/* Heatmap tier accents layered on top of the base .rd-heat defined above. */
-.rd-plan-year__cell .rd-heat--one-off { font-weight: 600; }
-.rd-plan-year__cell .rd-heat--recurring { font-style: italic; }
+/* Heatmap tier accents layered on top of the base .rd-heat defined above.
+ * ADR-0051 §5.3 — one-off bold+outline, recurring italic+hatch, default plain,
+ * unset dash. Hatch via background-image; keep contrast low so the amount
+ * stays the primary signal. */
+.rd-plan-year__cell .rd-heat--one-off {
+  font-weight: 600;
+  outline: 1px solid color-mix(in oklab, var(--accent) 60%, transparent);
+  outline-offset: -1px;
+}
+
+.rd-plan-year__cell .rd-heat--recurring {
+  font-style: italic;
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent 0 3px,
+    color-mix(in oklab, var(--ink) 8%, transparent) 3px 4px
+  );
+}
+.rd-plan-year__cell .rd-heat--unset { color: var(--mute); }
+
+/* B-02 — Heatmap cells become buttons so the ⌨/🖱 interaction fires the
+ * override popover. Preserve plain-cell visual while giving a focus ring. */
+.rd-plan-year__cell-btn {
+  display: inline-flex;
+  width: 100%;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.rd-plan-year__cell-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.rd-plan-year__cell-btn:hover .rd-heat { filter: brightness(0.95); }
 
 /* T-R54 — Mobile cards swap for the Plan · Year heatmap. */
 .rd-plan-year__cards { display: none; }
@@ -1247,6 +1596,27 @@ kbd.rd-kbd {
   justify-content: center;
 }
 
+.rd-year-card__cell-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.rd-year-card__cell-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 /* ─── Bulk-select toolbar (T-R69) ──────────────────────────────────── */
 .rd-bulk-toolbar {
   position: sticky;
@@ -1271,7 +1641,7 @@ kbd.rd-kbd {
 .rd-bulk-check { width: 2rem; }
 .rd-bulk-check input { cursor: pointer; }
 
-/* ─── Mobile table scroll wrapper (T-R53) ──────────────────────────── */
+/* ─── Table scroll wrapper (T-R53, extended for tablet by audit-2) ────── */
 
 /* Position:relative anchors absolute descendants (e.g. .sr-only) to this
  * container, so they don't bleed into the document scrollWidth. */
@@ -1281,13 +1651,14 @@ kbd.rd-kbd {
   position: relative;
 }
 
-@media (width <= 640px) {
+/* Tablet (≤1024 px): the wide ledger / plan-year tables overflow the main
+ * column. Scope horizontal scroll + sticky first column at tablet widths so
+ * no viewport-level horizontal scrollbar appears. */
+@media (width <= 1024px) {
   .rd-table-scroll {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-
-  .rd-table-scroll .rd-table { min-width: 36rem; }
 
   .rd-table-scroll .rd-table thead th:first-child,
   .rd-table-scroll .rd-table tbody td:first-child {
@@ -1297,6 +1668,10 @@ kbd.rd-kbd {
     z-index: 1;
     box-shadow: 1px 0 0 var(--line);
   }
+}
+
+@media (width <= 640px) {
+  .rd-table-scroll .rd-table { min-width: 36rem; }
 
   /* T-R54 — Swap the Plan · Year heatmap table for per-category cards. */
   .rd-plan-year__scroll { display: none; }

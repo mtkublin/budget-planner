@@ -404,6 +404,25 @@ def promote_form(
     )
 
 
+@router.get("/{planned_id}/promote/inline", response_class=HTMLResponse)
+def promote_inline(
+    planned_id: int,
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+) -> Response:
+    """F-02 — Row-expand inline Promote form for Today Upcoming."""
+    pl = planned_repo.find_by_id(conn, planned_id)
+    if pl is None:
+        return Response(status_code=404, content="not found")
+    acc = accounts_repo.find_by_id(conn, pl.account_id)
+    return render(
+        request,
+        "partials/planned/_promote_inline_row.html",
+        planned=pl,
+        account=acc,
+    )
+
+
 @router.post("/{planned_id}/promote")
 def promote_submit(  # noqa: PLR0917
     planned_id: int,

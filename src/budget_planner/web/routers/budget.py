@@ -169,15 +169,33 @@ def new_override_form(
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
 ) -> HTMLResponse:
-    """Slide-over form for creating a recurring / one-off override (ADR-0031 §2)."""
+    """Slide-over form for creating a recurring / one-off override (ADR-0031 §2).
+
+    Optional ``month`` / ``year`` query params prefill the fields when the
+    form is opened from the Year heatmap (ADR-0051 §5.3).
+    """
     cat = categories_repo.find_by_id(conn, category_id)
+    tz_year = datetime.now(ZoneInfo(settings.display_timezone)).year
+    q = request.query_params
+    try:
+        preset_month = int(q["month"]) if "month" in q else None
+    except ValueError:
+        preset_month = None
+    if preset_month is not None and (preset_month < 1 or preset_month > _MONTHS_IN_YEAR):
+        preset_month = None
+    try:
+        preset_year = int(q["year"]) if "year" in q else None
+    except ValueError:
+        preset_year = None
     if cat is None:
         return render(
             request,
             "partials/budget/_override_form.html",
             category=None,
             errors={"category": "not found"},
-            today_year=datetime.now(ZoneInfo(settings.display_timezone)).year,
+            today_year=tz_year,
+            preset_month=preset_month,
+            preset_year=preset_year,
             status_code=404,
         )
     return render(
@@ -187,7 +205,9 @@ def new_override_form(
         form_include="partials/budget/_override_form.html",
         category=cat,
         errors={},
-        today_year=datetime.now(ZoneInfo(settings.display_timezone)).year,
+        today_year=tz_year,
+        preset_month=preset_month,
+        preset_year=preset_year,
     )
 
 

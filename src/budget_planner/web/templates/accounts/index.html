@@ -16,7 +16,8 @@
               hx-swap="innerHTML">+ New account</button>
     </div>
   </header>
-  <section style="display: grid;
+  <section class="rd-accounts-hero"
+           style="display: grid;
                   grid-template-columns: minmax(0, 1fr) auto auto;
                   gap: 2rem;
                   align-items: baseline;
@@ -64,16 +65,50 @@
       <tbody>
         {% for card in cards %}
           {% set a = card.account %}
+          {# ADR-0056 §7 — "Checked" chip is relative + semantically coloured:
+             - 0 days   → "today"   / --income (green)
+             - ≤7 days  → absolute date / neutral
+             - 8-29     → "N days ago" / --warn (amber)
+             - 30+      → absolute date / --stale (red)
+             - never    → "never"
+          #}
+          {%- set last_checked = card.snapshots[0].taken_at if card.snapshots else none -%}
+          {%- if last_checked -%}
+            {%- set checked_delta_days = (today_date - last_checked.date()).days if today_date is defined else 0 -%}
+          {%- else -%}
+            {%- set checked_delta_days = none -%}
+          {%- endif -%}
           <tr id="account-{{ a.id }}">
             <td class="rd-desc">
               {{ a.name }}
               {%- if a.is_liability %}<span class="rd-pill rd-pill--expense">credit card · liability</span>{%- endif %}
               <small>{{ a.type or 'account' }}</small>
+              {%- if a.is_liability and a.credit_limit_minor %}
+                {%- set used_minor = -card.balance if card.balance < 0 else 0 -%}
+                {%- set available_minor = (a.credit_limit_minor - used_minor) if a.credit_limit_minor else 0 -%}
+                {%- set used_pct = (100.0 * used_minor / a.credit_limit_minor) if a.credit_limit_minor > 0 else 0 -%}
+                <div class="rd-credit-bar" style="--used-pct: {{ [used_pct, 100]|min }}%;">
+                  <span class="rd-credit-bar__track" aria-hidden="true"></span>
+                  <small class="rd-credit-bar__meta">
+                    Limit {{ "{:,.0f}".format(a.credit_limit_minor / 100.0) }} ·
+                    Available {{ "{:,.0f}".format(available_minor / 100.0) }} ·
+                    Used {{ "{:.0f}".format(used_pct) }}%
+                  </small>
+                </div>
+              {%- endif %}
             </td>
             <td>{{ sparkline(card.sparkline_values) }}</td>
             <td>
-              {% if card.snapshots and card.snapshots[0].taken_at %}
-                <span class="rd-checked">{{ card.snapshots[0].taken_at.strftime("%d %b") }}</span>
+              {% if last_checked and checked_delta_days is not none %}
+                {% if checked_delta_days == 0 %}
+                  <span class="rd-checked rd-checked--today">today</span>
+                {% elif checked_delta_days <= 7 %}
+                  <span class="rd-checked">{{ last_checked.strftime("%d %b") }}</span>
+                {% elif checked_delta_days < 30 %}
+                  <span class="rd-checked rd-checked--warn">{{ checked_delta_days }} days ago</span>
+                {% else %}
+                  <span class="rd-checked rd-checked--stale">{{ last_checked.strftime("%d %b") }}</span>
+                {% endif %}
               {% else %}
                 <span class="rd-checked rd-checked--stale">never</span>
               {% endif %}
@@ -96,12 +131,6 @@
                           hx-get="/accounts/{{ a.id }}/edit"
                           hx-target="#modal-root"
                           hx-swap="innerHTML">Edit</button>
-                </li>
-                <li role="none">
-                  <button type="button"
-                          role="menuitem"
-                          hx-post="/accounts/{{ a.id }}/snapshot"
-                          hx-swap="none">Snapshot</button>
                 </li>
                 <li role="none">
                   <button type="button"
