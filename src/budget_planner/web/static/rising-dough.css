@@ -1928,16 +1928,74 @@ kbd.rd-kbd {
 
 .rd-plan-year__hint { font-size: 0.8rem; margin: 1rem 0 0; }
 
-.rd-chip-select--multi {
+/* Compact multi-select source dropdown (recurring formula). Trigger
+   button shows a comma list of picked categories; panel floats over
+   layout via position:absolute, never pushing row height. */
+.rd-formula__sources { position: relative; }
+.rd-src-select { position: relative; width: 100%; }
+
+.rd-src-select__trigger {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
   width: 100%;
-  min-height: 5.2rem;
-  padding: 0.35rem 0.4rem;
-  font-family: inherit;
-  font-size: 0.8rem;
+  padding: 0.35rem 0.6rem;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
-  background: var(--surface);
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--ink);
+  cursor: pointer;
+  min-height: 1.9rem;
+  text-align: left;
 }
+.rd-src-select__trigger:hover { background: var(--sunk); }
+.rd-src-select__trigger[aria-expanded="true"] { border-color: var(--accent); }
+
+.rd-src-select__trigger > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
+.rd-src-select__panel {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  z-index: 70;
+  min-width: 100%;
+  width: max-content;
+  max-width: 20rem;
+  max-height: 14rem;
+  overflow-y: auto;
+  padding: 0.35rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  box-shadow: 0 10px 30px rgb(30 20 10 / 0.14);
+}
+
+.rd-src-select__opt {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.4rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.rd-src-select__opt:hover { background: var(--sunk); }
+.rd-src-select__opt input { margin: 0; }
+
+/* Allow panel to escape term card. */
+.rd-formula__term,
+.rd-formula__term-grid,
+.rd-formula__terms,
+.rd-formula { overflow: visible; }
 
 /* ─── Ledger · Recurring expand (visual-audit V.33) ───────────────── */
 .rd-rec-chev {
@@ -2355,7 +2413,6 @@ kbd.rd-kbd {
   align-items: center;
 }
 .rd-formula__sign { display: inline-flex; gap: 0.25rem; }
-.rd-formula__sources { display: flex; flex-wrap: wrap; gap: 0.3rem; min-width: 0; }
 .rd-formula__coef { margin: 0; }
 
 .rd-formula__foot {

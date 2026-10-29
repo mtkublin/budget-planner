@@ -110,16 +110,26 @@
               </div>
               <div class="rd-formula__sources">
                 {% if source_categories %}
-                  <select name="terms[{{ term_idx }}][source_category_ids]"
-                          class="rd-chip-select rd-chip-select--multi"
-                          multiple
-                          size="4">
-                    {% for cat in source_categories %}
-                      <option value="{{ cat.id }}"
-                              {% if cat.id in term.source_category_ids %}selected{% endif %}>{{ cat.name }}</option>
-                    {% endfor %}
-                  </select>
-                  <small class="mut">Hold ⌘/Ctrl to pick multiple.</small>
+                  <div class="rd-src-select" data-src-select>
+                    <button type="button"
+                            class="rd-src-select__trigger"
+                            data-src-trigger
+                            aria-expanded="false">
+                      <span data-src-summary>— pick sources —</span>
+                      <span class="mut">▾</span>
+                    </button>
+                    <div class="rd-src-select__panel" data-src-panel hidden>
+                      {% for cat in source_categories %}
+                        <label class="rd-src-select__opt">
+                          <input type="checkbox"
+                                 name="terms[{{ term_idx }}][source_category_ids]"
+                                 value="{{ cat.id }}"
+                                 {% if cat.id in term.source_category_ids %}checked{% endif %}>
+                          <span>{{ cat.name }}</span>
+                        </label>
+                      {% endfor %}
+                    </div>
+                  </div>
                 {% else %}
                   <span class="text-muted text-sm">No eligible categories.</span>
                 {% endif %}
@@ -215,14 +225,25 @@
       </div>
       <div class="rd-formula__sources">
         {% if source_categories %}
-          <select name="terms[__IDX__][source_category_ids]"
-                  class="rd-chip-select rd-chip-select--multi"
-                  multiple
-                  size="4">
-            {% for cat in source_categories %}
-              <option value="{{ cat.id }}">{{ cat.name }}</option>
-            {% endfor %}
-          </select>
+          <div class="rd-src-select" data-src-select>
+            <button type="button"
+                    class="rd-src-select__trigger"
+                    data-src-trigger
+                    aria-expanded="false">
+              <span data-src-summary>— pick sources —</span>
+              <span class="mut">▾</span>
+            </button>
+            <div class="rd-src-select__panel" data-src-panel hidden>
+              {% for cat in source_categories %}
+                <label class="rd-src-select__opt">
+                  <input type="checkbox"
+                         name="terms[__IDX__][source_category_ids]"
+                         value="{{ cat.id }}">
+                  <span>{{ cat.name }}</span>
+                </label>
+              {% endfor %}
+            </div>
+          </div>
         {% endif %}
       </div>
       <label class="rd-field rd-field--inline rd-formula__coef">
@@ -309,5 +330,53 @@
     }
     if (addBtn) addBtn.addEventListener('click', addTerm);
     if (list) list.addEventListener('click', removeTerm);
+
+    // Compact multi-select source dropdown (per term).
+    function syncSrcSummary(wrap) {
+      var sum = wrap.querySelector('[data-src-summary]');
+      var checks = wrap.querySelectorAll('input[type="checkbox"]:checked');
+      if (!sum) return;
+      if (checks.length === 0) { sum.textContent = '— pick sources —'; sum.classList.add('mut'); return; }
+      var names = Array.from(checks).map(function (c) {
+        return c.parentElement.querySelector('span').textContent.trim();
+      });
+      sum.textContent = names.join(', ');
+      sum.classList.remove('mut');
+    }
+    function wireSrcSelects() {
+      form.querySelectorAll('[data-src-select]').forEach(function (wrap) {
+        if (wrap.dataset.srcWired === '1') return;
+        wrap.dataset.srcWired = '1';
+        syncSrcSummary(wrap);
+        var trig = wrap.querySelector('[data-src-trigger]');
+        var panel = wrap.querySelector('[data-src-panel]');
+        if (trig && panel) {
+          trig.addEventListener('click', function (evt) {
+            evt.stopPropagation();
+            var open = panel.hasAttribute('hidden');
+            if (open) { panel.removeAttribute('hidden'); trig.setAttribute('aria-expanded', 'true'); }
+            else { panel.setAttribute('hidden', ''); trig.setAttribute('aria-expanded', 'false'); }
+          });
+        }
+        wrap.addEventListener('change', function () { syncSrcSummary(wrap); });
+      });
+    }
+    document.addEventListener('click', function (evt) {
+      form.querySelectorAll('[data-src-select]').forEach(function (wrap) {
+        if (wrap.contains(evt.target)) return;
+        var panel = wrap.querySelector('[data-src-panel]');
+        var trig = wrap.querySelector('[data-src-trigger]');
+        if (panel && !panel.hasAttribute('hidden')) {
+          panel.setAttribute('hidden', '');
+          if (trig) trig.setAttribute('aria-expanded', 'false');
+        }
+      });
+    });
+    wireSrcSelects();
+    if (list) {
+      var origAdd = addBtn && addBtn.onclick;
+      var mo = new MutationObserver(wireSrcSelects);
+      mo.observe(list, { childList: true });
+    }
   })();
 </script>
