@@ -29,7 +29,9 @@
                inputmode="decimal"
                required>
       </label>
-      <input type="hidden" name="description" value="{{ planned.description or '' }}">
+      <input type="hidden"
+             name="description"
+             value="{{ planned.description or '' }}">
       <div class="rd-inline-promote__actions">
         <button type="submit" class="rd-btn rd-btn--primary rd-btn--sm">Confirm ↩</button>
         <button type="button"

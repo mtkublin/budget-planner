@@ -62,3 +62,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0057 | [v2 — Archived categories on recurring rules (allow, mute, block creation)](0057-v2-archived-categories-on-recurring-rules.md) (amends ADR-0048) |
 | 0058 | [v2 — UI language: English chrome, user data as-typed](0058-v2-ui-language-english-chrome.md) (amends ADR-0051) |
 | 0059 | [v2 — Pace-tag rule for Today hero and pace_tag macro](0059-v2-pace-tag-rule.md) (amends ADR-0041) |
+| 0060 | [v2 — Unified Entry Modal (Happened / Planned / Repeats)](0060-v2-unified-entry-modal.md) (supersedes ADR-0030 §4 per-mode chrome; amends ADR-0047 formula UI) |

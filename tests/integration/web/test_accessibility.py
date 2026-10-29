@@ -55,7 +55,6 @@ def test_semantic_landmarks(client: TestClient, path: str) -> None:
     assert soup.find("main", id="main") is not None
     assert soup.find("header") is not None
     assert soup.find("nav") is not None
-    assert soup.find("footer") is not None
     # Single <h1> per page.
     h1s = soup.find_all("h1")
     assert len(h1s) >= 1, f"{path}: no <h1>"

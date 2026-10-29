@@ -22,9 +22,7 @@
     <button type="submit" class="rd-btn rd-btn--sm">Save</button>
   </form>
 </div>
-
 <div id="cat-form-slot" class="drawer-section__slot"></div>
-
 {% macro cat_row(category) %}
   {% set direction_value = category.direction.value if category.direction is not string else category.direction %}
   <tr id="category-{{ category.id }}" class="row">
@@ -32,7 +30,9 @@
     <td>{{ direction_badge(category.direction) }}</td>
     <td>
       {% if category.color %}
-        <span class="rd-swatch-dot" style="--swatch: {{ category.color }};" aria-hidden="true"></span>
+        <span class="rd-swatch-dot"
+              style="--swatch: {{ category.color }}"
+              aria-hidden="true"></span>
         <small class="text-muted">Override</small>
       {% else %}
         <small class="text-muted">Direction default</small>
@@ -55,7 +55,6 @@
     </td>
   </tr>
 {% endmacro %}
-
 {% macro group(title, items) %}
   {% if items %}
     <div class="drawer-section">
@@ -79,11 +78,9 @@
     </div>
   {% endif %}
 {% endmacro %}
-
 {{ group("Expense", expense_categories) }}
 {{ group("Income", income_categories) }}
 {{ group("System (read-only)", system_categories) }}
-
 <p class="text-muted" style="margin-top: 1rem; font-size: 0.85rem;">
   "Archive" hides a category but keeps its history; archived categories are restorable from
   <a href="/ledger/recently-deleted" style="color: var(--accent);">Recently deleted</a>.

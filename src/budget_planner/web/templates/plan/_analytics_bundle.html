@@ -39,7 +39,7 @@ attributes T-R43 wired for the HTMX endpoint tests.
                  href="/ledger?view=actual&category_id={{ row.category_id }}&date_from={{ bundle.period_start.isoformat() }}&date_to={{ bundle.period_end.isoformat() }}">
                 <span class="rd-pill rd-pill--expense">{{ row.category_name }}</span>
                 <span class="rd-analytics__bar"
-                      style="--pct: {{ bar_pct }}%;"
+                      style="--pct: {{ bar_pct }}%"
                       aria-hidden="true"></span>
                 <strong class="numeric">{{ "{:,.2f}".format(row.amount_minor / 100.0) }}</strong>
                 {% if avg_minor > 0 %}

@@ -212,6 +212,7 @@ def create_planned(  # noqa: PLR0917
     account_id: int = Form(...),
     amount: str = Form(...),
     description: str = Form(""),
+    dest_account_id: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
 ) -> Response:
     errors: dict[str, str] = {}
@@ -224,6 +225,15 @@ def create_planned(  # noqa: PLR0917
         errors["account_id"] = "unknown account"
     if cat is None:
         errors["category_id"] = "unknown category"
+    dest_id: int | None = None
+    if dest_account_id.strip():
+        try:
+            dest_id = int(dest_account_id)
+        except ValueError:
+            errors["dest_account_id"] = "invalid dest account"
+        else:
+            if accounts_repo.find_by_id(conn, dest_id) is None:
+                errors["dest_account_id"] = "unknown dest account"
     minor: int | None = None
     if acc is not None:
         minor, err = _validate_amount(amount, acc.currency)
@@ -249,6 +259,7 @@ def create_planned(  # noqa: PLR0917
             account_id=account_id,
             amount=minor,
             description=description,
+            dest_account_id=dest_id,
         ),
     )
     html = render(request, "partials/planned/_row.html", view=_from_persisted(pl, acc, cat))

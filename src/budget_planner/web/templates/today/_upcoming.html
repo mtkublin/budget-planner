@@ -28,9 +28,8 @@
         {{ row.operation_date.strftime("%d %b") }}
         {% if row.is_overdue %}
           <span class="rd-pill rd-pill--expense"
-                style="margin-left: 0.4rem; font-size: 0.65rem;">
-            {{ (today - row.operation_date).days }} days late
-          </span>
+                style="margin-left: 0.4rem;
+                       font-size: 0.65rem">{{ (today - row.operation_date).days }} days late</span>
         {% endif %}
       </td>
       <td class="rd-desc">

@@ -14,70 +14,32 @@
       class="rd-form txn-form"
       data-txn-form
       {% if not txn %}data-reset-on-submit{% endif %}>
-  {% if not txn %}
-    <fieldset class="rd-field rd-field--fieldset">
-      <legend class="rd-field__label">When</legend>
-      <div class="rd-segmented rd-segmented--radio" role="tablist">
-        <a class="rd-segmented__item rd-segmented__item--active"
-           role="tab"
-           aria-selected="true"
-           href="/transactions/new"
-           hx-get="/transactions/new"
-           hx-target="#modal-root"
-           hx-swap="innerHTML">↓ Happened</a>
-        <a class="rd-segmented__item"
-           role="tab"
-           aria-selected="false"
-           href="/planned/new"
-           hx-get="/planned/new"
-           hx-target="#modal-root"
-           hx-swap="innerHTML">⟶ Planned</a>
-        <a class="rd-segmented__item"
-           role="tab"
-           aria-selected="false"
-           href="/recurring/new"
-           hx-get="/recurring/new"
-           hx-target="#modal-root"
-           hx-swap="innerHTML">↻ Repeats</a>
-      </div>
-    </fieldset>
-  {% endif %}
-  <div class="rd-form-row rd-form-row--2col">
-    <label class="rd-field">
-      <span class="rd-field__label">Date</span>
-      <input type="date"
-             name="operation_date"
-             value="{{ txn.operation_date|date_fmt if txn else today_local() }}"
-             data-default-today
-             required>
-    </label>
-    <label class="rd-field">
-      <span class="rd-field__label">Amount</span>
-      <span class="rd-field__suffix"
-            data-currency-suffix
-            data-suffix="{{ txn_account.currency if txn_account else '' }}">
-        <input type="text"
-               name="amount"
-               value="{{ txn.amount|money_major(txn_account.currency if txn_account else 'PLN') if txn else '' }}"
-               placeholder="0.00"
-               inputmode="decimal"
-               data-numeric
-               autofocus
-               required
-               hx-get="/transactions/_limit_preview"
-               hx-include="[name='account_id'],[name='category_id'],[name='amount']"
-               hx-target="#limit-preview"
-               hx-swap="outerHTML"
-               hx-trigger="change delay:200ms, keyup changed delay:400ms">
-      </span>
-    </label>
-  </div>
   <label class="rd-field">
     <span class="rd-field__label">Category</span>
     {{ combobox(name="category_id", items=categories,
       value_attr="id", label_attr="name",
       selected_value=txn.category_id if txn else "",
       required=True) }}
+  </label>
+  <label class="rd-field">
+    <span class="rd-field__label">Amount</span>
+    <span class="rd-field__suffix"
+          data-currency-suffix
+          data-suffix="{{ txn_account.currency if txn_account else '' }}">
+      <input type="text"
+             name="amount"
+             value="{{ txn.amount|money_major(txn_account.currency if txn_account else 'PLN') if txn else '' }}"
+             placeholder="0.00"
+             inputmode="decimal"
+             data-numeric
+             autofocus
+             required
+             hx-get="/transactions/_limit_preview"
+             hx-include="[name='account_id'],[name='category_id'],[name='amount']"
+             hx-target="#limit-preview"
+             hx-swap="outerHTML"
+             hx-trigger="change delay:200ms, keyup changed delay:400ms">
+    </span>
   </label>
   <div class="rd-form-row rd-form-row--2col">
     <label class="rd-field">
@@ -95,13 +57,23 @@
         placeholder="— none —") }}
     </label>
   </div>
-  <label class="rd-field">
-    <span class="rd-field__label">Description</span>
-    <input type="text"
-           name="description"
-           value="{{ txn.description if txn else '' }}"
-           placeholder="optional note">
-  </label>
+  <div class="rd-form-row rd-form-row--2col">
+    <label class="rd-field">
+      <span class="rd-field__label">Date</span>
+      <input type="date"
+             name="operation_date"
+             value="{{ txn.operation_date|date_fmt if txn else today_local() }}"
+             data-default-today
+             required>
+    </label>
+    <label class="rd-field">
+      <span class="rd-field__label">Note</span>
+      <input type="text"
+             name="description"
+             value="{{ txn.description if txn else '' }}"
+             placeholder="optional note">
+    </label>
+  </div>
   {% include "partials/_form_errors.html" %}
   {% include "partials/transactions/_limit_preview.html" %}
   <footer class="rd-slideover-footer">

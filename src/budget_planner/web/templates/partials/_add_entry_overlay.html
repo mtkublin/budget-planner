@@ -20,7 +20,9 @@
      onclick="if(event.target===this){this.parentElement.innerHTML='';}">
   <aside class="slide-over slide-over--add" tabindex="-1">
     {{ slide_over_header(title="New entry") }}
-    <div class="slide-over__tabs rd-add-entry-tabs" role="tablist" aria-label="Entry type">
+    <div class="slide-over__tabs rd-add-entry-tabs"
+         role="tablist"
+         aria-label="Entry type">
       {% for key, label in [("happened", "Happened"), ("planned", "Planned"), ("repeats", "Repeats")] %}
         <button type="button"
                 class="rd-segmented__item{% if key == active_tab %} rd-segmented__item--active{% endif %}"
@@ -31,9 +33,7 @@
                 hx-swap="innerHTML">{{ label }}</button>
       {% endfor %}
     </div>
-    <div class="slide-over__body">
-      {% include form_include %}
-    </div>
+    <div class="slide-over__body">{% include form_include %}</div>
     <p class="rd-add-entry__hint text-muted">
       <kbd class="rd-kbd">⇧↵</kbd> save and add another ·
       <kbd class="rd-kbd">Esc</kbd> close
