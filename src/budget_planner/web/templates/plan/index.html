@@ -34,6 +34,16 @@
              href="/plan?tab=year&year={{ year_selected + 1 }}"
              aria-label="Next year">→</a>
         </nav>
+      {% elif tab == "forecast" %}
+        {# Forecast horizon segmented in the shared header slot
+           (manual-audit #42). Numeric labels; no "mo" suffix. #}
+        <div class="rd-segmented" role="tablist" aria-label="Forecast horizon">
+          {% for h in forecast_horizon_choices %}
+            <a href="/plan?tab=forecast&horizon={{ h }}"
+               class="rd-segmented__item{% if h == forecast_horizon %} rd-segmented__item--active{% endif %}"
+               aria-selected="{{ 'true' if h == forecast_horizon else 'false' }}">{{ h }}</a>
+          {% endfor %}
+        </div>
       {% endif %}
     </div>
   </header>

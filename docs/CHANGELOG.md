@@ -1,6 +1,12 @@
 # Changelog
 
 ## 2026-10-29
+- **Manual-audit remediation Phase F — Plan · Forecast rework (audit ids #42, #43, #44, #45)**:
+  (#42) Horizon segmented moved into the shared Plan header slot (`plan/index.html`) with numeric-only labels (`6 / 12 / 24 / 60`). The old `6 mo / 12 mo / 24 mo / 60 mo` labels + duplicate selector inside the tab body are gone.
+  (#43) Summary row rebuilt as `.rd-forecast__summary` — three equal cells carrying eyebrow + big display-font number + muted `cur` currency suffix (`Now`, `End · {month}`, `Peak · {month}`). The `.rd-forecast__annotations` paragraph underneath the chart was redundant with the row and is removed.
+  (#44) Monthly table: `EOM` cell wraps in `<strong>` (bolded), and `Net` cell gains the `rd-forecast__net--neg` class + expense-soft background when `net_minor < 0`. The inline `.rd-forecast__net-bar` artefact is gone — the mockup renders a plain numeric column.
+  (#45) `web/charts.LineAreaChart` grew a `points: tuple[LinePoint, ...]` field (position per rendered line marker). `line_area` now populates it, and `_forecast_tab.html` emits a `<circle class="rd-chart__dot">` at each monthly tick position. New `.rd-chart__dot` CSS (`fill: var(--surface); stroke: var(--accent); stroke-width: 2`).
+  1080 tests pass. mypy --strict clean. ruff + djlint + sqlfluff + stylelint green.
 - **Manual-audit remediation Phase E — Plan · Year rework (audit ids #36, #37, #38, #39, #40, #41)**:
   (#40, #41) Year selector moved into the shared Plan header slot — `plan/index.html` renders a `.rd-period-nav` with arrows + "{year}" label when `tab == "year"`. Internal `<h2>Year · YYYY</h2>` + the duplicate year nav + the inline help paragraph are gone from `plan/_year_tab.html`.
   (#36) Year grid cells still link to the same `/budget/rules/{id}/overrides/new?month=&year=` endpoint, so the Phase D override card is reused verbatim when a cell is clicked.

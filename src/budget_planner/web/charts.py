@@ -104,6 +104,14 @@ class AxisTick:
 
 
 @dataclass(frozen=True, slots=True)
+class LinePoint:
+    """One rendered line-chart marker position (SVG coords)."""
+
+    x: float
+    y: float
+
+
+@dataclass(frozen=True, slots=True)
 class LineAreaChart:
     """SVG geometry for a line + area chart with simple axes."""
 
@@ -114,6 +122,7 @@ class LineAreaChart:
     view_box: str
     width: float
     height: float
+    points: tuple[LinePoint, ...] = ()
 
 
 _LINE_AREA_WIDTH = 600.0
@@ -132,7 +141,7 @@ def _format_label(value: float) -> str:
     return f"{value:,.2f}"
 
 
-def line_area(
+def line_area(  # noqa: PLR0915 — flat SVG geometry builder, kept inline for cohesion
     points: Sequence[tuple[float, float]],
     *,
     width: float = _LINE_AREA_WIDTH,
@@ -175,12 +184,14 @@ def line_area(
     nice_y_min, nice_y_max, y_step = _nice_axis(y_min, y_max)
     y_span = nice_y_max - nice_y_min or 1.0
 
+    rendered_points: list[LinePoint] = []
     if len(points) == 1:
         # Single-point: anchor at the middle of the inner box.
         sx = inner_left + inner_width * 0.5
         sy = inner_bottom - ((ys[0] - nice_y_min) / y_span) * inner_height
         line_d = f"M{_fmt(sx)} {_fmt(sy)}"
         area_d = f"M{_fmt(sx)} {_fmt(sy)} L{_fmt(sx)} {_fmt(inner_bottom)} Z"
+        rendered_points.append(LinePoint(x=sx, y=sy))
     else:
         x_span = (x_max - x_min) or 1.0
         line_segments: list[str] = []
@@ -191,6 +202,7 @@ def line_area(
             marker = "M" if i == 0 else "L"
             line_segments.append(f"{marker}{_fmt(sx)} {_fmt(sy)}")
             area_segments.append(f"{marker}{_fmt(sx)} {_fmt(sy)}")
+            rendered_points.append(LinePoint(x=sx, y=sy))
         last_x = inner_left + ((xs[-1] - x_min) / x_span) * inner_width
         first_x = inner_left
         area_segments.append(f"L{_fmt(last_x)} {_fmt(inner_bottom)}")
@@ -229,6 +241,7 @@ def line_area(
         view_box=view_box,
         width=width,
         height=height,
+        points=tuple(rendered_points),
     )
 
 
