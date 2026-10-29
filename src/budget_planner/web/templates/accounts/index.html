@@ -16,37 +16,22 @@
               hx-swap="innerHTML">+ New account</button>
     </div>
   </header>
-  <section class="rd-accounts-hero"
-           style="display: grid;
-                  grid-template-columns: minmax(0, 1fr) auto auto;
-                  gap: 2rem;
-                  align-items: baseline;
-                  margin-bottom: 1.75rem">
-    <div>
-      <div style="font-family: var(--font-display);
-                  font-size: clamp(2rem, 1.4rem + 2vw, 3rem);
-                  font-weight: 500">
-        {{ "{:,.2f}".format(fortune.net_base / 100.0) }}
-        <small style="font-family: var(--font-mono);
-                      font-size: 0.4em;
-                      color: var(--mute)">{{ base_ccy }}</small>
+  <section class="rd-accounts-hero">
+    <div class="rd-accounts-hero__total">
+      <div class="rd-accounts-hero__amount num">
+        {{ "{:,.2f}".format(fortune.net_base / 100.0) }}<span class="cur">{{ base_ccy }}</span>
       </div>
-      <div style="font-size: 0.85rem; margin-top: 0.25rem; color: var(--mute);">
+      <div class="mut rd-accounts-hero__hint">
         All balances in base currency {{ base_ccy }}. No FX conversions needed today.
       </div>
     </div>
-    <div>
+    <div class="rd-accounts-hero__item">
       <div class="rd-eyebrow">Assets</div>
-      <div style="font-family: var(--font-mono);
-                  font-size: 1.25rem;
-                  margin-top: 0.25rem">{{ "{:,.2f}".format(fortune.assets_base / 100.0) }}</div>
+      <div class="num rd-accounts-hero__sub">{{ "{:,.2f}".format(fortune.assets_base / 100.0) }}</div>
     </div>
-    <div>
+    <div class="rd-accounts-hero__item">
       <div class="rd-eyebrow">Liabilities</div>
-      <div style="font-family: var(--font-mono);
-                  font-size: 1.25rem;
-                  margin-top: 0.25rem;
-                  color: var(--expense)">{{ "{:,.2f}".format(fortune.liabilities_base / 100.0) }}</div>
+      <div class="num neg rd-accounts-hero__sub">{{ "{:,.2f}".format(fortune.liabilities_base / 100.0) }}</div>
     </div>
   </section>
   <div class="rd-table-scroll">
@@ -114,10 +99,8 @@
               {% endif %}
             </td>
             <td class="num">{{ card.stats.txn_count }}</td>
-            <td class="num">
-              <span class="rd-amount {% if card.balance < 0 %}rd-amount--expense{% endif %}">
-                {{ "{:,.2f}".format(card.balance / 100.0) }} <span class="rd-amount__currency">{{ a.currency }}</span>
-              </span>
+            <td class="num {% if card.balance < 0 %}neg{% endif %}">
+              {{ "{:,.2f}".format(card.balance / 100.0) }}<span class="cur">{{ a.currency }}</span>
             </td>
             <td class="rd-actions">
               <button class="rd-btn rd-btn--sm"

@@ -1903,6 +1903,27 @@ kbd.rd-kbd {
 
 .rd-plan-year__hint { font-size: 0.8rem; margin: 1rem 0 0; }
 
+/* ─── Accounts hero (manual-audit #51) ────────────────────────────── */
+.rd-accounts-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) 1fr 1fr;
+  gap: 2rem;
+  align-items: end;
+  margin-bottom: 1.5rem;
+}
+
+.rd-accounts-hero__amount {
+  font-family: var(--font-mono);
+  font-size: clamp(2rem, 1.4rem + 2vw, 2.75rem);
+  letter-spacing: -0.02em;
+}
+.rd-accounts-hero__hint { font-size: 0.75rem; margin-top: 0.25rem; }
+.rd-accounts-hero__sub { font-size: 1.35rem; margin-top: 0.2rem; }
+
+@media (width <= 640px) {
+  .rd-accounts-hero { grid-template-columns: 1fr; }
+}
+
 /* ─── Plan · period selector in header slot (manual-audit #32-#33) ── */
 .rd-period-nav {
   display: inline-flex;

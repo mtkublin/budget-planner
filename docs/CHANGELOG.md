@@ -1,6 +1,10 @@
 # Changelog
 
 ## 2026-10-29
+- **Manual-audit remediation Phase H — Accounts polish (audit ids #50, #51)**:
+  (#50) New-account modal was already aligned to `overlay-14-create-account.html` after T-R65. No shape change needed; verified field order (`Name / [Currency | Type] / help / [Opening | As-of] / liability toggle / credit limit`) matches the mockup.
+  (#51) Accounts hero rebuilt with `.rd-accounts-hero` grid class (replaces the inline-styled `<section style=…>` + nested `<div style=…>`). Net worth total uses `.num + .cur`; Assets stat uses `.num`; Liabilities stat uses `.num.neg` so the colour tracks the standard expense token instead of inline `color: var(--expense)`. Balance cell in the accounts table now also uses `.num/.cur/.neg` instead of the ad-hoc `.rd-amount__currency` structure.
+  1080 tests pass. mypy --strict clean. ruff + djlint + sqlfluff + stylelint green.
 - **Manual-audit remediation Phase G — Plan · Analytics rework (audit ids #46, #47, #48, #49)**:
   (#46) `.rd-analytics-bundle` grid simplified to `1.5fr 1fr` with the right column rebuilt as a flex `.rd-analytics__right` stack (`Income vs expense` on top, `Largest single items` below). Matches `desktop-08-plan-analytics.html:6`.
   (#47) Removed both `<details class="rd-chart__fallback">` blocks — the spend-by-category list + flow chart are now the only renderings; the raw SVG `h-bars` fallback is gone, and the Income-vs-Expense "Data table" expandable table is gone too.
