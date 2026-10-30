@@ -1,7 +1,8 @@
 # ADR-0005: Single User, No Auth, user_id Scaffolded
 
-- **Status**: Accepted
+- **Status**: Superseded by [ADR-0061](0061-v3-multi-user-admin-bootstrap-and-data-isolation.md) (2026-10-30)
 - **Date**: 2026-10-23
+- **Supersession note**: v3 activates the `user_id` scaffold described here into real multi-user support. The forward-compatibility bet documented in this ADR paid off exactly as predicted — no row-level data migration is required, only a schema extension on `users` + a repository-layer filter discipline. The `127.0.0.1` bind constraint still applies to v1 local use; v3 binds inside the container and terminates TLS at Caddy.
 
 ## Context
 

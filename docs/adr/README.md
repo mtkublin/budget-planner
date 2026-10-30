@@ -8,7 +8,7 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0002 | [Web Stack — FastAPI + HTMX + Jinja2 + Tailwind (CDN) + Plotly](0002-web-stack-fastapi-htmx-jinja.md) |
 | 0003 | [Database — SQLite Only in v1, DuckDB Attach Deferred](0003-database-sqlite-only-v1.md) |
 | 0004 | [Package Manager — uv](0004-package-manager-uv.md) |
-| 0005 | [Single User, No Auth, user_id Scaffolded](0005-single-user-no-auth-user-id-scaffold.md) |
+| 0005 | [Single User, No Auth, user_id Scaffolded](0005-single-user-no-auth-user-id-scaffold.md) (superseded by ADR-0061) |
 | 0006 | [Multi-Currency Model](0006-multi-currency-model.md) |
 | 0007 | [Timezone Handling](0007-timezone-handling.md) |
 | 0008 | [Transaction Amount Sign & Direction](0008-transaction-amount-sign-and-direction.md) |
@@ -63,3 +63,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0058 | [v2 — UI language: English chrome, user data as-typed](0058-v2-ui-language-english-chrome.md) (amends ADR-0051) |
 | 0059 | [v2 — Pace-tag rule for Today hero and pace_tag macro](0059-v2-pace-tag-rule.md) (amends ADR-0041) |
 | 0060 | [v2 — Unified Entry Modal (Happened / Planned / Repeats)](0060-v2-unified-entry-modal.md) (supersedes ADR-0030 §4 per-mode chrome; amends ADR-0047 formula UI) |
+| 0061 | [v3 Multi-User — Admin Bootstrap, User Admin Panel, Per-User Data Isolation](0061-v3-multi-user-admin-bootstrap-and-data-isolation.md) (supersedes ADR-0005; amends ADR-0033, ADR-0022, ADR-0019) |

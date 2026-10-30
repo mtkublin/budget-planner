@@ -6,12 +6,13 @@
 
 ## Guiding Principles
 
-1. **Docs first.** Every v3 change already has an ADR (0032–0037). Any surprise during implementation that would deviate from those ADRs stops the task until the ADR is amended.
-2. **One operator, one deployment.** Scope is a single user running on a single VM in Warsaw. No multi-region, no multi-tenant, no HA.
+1. **Docs first.** Every v3 change already has an ADR (0032–0037 + 0061). Any surprise during implementation that would deviate from those ADRs stops the task until the ADR is amended.
+2. **One operator, few users.** Scope is a handful of users (order of magnitude 10) running on a single VM in Warsaw, administered by one bootstrapped admin. No multi-region, no HA, no self-signup, no admin impersonation. Admin manages the user list; admin does **not** see user data (ADR-0061).
 3. **Disposable host.** Durable state lives in the Scaleway Object Storage bucket (ADR-0034). Rebuilding the VM must be a routine operation, not a disaster.
-4. **Secrets live in infrastructure, not in git.** Terraform generates and injects secrets via cloud-init; the operator captures them to a password manager at provisioning time.
+4. **Secrets live in infrastructure, not in git.** Terraform generates and injects secrets via cloud-init (admin bootstrap password included); the operator captures them to a password manager at provisioning time.
 5. **The pipeline is the only path to production.** No manual deploys. No manual Terraform apply from a developer laptop except for the explicit bootstrap step (ADR-0035 §4).
 6. **Automate the drill.** The monthly restore drill is a scheduled GitHub Actions job, not a calendar reminder.
+7. **Isolation is enforced in the repository layer.** Every repository function against a user-owned table takes `user_id` and filters on it; a static-analysis test guards against regression (ADR-0061 §5).
 
 ---
 
@@ -57,11 +58,11 @@ GitHub Actions pipeline (ADR-0037): CI → build (image push + cosign) → manua
 
 ## Phased delivery
 
-### Phase 1 — App prerequisites (T-D01..T-D15)
+### Phase 1 — App prerequisites (T-D01..T-D19)
 
-Goal: the application container is production-shaped — auth, config, SQLite PRAGMAs, security headers, Docker build, local docker-compose smoke — before any Scaleway resource is created.
+Goal: the application container is production-shaped — auth (per-user, admin-bootstrapped), config, SQLite PRAGMAs, security headers, Docker build, local docker-compose smoke, repository-layer `user_id` discipline — before any Scaleway resource is created.
 
-Everything here is testable locally with `just test-prod-stack` (new recipe added in T-D11), which boots the full three-container stack (`app` + `litestream` to a MinIO sidecar + `caddy` on a self-signed cert) and runs a Playwright smoke journey against it.
+Everything here is testable locally with `just test-prod-stack` (new recipe added in T-D11), which boots the full three-container stack (`app` + `litestream` to a MinIO sidecar + `caddy` on a self-signed cert), seeds a dev admin via env vars, and runs a Playwright smoke journey against it.
 
 Entry: v1 CI green on `main`.
 
@@ -69,9 +70,10 @@ Exit criteria:
 - `just test` passes; new modules ≥ 90% coverage.
 - `just test-prod-stack` passes (local full-stack docker-compose smoke).
 - `/health` and `/ready` endpoints respond correctly, including DB-down readiness failure.
-- The passkey registration + login flow works end-to-end against the local stack.
+- The admin-bootstrap + login + password-rotation + passkey-registration + user-admin-panel flows work end-to-end against the local stack.
 - Security headers (HSTS, CSP with nonce, X-Frame-Options, Referrer-Policy, Permissions-Policy) assert correctly in integration tests.
 - `pip-audit` + `trivy` on the built image emit no HIGH/CRITICAL findings.
+- The repository `user_id`-filter static-analysis test (`tests/architecture/test_user_id_filter.py`) passes against every repository module.
 - `just ci` extended to include `test-prod-stack`.
 
 ### Phase 2 — Infrastructure (T-D20..T-D28)
@@ -86,8 +88,8 @@ Order within phase:
 3. `modules/iam` + `modules/storage` (bucket + IAM app + policy + key).
 4. `modules/dns` (zone + records).
 5. `modules/compute` (instance + flex IP + security group + cloud-init render).
-6. Cloud-init templates (`bootstrap.yaml.tpl`, `docker-compose.yml.tpl`, `Caddyfile.tpl`, `litestream.yml.tpl`).
-7. `envs/drill/` wiring + first `terraform apply -var-file=envs/drill/terraform.tfvars`.
+6. Cloud-init templates (`bootstrap.yaml.tpl`, `docker-compose.yml.tpl`, `Caddyfile.tpl`, `litestream.yml.tpl`) — compose env now carries `BUDGET_PLANNER_ADMIN_EMAIL` + `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD` (ADR-0061 §3).
+7. `envs/drill/` wiring + first `terraform apply -var-file=envs/drill/terraform.tfvars` — operator supplies `admin_email` input variable; Terraform generates `admin_initial_password` via `random_password` and surfaces it as a sensitive output.
 
 Exit criteria:
 - `terraform plan` emits zero changes after a clean apply.
@@ -118,9 +120,9 @@ Goal: evidence that the deployment is reliable (backup actually restores), secur
 Entry: Phase 3 exit criteria met.
 
 Exit criteria (per task; a dated runbook entry for each):
-- **Backup restore drill** — pulled from the prod bucket into a fresh `drill` environment; `PRAGMA integrity_check = ok`; audit log tail matches pre-destroy snapshot. First drill is this acceptance gate; monthly automated drill scheduled.
+- **Backup restore drill** — pulled from the prod bucket into a fresh `drill` environment; `PRAGMA integrity_check = ok`; audit log tail matches pre-destroy snapshot; admin + second user accounts restored intact. First drill is this acceptance gate; monthly automated drill scheduled.
 - **Security scan** — `trivy` on the deployed image, `nikto` + `testssl.sh` against the public hostname, Mozilla Observatory grade A+. HIGH/CRITICAL findings resolved or ADR'd.
-- **Smoke journey** — Playwright test against the production hostname: login (fallback → register passkey → login via passkey), add a transaction, see it on `/ledger`, verify audit log row.
+- **Smoke journey** — Playwright test against the production hostname: admin logs in with the Terraform-captured password → rotates it → creates a second non-admin user via `/settings/users` → logs out → second user logs in with the one-shot auto-generated password → rotates it → registers a passkey → adds a transaction → verifies the admin cannot see that transaction (data isolation assertion) → verifies audit log row.
 - **Uptime monitor** — UptimeRobot (or Betterstack free) pings `/health` every 5 min; alert configured to email the operator.
 - **Cost alert** — Scaleway budget alert set to 2× expected (PLN) and verified by cutting the threshold to 0.01 PLN temporarily and confirming the email.
 - **Runbooks committed**:
@@ -129,6 +131,7 @@ Exit criteria (per task; a dated runbook entry for each):
   - `docs/plans/v3/runbooks/restore.md`
   - `docs/plans/v3/runbooks/disaster-recovery.md` (full re-provision from zero)
   - `docs/plans/v3/runbooks/restore-log.md` (append-only drill log)
+  - `docs/plans/v3/runbooks/user-admin.md` (add user / reset password / remove user / promote-admin / last-admin invariant — ADR-0061)
 - **Production go-live** — swap DNS from the drill hostname to the prod hostname; monitor for 48 h; declare live by appending a `## 20YY-MM-DD` entry to `docs/CHANGELOG.md`.
 
 ---
@@ -136,26 +139,33 @@ Exit criteria (per task; a dated runbook entry for each):
 ## Rollout order and dependencies (compressed)
 
 ```
-Phase 1  (parallel-safe within):
-   T-D01 health endpoints
-   T-D02 auth
-   T-D03 config env surface
-   T-D04 db/litestream config surface
-   T-D05 SQLite PRAGMAs (blocks T-D23 in Phase 2)
-   T-D06 structured logging
-   T-D07 security headers middleware
-   T-D08 CSRF
-   T-D09 auth rate limit
-   T-D10 Dockerfile
-   T-D11 docker-compose (blocks T-D21 in Phase 2)
-   T-D12 uv.lock reproducibility
-   T-D13 CI security scans
-   T-D14 audit log client-IP + user
-   T-D15 graceful shutdown
+Phase 1  (parallel-safe within unless marked [S]):
+   T-D01  health endpoints
+   T-D02  auth (per-user; depends on T-D16a)       — amended by ADR-0061
+   T-D03  config env surface
+   T-D04  db/litestream config surface
+   T-D05  SQLite PRAGMAs (blocks T-D23 in Phase 2)
+   T-D06  structured logging
+   T-D07  security headers middleware
+   T-D08  CSRF
+   T-D09  auth rate limit
+   T-D10  Dockerfile
+   T-D11  docker-compose (blocks T-D21 in Phase 2)
+   T-D12  uv.lock reproducibility
+   T-D13  CI security scans
+   T-D14  audit log client-IP + user + actor_user_id
+   T-D15  graceful shutdown
+   T-D16a [S] multi-user migration 0012 (blocks T-D02, T-D16, T-D19)
+   T-D16  [S] repository user_id scoping sweep + static-analysis test
+   T-D17  [S] user admin panel (/settings/users)   — depends on T-D02 + T-D16
+   T-D18  [P] password change (/settings/password) — depends on T-D02
+   T-D19  [S] admin bootstrap on startup           — depends on T-D02 + T-D16a
             │
             ▼
 Phase 2  (sequential within):
-   bootstrap state bucket → providers → iam → storage → dns → compute → cloud-init → apply(drill)
+   bootstrap state bucket → providers → iam → storage → dns → compute →
+   cloud-init (now injects ADMIN_EMAIL + ADMIN_INITIAL_PASSWORD) →
+   apply(drill) → operator captures admin_initial_password output
             │
             ▼
 Phase 3:
@@ -163,7 +173,8 @@ Phase 3:
             │
             ▼
 Phase 4:
-   restore drill → security scan → smoke → monitoring → runbooks → go-live
+   restore drill → security scan → smoke (now exercises admin + second user) →
+   monitoring → runbooks (now include user-admin.md) → go-live
 ```
 
 ---

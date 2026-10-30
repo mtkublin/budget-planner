@@ -16,12 +16,14 @@ Owner: application code. All tasks block Phase 2.
 - Mounted outside the auth middleware (ADR-0033 §5).
 - File: `phase-1-prerequisites/T-D01-health-endpoints.md`. Reference: ADR-0032 §8.
 
-### ◻ T-D02 [P] WebAuthn + fallback password auth
-- Tables: `webauthn_credentials`, `auth_password`, `sessions`, `auth_rate_limit` (new migration `0006_v2_auth.sql`).
-- Routes: `/auth/login`, `/auth/login/finish`, `/auth/fallback-login`, `/auth/register`, `/auth/register/finish`, `/auth/logout`, `/auth/sessions`, `/auth/sessions/<id>/revoke`.
-- Middleware chain per ADR-0033 §5.
-- Fallback password hash seeded by Phase 2 cloud-init; a Phase 1 fixture seeds a dev hash for local tests.
-- File: `phase-1-prerequisites/T-D02-auth-webauthn.md`. Reference: ADR-0033.
+### ◻ T-D02 [S] Per-user password + passkey auth → T-D16a
+- Amended by ADR-0061: passwords are per-user attributes on `users.password_hash`, not a global fallback. The `/auth/fallback-login` route is retired.
+- Tables (new migration `0013_v2_auth.sql`): `webauthn_credentials`, `sessions`, `auth_rate_limit`. (`auth_password` from the original plan is deleted — password hash now lives on `users.password_hash` added by migration `0012` in T-D16a.)
+- Routes: `/auth/login`, `/auth/login/finish` (passkey ceremony), `/auth/register`, `/auth/register/finish` (passkey registration for the logged-in user), `/auth/logout`, `/auth/sessions`, `/auth/sessions/<id>/revoke`. Password login is handled by the same `/auth/login` form when the request body carries a `password` field.
+- Middleware chain per ADR-0033 §5, with `AuthRequiredMiddleware` reading `request.state.user` as a real `User` DTO (not a `user_id=1` constant).
+- Dev fixture seeds a known admin + password hash under `if settings.env == "dev"` so local tests do not need Terraform.
+- `/auth/*` responses never leak whether a user exists (generic error on login failure).
+- File: `phase-1-prerequisites/T-D02-auth-webauthn.md`. Reference: ADR-0033 (as amended by ADR-0061).
 
 ### ◻ T-D03 [P] Config surface for production → T-D04
 - `pydantic-settings` fields added: `bind_host` (default `127.0.0.1`), `bind_port` (default `8000`), `trusted_hosts` (list), `cookie_secret`, `session_lifetime_days`.
@@ -95,6 +97,46 @@ Owner: application code. All tasks block Phase 2.
 - Integration test sends SIGTERM to a subprocess and asserts clean exit.
 - File: `phase-1-prerequisites/T-D15-graceful-shutdown.md`.
 
+### ◻ T-D16a [S] Multi-user migration `0012_multi_user.sql` (blocks T-D02, T-D16, T-D19)
+- Extends `users` with `email TEXT`, `is_admin INTEGER NOT NULL DEFAULT 0`, `password_hash TEXT`, `must_change_password INTEGER NOT NULL DEFAULT 0`, `updated_at`, `deleted_at`.
+- Case-insensitive unique index `ux_users_email_live` on `lower(email)` where `deleted_at IS NULL`.
+- Drops the `DEFAULT 1` sentinel on `user_id` across every user-owned table (`accounts`, `categories`, `transactions`, `planned_transactions`, `recurring_rules`, `budget_defaults`, `budget_recurring_overrides`, `budget_one_off_overrides`, `user_preferences`) via SQLite's `CREATE TABLE _new → INSERT SELECT → DROP → RENAME` idiom. Existing `user_id = 1` rows are preserved as the bootstrapped admin's own historical data.
+- Adds `actor_user_id INTEGER` column to `audit_log` (nullable, FK to `users.id`) so admin actions on user rows carry the acting admin's id (ADR-0061 §5). This is additive on top of T-D14's request-context columns.
+- Migration is reversible (down migration provided for completeness; CI runs it in a scratch DB).
+- File: `phase-1-prerequisites/T-D16a-multi-user-migration.md`. Reference: ADR-0061 §2.
+
+### ◻ T-D16 [S] Repository `user_id` scoping sweep + static-analysis test → T-D16a
+- Every repository function against a user-owned table takes `user_id: int` as the first positional argument after `conn` and every SQL statement filters on `user_id = :user_id` (or joins through FK for `account_snapshots` / `recurring_rule_overrides`).
+- Service layer passes `request.state.user.id` explicitly — no implicit "current user" global.
+- New test `tests/architecture/test_user_id_filter.py` parses each repository module's SQL with `sqlglot` and fails if a SELECT/UPDATE/DELETE against a user-owned table lacks a `user_id` predicate (or an equivalent join predicate for the two FK-scoped tables).
+- Call-site sweep across services + routers to thread `user_id` through. Pure mechanical change; no behavioural change for the single-user path.
+- File: `phase-1-prerequisites/T-D16-repository-user-id-scoping.md`. Reference: ADR-0022 (amended), ADR-0061 §5.
+
+### ◻ T-D17 [S] User admin panel `/settings/users` → T-D02, T-D16
+- Admin-only routes per ADR-0061 §4: list, add (auto-generated password shown once), edit (email, name, `is_admin` toggle), reset password, remove (soft-delete + session revoke in one tx).
+- `AdminRequiredMiddleware` returns 404 (not 403) to non-admins to avoid admin-surface fingerprinting.
+- Service-layer invariants: last-admin cannot be deleted or demoted; email must be unique among live users (case-insensitive); creating a user seeds the two per-user system categories (`Transit`, `Reconciliation`) in the same transaction.
+- Auto-generated password uses `secrets.token_urlsafe(16)` (~128 bits entropy). Rendered once via HTMX toast with a copy-to-clipboard button; server never persists plaintext.
+- Templates: `templates/settings/users/list.html`, `edit.html`, `_row.html`, `_password-toast.html`.
+- Audit: every mutation writes an `audit_log` row with `entity_type='users'`, `entity_id=target_user_id`, `actor_user_id=admin_user_id`.
+- File: `phase-1-prerequisites/T-D17-user-admin-panel.md`. Reference: ADR-0061 §4.
+
+### ◻ T-D18 [P] Password change `/settings/password` → T-D02
+- Available to every logged-in user. Form fields: current password, new password, confirm new password.
+- Service verifies current password with bcrypt; hashes new password; clears `must_change_password` flag; in the same transaction revokes all **other** sessions of the same user (current session stays live).
+- The `must_change_password` flag forces redirect to `/settings/password` before any other authenticated route; integration test asserts the redirect.
+- Audit row written on success and on failed-verify attempts (both annotated with IP + user-agent via T-D14).
+- Template: `templates/settings/password.html`.
+- File: `phase-1-prerequisites/T-D18-password-change.md`. Reference: ADR-0061 §4.
+
+### ◻ T-D19 [S] Admin bootstrap on startup → T-D02, T-D16a
+- Lifespan startup hook calls `services.users.bootstrap_admin(conn, env)`.
+- Behaviour (idempotent): if any `is_admin = 1 AND deleted_at IS NULL` user exists, no-op. Else, read `BUDGET_PLANNER_ADMIN_EMAIL` + `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD` from env; create (or promote) the matching user with `is_admin = 1`, `password_hash = bcrypt(initial_password)`, `must_change_password = 1`.
+- Logs a redacted structured line (`event="admin_bootstrap", admin_email=<email>, action="created"|"promoted"|"noop"`); never logs the password.
+- Startup fails fast (process exits non-zero) if an admin does not exist **and** either env var is missing — this is the only way to recover from losing all admins without rebuilding the DB.
+- Dev fixture bootstraps a known admin (`admin@local.test` / `admin`) when `BUDGET_PLANNER_ENV=dev`.
+- File: `phase-1-prerequisites/T-D19-admin-bootstrap.md`. Reference: ADR-0061 §3.
+
 ---
 
 ## Phase 2 — Infrastructure (Terraform + cloud-init) — Scaleway
@@ -118,11 +160,12 @@ Owner: `terraform/` directory. All tasks block Phase 3.
 - Supports either a Scaleway-managed zone or an external zone (operator provisions out-of-band if external).
 - File: `phase-2-infrastructure/T-D22-dns.md`.
 
-### ◻ T-D23 [S] Cloud-init templates → T-D05, T-D10, T-D11, T-D21
+### ◻ T-D23 [S] Cloud-init templates → T-D05, T-D10, T-D11, T-D21, T-D19
 - `cloud-init/bootstrap.yaml.tpl` renders the full first-boot sequence per ADR-0035 §5.
 - `compose/docker-compose.yml.tpl`, `compose/Caddyfile.tpl`, `compose/litestream.yml.tpl` with the exact shapes from ADR-0034, ADR-0036.
+- Compose env now carries `BUDGET_PLANNER_ADMIN_EMAIL` (operator-supplied Terraform input var) + `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD` (generated by `random_password` per ADR-0061 §3). Both are passed through the compose service env; neither is written to disk outside the compose file.
 - `terraform validate` + `yq -e .` + `caddy validate --config -` run on rendered output in CI.
-- File: `phase-2-infrastructure/T-D23-cloud-init.md`. Reference: ADR-0035 §5.
+- File: `phase-2-infrastructure/T-D23-cloud-init.md`. Reference: ADR-0035 §5, ADR-0061 §3.
 
 ### ◻ T-D24 [S] Compute module → T-D23
 - `modules/compute/`: instance (`stardust1-s`, `pl-waw-1`, Ubuntu 24.04), flex IP, security group (22/80/443).
@@ -130,10 +173,11 @@ Owner: `terraform/` directory. All tasks block Phase 3.
 - File: `phase-2-infrastructure/T-D24-compute.md`.
 
 ### ◻ T-D25 [S] First apply on `drill` → T-D21, T-D22, T-D24
-- `terraform apply -var-file=envs/drill/terraform.tfvars`.
-- Capture the fallback password from `terraform output -raw admin_fallback_password`.
+- `terraform apply -var-file=envs/drill/terraform.tfvars` with the operator-supplied `admin_email` input variable.
+- Capture the one-time admin password from `terraform output -raw admin_initial_password` into a password manager.
+- Verify admin login via `/auth/login` with that password; verify forced redirect to `/settings/password`; rotate password.
 - Verify `/health` 200 via public DNS, Observatory grade ≥ A.
-- File: `phase-2-infrastructure/T-D25-first-apply-drill.md`.
+- File: `phase-2-infrastructure/T-D25-first-apply-drill.md`. Reference: ADR-0061 §3.
 
 ### ◻ T-D26 [S] Teardown drill
 - `terraform destroy -var-file=envs/drill/terraform.tfvars` completes without manual cleanup.
@@ -142,9 +186,10 @@ Owner: `terraform/` directory. All tasks block Phase 3.
 
 ### ◻ T-D27 [S] First apply on `prod` → T-D25
 - Prod apply with env approval. DNS points at the prod subdomain.
-- Operator captures the prod fallback password into their password manager.
-- First passkey registered via fallback-login route.
-- File: `phase-2-infrastructure/T-D27-first-apply-prod.md`.
+- Operator captures `terraform output -raw admin_initial_password` into their password manager.
+- Admin logs in with that password → forced password rotation → optional passkey registration via `/auth/register`.
+- Admin creates at least one non-admin user via `/settings/users` to validate the admin panel end-to-end against prod before the smoke journey (T-D43).
+- File: `phase-2-infrastructure/T-D27-first-apply-prod.md`. Reference: ADR-0061.
 
 ### ◻ T-D28 [P] Terraform CI (plan on PR, apply on main w/ approval)
 - `.github/workflows/terraform.yml` runs `fmt -check` + `validate` + `tflint` + `tfsec` + `plan` on PRs; `apply` on `main` after `prod` env approval.
@@ -204,8 +249,8 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - Targets: Observatory ≥ A+, testssl grade A, no HIGH/CRITICAL from trivy.
 - File: `phase-4-validation/T-D42-security-scan.md`.
 
-### ◻ T-D43 [S] Smoke journey (Playwright, production) → T-D27, T-D02
-- Journey: fallback-login → register passkey → logout → login via passkey → add transaction → see it on `/ledger` → verify `audit_log` row via a dedicated internal `/debug/audit-tail` route gated by auth + a dev-only env var.
+### ◻ T-D43 [S] Smoke journey (Playwright, production) → T-D27, T-D02, T-D17
+- Journey (ADR-0061 end-to-end): admin logs in with the Terraform-captured password → rotates it via `/settings/password` → creates a second non-admin user via `/settings/users` and captures the one-shot auto-generated password → logs out → second user logs in → rotates password → registers a passkey → adds a transaction → sees it on `/ledger` → admin logs back in and asserts the second user's transaction is **not** visible from the admin's own `/ledger` (data isolation assertion) → verify `audit_log` row via the auth-gated `/debug/audit-tail` route.
 - Lives in `tests/smoke/test_prod_smoke.py` and is run manually post-deploy, not in CI.
 - File: `phase-4-validation/T-D43-smoke-journey.md`.
 
@@ -218,12 +263,13 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - Scaleway cost alert set at 2× expected (PLN) and verified by temporarily cutting threshold to 0.01 PLN and confirming the email arrives.
 - File: `phase-4-validation/T-D45-cost-alert.md`.
 
-### ◻ T-D46 [S] Operational runbooks → T-D33, T-D40
+### ◻ T-D46 [S] Operational runbooks → T-D33, T-D40, T-D17
 - `docs/plans/v3/runbooks/deploy.md`
 - `docs/plans/v3/runbooks/rollback.md`
 - `docs/plans/v3/runbooks/restore.md`
-- `docs/plans/v3/runbooks/disaster-recovery.md` (full re-provision + restore)
+- `docs/plans/v3/runbooks/disaster-recovery.md` (full re-provision + restore; includes "lost all admins → set BUDGET_PLANNER_ADMIN_EMAIL + rotate BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD via Terraform → redeploy" recovery path)
 - `docs/plans/v3/runbooks/restore-log.md` (append-only drill log, seeded by T-D40)
+- `docs/plans/v3/runbooks/user-admin.md` (add user / reset password / remove user / promote-admin / last-admin invariant / data-isolation note — ADR-0061)
 - Each runbook has: context, step-by-step, verification, troubleshooting.
 - File: `phase-4-validation/T-D46-runbooks.md`.
 
@@ -237,7 +283,12 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Centralised log store (Grafana Cloud, Loki, Datadog).
 - Deeper observability (RED/USE metrics, tracing).
 - CSV import from banks (deferred from v1 as well).
-- Multi-user authentication.
+- Self-signup / public registration (multi-user is in scope at v3 via ADR-0061, but user creation is admin-only — no public sign-up form).
+- External IdP (GitHub / Google OIDC) for login.
+- Admin impersonation ("login as another user") or admin visibility into user data.
+- Forgot-password email flow — admin password reset is the only recovery path in v3.
+- Hard-delete flows that remove a user's underlying data rows (soft-delete only in v3).
+- Per-user API tokens or programmatic access.
 - CDN in front of the host (Cloudflare).
 - Switching from Caddy ACME HTTP-01 to DNS-01 (`caddy-dns/scaleway`).
 - Replacing SSH deploy with pull-based self-update.

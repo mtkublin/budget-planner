@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-30
+- **v3 scope — multi-user support promoted into v3 (docs-only; ADR-0061)**:
+  New ADR [0061](adr/0061-v3-multi-user-admin-bootstrap-and-data-isolation.md) supersedes ADR-0005 (single user, no auth) and amends ADR-0033 (auth) + ADR-0022 (repository discipline) + ADR-0019 (audit log actor): v3 ships admin-managed multi-user with one bootstrapped admin, admin-only user CRUD at `/settings/users`, per-user password change at `/settings/password`, and strict per-user data isolation enforced in the repository layer with a `sqlglot`-based static-analysis test backstop.
+  `docs/requirements.md` §1 opening paragraph rewritten; §3.7 scaffold note updated; §3.8 + §5.6 + §6.8 non-goals adjusted; §6.2 Authentication rewritten for per-user model; §6.9 Multi-User Scope added; §6.10 Deliverables renumbered.
+  `docs/plans/v3/README.md` scope + non-goals + dependency diagram updated. `docs/plans/v3/implementation_plan.md` guiding principles grow #7 (repository filter discipline), Phase 1 header expanded to T-D01..T-D19, Phase 2 order calls out the new cloud-init env vars, Phase 4 smoke exercises admin + second user + data-isolation assertion, runbook list grows `user-admin.md`.
+  `docs/plans/v3/tasks.md` adds T-D16a (`0012_multi_user.sql` migration), T-D16 (repository `user_id` sweep + static test), T-D17 (admin panel), T-D18 (password change), T-D19 (admin bootstrap); T-D02 reshaped to depend on T-D16a and drop the global fallback-password concept; T-D23 / T-D25 / T-D27 cloud-init + apply tasks grow the `BUDGET_PLANNER_ADMIN_EMAIL` + `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD` env-var contract; T-D43 smoke journey rewritten to cover admin → create-user → data-isolation assertion; T-D46 runbooks list grows `user-admin.md`.
+  New task files `phase-1-prerequisites/T-D16a-multi-user-migration.md`, `T-D16-repository-user-id-scoping.md`, `T-D17-user-admin-panel.md`, `T-D18-password-change.md`, `T-D19-admin-bootstrap.md`. `T-D02-auth-webauthn.md` rewritten for the per-user model.
+  No code changes in this commit.
+
 ## 2026-10-29
 - **Manual-audit remediation Phase I — Settings rework (audit ids #52, #53, #54, #55, #56)**:
   (#54) Income anchor removed from `settings/_prefs.html` entirely. Preferences now carries just the base-currency + display-timezone read-only strip, and the help copy points at the Categories tab for the anchor.

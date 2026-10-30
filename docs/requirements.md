@@ -7,7 +7,7 @@
 
 ## 1. Product Scope
 
-A locally-hosted web application for personal budget planning and fortune (net-worth) tracking across multiple accounts and currencies. Single user, no authentication, served on `127.0.0.1` for local use. Designed so future deployment and multi-user support can be added without rework.
+A web application for personal budget planning and fortune (net-worth) tracking across multiple accounts and currencies. Started as a local single-user tool (v1, bound to `127.0.0.1`); v2 ships the Rising Dough redesign (still local, still single-user); v3 (§6) moves the same functional surface to a hardened public-internet deployment and promotes the long-scaffolded `user_id` column into real **multi-user** support (admin-managed; see [§6.9](#69-multi-user-scope-added-2026-10-30-adr-0061) and [ADR-0061](adr/0061-v3-multi-user-admin-bootstrap-and-data-isolation.md)).
 
 ---
 
@@ -160,7 +160,7 @@ Local setup runs both `uv sync` (Python) and `npm ci` (Node dev toolchain) throu
 - **Timestamps**: `created_at` / `updated_at` columns stored as UTC. User-facing dates on transactions stored as DATE (no time component). Display timezone = `Europe/Warsaw` by default, configurable.
 - **Soft delete**: every mutable table has `deleted_at` nullable timestamp. All queries filter `WHERE deleted_at IS NULL` via a repository helper.
 - **Audit**: shared polymorphic `audit_log(id, entity_type, entity_id, changed_at, operation, prev_json, new_json)` written on every mutation.
-- **Multi-user scaffold**: every user-owned table has a nullable `user_id` column (defaults to `1`), unused in v1, ready for future auth.
+- **Multi-user scaffold**: every user-owned table has a nullable `user_id` column (defaults to `1`), unused in v1, ready for future auth. **v3 activates this scaffold** — see [§6.9](#69-multi-user-scope-added-2026-10-30-adr-0061) and [ADR-0061](adr/0061-v3-multi-user-admin-bootstrap-and-data-isolation.md); the `DEFAULT 1` is dropped by migration `0012_multi_user.sql`.
 
 ### 3.9 UI / Interaction Model
 
@@ -180,7 +180,7 @@ Local setup runs both `uv sync` (Python) and `npm ci` (Node dev toolchain) throu
 ### 3.8 Out of Scope for v1
 
 - CSV import from banks (deferred past v1; not scheduled for v2 or v3 either; see [ADR-0020](adr/0020-import-deferred-export-v1.md)).
-- Multi-user authentication.
+- Multi-user authentication (**promoted into v3** — see [§6.9](#69-multi-user-scope-added-2026-10-30-adr-0061) and [ADR-0061](adr/0061-v3-multi-user-admin-bootstrap-and-data-isolation.md); kept here for v1 historical scope).
 - Cross-currency transits.
 - ML/trend-based forecasting.
 - Rollover budgets.
@@ -260,7 +260,7 @@ Explicitly out of v2 scope (require ADR before promotion):
 - CSV import from banks (still deferred — ADR-0020).
 - Any schema change.
 - Remote deployment, authentication, infrastructure, monitoring — those live in v3 (§6).
-- Multi-user authentication.
+- Multi-user authentication (**promoted into v3** — see [§6.9](#69-multi-user-scope-added-2026-10-30-adr-0061) and [ADR-0061](adr/0061-v3-multi-user-admin-bootstrap-and-data-isolation.md); remains out of v2).
 
 ### 5.7 Dependencies on v3
 
@@ -280,13 +280,15 @@ v3 keeps the v2-redesigned functional surface unchanged and layers a hardened pu
 - **DNS**: operator-owned domain, A + AAAA records managed by Terraform.
 - **Server bind**: inside the container, `0.0.0.0:8000` (Caddy terminates TLS and proxies to it). ADR-0005's `127.0.0.1` constraint applies only to v1 local use.
 
-### 6.2 Authentication (new)
+### 6.2 Authentication (new; multi-user per ADR-0061)
 
-- **Primary**: single-user passkey (WebAuthn) via `py_webauthn`. Multiple credentials per device, named by the user.
-- **Fallback**: long random password (bcrypt-hashed, Terraform-generated at provisioning) for break-glass and first-passkey registration.
-- **Session**: signed `__Host-session` cookie, 7-day sliding expiry, revocable per session via `/auth/sessions`.
+- **Model**: multi-user, admin-gated. One admin bootstrapped by Terraform at first boot; admin manages the user list but does **not** see other users' data. See [ADR-0061](adr/0061-v3-multi-user-admin-bootstrap-and-data-isolation.md).
+- **Primary credential**: per-user password (bcrypt-hashed). Each user may additionally register their own passkeys (WebAuthn via `py_webauthn`) after logging in. No self-signup; user creation is admin-only.
+- **Admin bootstrap**: Terraform generates `admin_initial_password`; cloud-init injects `BUDGET_PLANNER_ADMIN_EMAIL` + `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD`; the app's startup hook creates the admin idempotently and flags `must_change_password=1` so the first login forces rotation. Terraform exposes the password as a sensitive output; operator captures it once.
+- **Session**: signed `__Host-session` cookie, 7-day sliding expiry, revocable per session via `/auth/sessions`. Sessions are per-user; deleting a user revokes all their sessions in the same transaction.
 - **CSRF**: `__Host-csrf` cookie + `X-CSRF-Token` header enforced on all state-changing routes.
-- **Rate limit + jail**: 3 attempts / 15 min on fallback-login; `fail2ban` jail reading Caddy's access log.
+- **Rate limit + jail**: 3 attempts / 15 min on `/auth/login` per IP; `fail2ban` jail reading Caddy's access log.
+- **Admin surface**: `/settings/users` (list, add, edit, remove, reset password) — admin-only, returns 404 to non-admins to avoid surface fingerprinting. `/settings/password` is available to every user to change their own password.
 
 ### 6.3 Infrastructure as Code (new NFR)
 
@@ -329,19 +331,33 @@ v3 keeps the v2-redesigned functional surface unchanged and layers a hardened pu
 
 Explicitly out of v3 scope (require ADR before promotion):
 
-- Multi-user auth beyond the single-user passkey model.
+- Self-signup / public registration. User creation remains admin-only (ADR-0061).
+- Multi-admin impersonation ("login as") or admin visibility into user data.
+- "Forgot password" email flow. Admin reset is the only recovery path (ADR-0061).
+- External IdP (GitHub / Google OIDC) or per-user API tokens.
+- Hard-delete flows for user data (soft-delete only; see ADR-0061 §Consequences).
 - Autoscaling or multi-instance.
 - Cross-region replication of the Litestream bucket.
 - Centralised log store or distributed tracing.
 - CDN or edge caching.
 - CSV import from banks (remains deferred — see ADR-0020).
 
-### 6.9 Deliverables
+### 6.9 Multi-User Scope (added 2026-10-30; ADR-0061)
 
-- All six v3 ADRs (0032–0037) Accepted.
+- **Capacity target**: order-of-magnitude 10 users on the Stardust1-S host. Vertical bump to Pro2-S noted as future knob if load requires. SQLite single-writer ceiling (~100 concurrent writers) remains the long-term limit.
+- **Roles**: `is_admin` boolean on `users`. One admin bootstrapped at provisioning; any admin can promote another user. The last admin cannot be deleted or demoted.
+- **Data isolation**: every user-owned table (`accounts`, `categories`, `transactions`, `planned_transactions`, `recurring_rules`, `budget_defaults`, `budget_recurring_overrides`, `budget_one_off_overrides`, `user_preferences`) is filtered on `user_id = current_user.id` in every repository query. `account_snapshots` and `recurring_rule_overrides` are scoped via join through their parent FK. `fx_rates` is global. The admin cannot see other users' data.
+- **Admin panel**: `/settings/users` — list / add (auto-generated password shown once) / edit (email, name, is_admin toggle) / reset password / remove (soft-delete + session revoke).
+- **Password change**: `/settings/password` — all users. Requires current password. Clears `must_change_password` flag; revokes all other sessions of the same user.
+- **Schema**: migration `0012_multi_user.sql` extends `users` with `email`, `is_admin`, `must_change_password`, `updated_at`, `deleted_at`; drops the `DEFAULT 1` sentinel on every user-owned FK. Legacy `user_id = 1` data is preserved as the bootstrapped admin's own history. See ADR-0061. <!-- pragma: allowlist secret -->
+- **Static-analysis guard**: a CI test parses each repository module's SQL and fails if a SELECT/UPDATE/DELETE against a user-owned table lacks a `user_id` filter.
+
+### 6.10 Deliverables
+
+- All seven v3 ADRs (0032–0037 + 0061) Accepted.
 - `docs/plans/v3/` phases 1–4 complete with `✅` on every task.
 - Production deployment running at the agreed hostname with Observatory ≥ A+.
 - First restore drill logged in `docs/plans/v3/runbooks/restore-log.md`.
 - Monthly automated restore drill scheduled.
-- Operator captured the fallback password into a password manager; at least one passkey registered.
+- Operator captured the `admin_initial_password` into a password manager; admin has logged in, rotated the password, and (optionally) registered at least one passkey.
 - Dated go-live entry in `docs/CHANGELOG.md`.
