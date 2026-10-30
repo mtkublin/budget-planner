@@ -140,6 +140,12 @@ def list_upcoming(
     items: list[UpcomingItem] = [_planned_item(row, today) for row in planned_rows]
 
     for rule in recurring_repo.list_rules(conn, active_only=True):
+        # ADR-0063: a rule whose next_due already exceeds its stop date
+        # has effectively ended but has not yet been promoted (so advance
+        # has not deactivated it). Hide it from Upcoming — the next
+        # promotion attempt, or an edit, will clean up the active flag.
+        if rule.end_date is not None and rule.next_due > rule.end_date:
+            continue
         override = _override_for_next_due(conn, rule)
         projected = _recurring_item(rule, override)
         if projected is None:

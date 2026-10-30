@@ -213,8 +213,12 @@ def _normalise_rule_patch(changes: dict[str, Any]) -> dict[str, Any]:
     for key, value in changes.items():
         if key == "cadence":
             norm[key] = value.value
-        elif key in {"start_date", "end_date", "next_due"} and value is not None:
+        elif key in {"start_date", "next_due"} and value is not None:
             norm[key] = value.isoformat()
+        elif key == "end_date":
+            # end_date is sentinel-nullable (ADR-0063). The caller may clear
+            # it by patching with None.
+            norm[key] = value.isoformat() if value is not None else None
         elif key == "active":
             norm[key] = int(bool(value))
         elif key == "amount_formula":

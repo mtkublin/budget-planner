@@ -170,6 +170,19 @@
              required>
     </label>
     <label class="rd-field">
+      <span class="rd-field__label">Stop <span class="rd-field__hint">optional</span></span>
+      <input type="date"
+             name="end_date"
+             value="{{ rule.end_date|date_fmt if rule and rule.end_date else '' }}"
+             aria-describedby="recurring-end-date-help">
+      <span id="recurring-end-date-help"
+            class="rd-field__help text-muted text-sm">
+        Last occurrence on or before this date. Leave empty for no end.
+      </span>
+    </label>
+  </div>
+  <div class="rd-form-row rd-form-row--2col">
+    <label class="rd-field">
       <span class="rd-field__label">Cadence</span>
       <select name="cadence" required>
         {% for cad in ['monthly', 'quarterly', 'yearly'] %}
@@ -178,8 +191,6 @@
         {% endfor %}
       </select>
     </label>
-  </div>
-  <div class="rd-form-row rd-form-row--2col">
     <label class="rd-field">
       <span class="rd-field__label">Day of month</span>
       <input type="text"
@@ -188,14 +199,14 @@
              inputmode="numeric"
              placeholder="e.g. 7">
     </label>
-    <label class="rd-field">
-      <span class="rd-field__label">Note</span>
-      <input type="text"
-             name="default_description"
-             value="{{ rule.default_description if rule else '' }}"
-             placeholder="optional description">
-    </label>
   </div>
+  <label class="rd-field">
+    <span class="rd-field__label">Note</span>
+    <input type="text"
+           name="default_description"
+           value="{{ rule.default_description if rule else '' }}"
+           placeholder="optional description">
+  </label>
   {% include "partials/_form_errors.html" %}
   <footer class="rd-slideover-footer">
     <button type="button"

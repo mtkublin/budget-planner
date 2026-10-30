@@ -8,11 +8,12 @@ from typing import Any, Final, Literal
 
 from budget_planner.domain.enums import Cadence, OverrideState
 
-# Sentinel for `PatchRecurringRule.next_due` / `amount_formula` so we can
-# distinguish "no change" from "explicitly clear". `amount_formula` is
-# nullable at the storage layer; the sentinel keeps the shape symmetric with
-# `next_due` and lets admin flows pass through an unmodified value without
-# re-asserting it.
+# Sentinel for `PatchRecurringRule.next_due` / `amount_formula` / `end_date`
+# so we can distinguish "no change" from "explicitly clear". All three are
+# nullable at the storage layer; the sentinel keeps the shape symmetric and
+# lets admin flows pass through an unmodified value without re-asserting it.
+# `end_date` joined the sentinel group in ADR-0063 so the UI can clear a
+# previously-set stop date.
 _UNCHANGED: Final[object] = object()
 
 # Current storage schema for `AmountFormula` JSON. Bumped on any
@@ -119,7 +120,7 @@ class PatchRecurringRule:
 
     cadence: Cadence | None = None
     start_date: date | None = None
-    end_date: date | None = None
+    end_date: date | object | None = _UNCHANGED
     category_id: int | None = None
     account_id: int | None = None
     dest_account_id: int | None = None
@@ -135,7 +136,7 @@ class PatchRecurringRule:
         out: dict[str, Any] = {}
         for f in fields(self):
             value = getattr(self, f.name)
-            if f.name in {"next_due", "amount_formula"}:
+            if f.name in {"next_due", "amount_formula", "end_date"}:
                 if value is _UNCHANGED:
                     continue
                 out[f.name] = value

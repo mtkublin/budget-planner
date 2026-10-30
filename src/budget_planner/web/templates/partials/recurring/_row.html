@@ -23,6 +23,13 @@
     {% else %}
       {{ rule.next_due|date_fmt }}
     {% endif %}
+    {% if rule.end_date %}
+      {% if not rule.active %}
+        <small class="rd-caption text-muted" data-end-caption="ended">ended {{ rule.end_date|date_fmt }}</small>
+      {% else %}
+        <small class="rd-caption text-muted" data-end-caption="ends">ends {{ rule.end_date|date_fmt }}</small>
+      {% endif %}
+    {% endif %}
   </td>
   <td>{{ account.name if account else '—' }}</td>
   <td>{% if category %}{{ category_label(category) }}{% else %}—{% endif %}</td>

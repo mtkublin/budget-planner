@@ -263,6 +263,7 @@ async def create_rule(
     form = await request.form()
     cadence = str(form.get("cadence", ""))
     start_date = str(form.get("start_date", ""))
+    end_date_raw = str(form.get("end_date", ""))
     category_id_raw = str(form.get("category_id", ""))
     account_id_raw = str(form.get("account_id", ""))
     dest_account_id_raw = str(form.get("dest_account_id", ""))
@@ -279,6 +280,13 @@ async def create_rule(
     start = _parse_date(start_date)
     if start is None:
         errors["start_date"] = "invalid date"
+    end: date | None = None
+    if end_date_raw:
+        end = _parse_date(end_date_raw)
+        if end is None:
+            errors["end_date"] = "invalid date"
+        elif start is not None and end < start:
+            errors["end_date"] = "must be on or after start"
     try:
         category_id = int(category_id_raw)
         account_id = int(account_id_raw)
@@ -327,11 +335,17 @@ async def create_rule(
             terms=term_inputs or [dict(_EMPTY_TERM_INPUT)],
         )
     assert c is not None and start is not None and minor is not None
+    today = dt.date.today()  # noqa: DTZ011
+    # ADR-0063: a stop date already in the past means the schedule is dead
+    # on arrival — insert as inactive so it never shows up in Upcoming
+    # or Forecast between create and the first promotion attempt.
+    initial_active = not (end is not None and end < today)
     rule = recurring_repo.create_rule(
         conn,
         NewRecurringRule(
             cadence=c,
             start_date=start,
+            end_date=end,
             category_id=category_id,
             account_id=account_id,
             dest_account_id=dest_id,
@@ -339,6 +353,7 @@ async def create_rule(
             default_description=default_description,
             day_of_month=_parse_int(day_of_month),
             amount_formula=formula,
+            active=initial_active,
         ),
     )
     html = render(
@@ -590,7 +605,7 @@ def edit_form(
 
 
 @router.post("/{rule_id}")
-async def update_rule_handler(
+async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
     rule_id: int,
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
@@ -601,6 +616,7 @@ async def update_rule_handler(
     form = await request.form()
     cadence = str(form.get("cadence", ""))
     start_date = str(form.get("start_date", ""))
+    end_date_raw = str(form.get("end_date", ""))
     category_id_raw = str(form.get("category_id", ""))
     account_id_raw = str(form.get("account_id", ""))
     dest_account_id_raw = str(form.get("dest_account_id", ""))
@@ -617,11 +633,18 @@ async def update_rule_handler(
     cat = categories_repo.find_by_id(conn, category_id)
     c = _validate_cadence(cadence)
     start = _parse_date(start_date)
+    end: date | None = None
     errors: dict[str, str] = {}
     if c is None:
         errors["cadence"] = "invalid"
     if start is None:
         errors["start_date"] = "invalid date"
+    if end_date_raw:
+        end = _parse_date(end_date_raw)
+        if end is None:
+            errors["end_date"] = "invalid date"
+        elif start is not None and end < start:
+            errors["end_date"] = "must be on or after start"
     if acc is None:
         errors["account_id"] = "unknown account"
     if cat is None:
@@ -654,19 +677,31 @@ async def update_rule_handler(
             terms=term_inputs or [dict(_EMPTY_TERM_INPUT)],
         )
     assert c is not None and start is not None and minor is not None
+    # ADR-0063: if the user shortens the stop date so that the next pending
+    # occurrence falls past it, deactivate the rule in the same patch so
+    # Upcoming + Forecast stop surfacing it before the next promotion.
+    end_is_set = bool(end_date_raw)
+    deactivate_due_to_end = end_is_set and end is not None and rule.next_due > end
+    patch_kwargs: dict[str, Any] = {
+        "cadence": c,
+        "start_date": start,
+        "category_id": category_id,
+        "account_id": account_id,
+        "dest_account_id": dest_id,
+        "default_amount": minor,
+        "default_description": default_description,
+        "amount_formula": formula,
+    }
+    # end_date is sentinel-nullable; only touch it when the form carried a
+    # value (empty string clears, missing field leaves as-is — forms always
+    # include it, so we treat empty as explicit clear).
+    patch_kwargs["end_date"] = end
+    if deactivate_due_to_end:
+        patch_kwargs["active"] = False
     recurring_repo.update_rule(
         conn,
         rule_id,
-        PatchRecurringRule(
-            cadence=c,
-            start_date=start,
-            category_id=category_id,
-            account_id=account_id,
-            dest_account_id=dest_id,
-            default_amount=minor,
-            default_description=default_description,
-            amount_formula=formula,
-        ),
+        PatchRecurringRule(**patch_kwargs),
     )
     updated = recurring_repo.find_rule(conn, rule_id)
     assert updated is not None and acc is not None
