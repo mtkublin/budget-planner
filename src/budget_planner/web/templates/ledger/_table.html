@@ -1,19 +1,30 @@
 {% from "_partials/kebab_menu.html" import kebab_menu %}
-{# Ledger table (T-064, T-092).
+{# Ledger table (T-064, T-092; refactored for manual-audit #25-#30).
 
-   Renders one of three view variants — Actual · Planned · Recurring — picked
-   by the ``view`` context var. Shared columns (date, direction, amount,
-   category, account, description) come first; view-specific extras follow.
-
-   Outer wrapper id ``ledger-table`` is the single swap target for the
-   segmented control and filters in ``ledger/index.html``. Inner id
-   (``txn-table`` / ``planned-table`` / ``recurring-table``) is preserved so
-   pre-T-064 scripts + tests continue to find it by substring. #}
+   Three view variants — Actual · Planned · Recurring — picked by the
+   ``view`` context var. Column shape matches the designer handoff
+   (`desktop-02-ledger-actual.html` / -03 / -04): Actual + Planned carry
+   `Date · Description+Account · Category · Amount · Actions`, Recurring
+   carries `Next due · Rule · Category · Amount · Overrides · Actions`.
+   The Actual day-group header surfaces the group net on the right. #}
 {% set table_id = (
   "txn-table" if view == "actual"
   else "planned-table" if view == "planned"
   else "recurring-table"
 ) %}
+{# Precompute per-day net (expense negative, income positive, transit excluded)
+   so the day-group header can show it on the right. Keyed by ISO date. #}
+{% set day_nets = namespace(by_date={}) %}
+{% if view == "actual" %}
+  {% for row in rows %}
+    {% set key = row.operation_date.isoformat() %}
+    {% set dir_value = row.category.direction.value if row.category else '' %}
+    {% if dir_value != "transit" %}
+      {% set sign = 1 if dir_value == 'income' else -1 %}
+      {% set _ = day_nets.by_date.update({key: day_nets.by_date.get(key, 0) + sign * row.amount}) %}
+    {% endif %}
+  {% endfor %}
+{% endif %}
 <div id="ledger-table"
      data-ledger-table-root
      data-view="{{ view }}"
@@ -29,92 +40,126 @@
         <thead>
           <tr>
             {% if view == "recurring" %}
-              <th scope="col">Cadence</th>
               <th scope="col">Next due</th>
-              <th scope="col">Account</th>
+              <th scope="col">Rule</th>
               <th scope="col">Category</th>
-              <th scope="col">Description</th>
-              <th scope="col" class="text-right">Amount</th>
-              <th scope="col">Active</th>
-              <th scope="col">Overrides</th>
-              <th scope="col" class="text-right">Actions</th>
-            {% else %}
-              <th scope="col">Date</th>
               <th scope="col">Direction</th>
               <th scope="col" class="text-right">Amount</th>
-              <th scope="col">Category</th>
-              <th scope="col">Account</th>
+              <th scope="col">Overrides</th>
+              <th scope="col"><span class="sr-only">Actions</span></th>
+            {% elif view == "planned" %}
+              <th scope="col">Due</th>
               <th scope="col">Description</th>
-              {% if view == "planned" %}
-                <th scope="col">Promoted?</th>
-                <th scope="col" class="text-right">Actions</th>
-              {% else %}
-                <th scope="col" class="text-right">Actions</th>
-              {% endif %}
+              <th scope="col">Category</th>
+              <th scope="col" class="text-right">Amount</th>
+              <th scope="col">Status</th>
+              <th scope="col"><span class="sr-only">Actions</span></th>
+            {% else %}
+              <th scope="col">Description · Account</th>
+              <th scope="col">Category</th>
+              <th scope="col">Direction</th>
+              <th scope="col" class="text-right">Amount</th>
+              <th scope="col"><span class="sr-only">Actions</span></th>
             {% endif %}
           </tr>
         </thead>
         <tbody>
+          {%- set ns = namespace(day=none) -%}
           {% for row in rows %}
             {% if view == "actual" %}
+              {%- if ns.day != row.operation_date -%}
+                {%- set ns.day = row.operation_date -%}
+                {%- set day_net = day_nets.by_date.get(row.operation_date.isoformat(), 0) -%}
+                <tr class="rd-day-head">
+                  <td colspan="4">
+                    <span class="rd-eyebrow">{{ row.operation_date.strftime("%a %d %b") }}</span>
+                  </td>
+                  <td class="text-right">
+                    {% if day_net != 0 %}
+                      <span class="num {{ 'pos' if day_net > 0 else 'neg' }}">net {{ '{:+,.2f}'.format(day_net / 100.0) }}</span>
+                    {% endif %}
+                  </td>
+                  <td></td>
+                </tr>
+              {%- endif -%}
+              {% set dir_value = row.category.direction.value if row.category else '' %}
+              {% set is_income = dir_value == 'income' %}
               <tr id="txn-{{ row.id }}" class="row">
-                <td class="whitespace-nowrap font-semibold">{{ row.operation_date|date_fmt }}</td>
-                <td>{% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}</td>
-                <td class="text-right"><span class="tabular-nums">{{ row.amount|money(row.currency) }}</span></td>
-                <td>{{ category_label(row.category) }}</td>
                 <td>
-                  {{ row.account.name if row.account else '' }}
-                  {% if row.dest_account %}→ {{ row.dest_account.name }}{% endif %}
+                  <strong>{{ row.description or '—' }}</strong>
+                  <br>
+                  <small class="text-muted">
+                    {{ row.account.name if row.account else '' }}{% if row.dest_account %} → {{ row.dest_account.name }}{% endif %}
+                  </small>
                 </td>
-                <td class="text-muted">{{ row.description }}</td>
-                <td class="text-right space-x-2 text-sm">
-                  <button type="button"
-                          hx-get="/transactions/{{ row.id }}/edit"
-                          hx-target="#modal-root"
-                          hx-swap="innerHTML"
-                          aria-label="Edit transaction {{ row.id }}">Edit</button>
-                  <button type="button"
-                          hx-post="/transactions/{{ row.id }}/delete"
-                          hx-target="#txn-{{ row.id }}"
-                          hx-swap="outerHTML"
-                          hx-confirm="Delete this transaction?"
-                          aria-label="Delete transaction {{ row.id }}">Delete</button>
+                <td>{{ category_label(row.category) }}</td>
+                <td>{% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}</td>
+                <td class="text-right num {{ 'pos' if is_income else '' }}">
+                  {{ '+' if is_income else '' }}{{ row.amount|money(row.currency) }}
+                </td>
+                <td class="rd-actions">
+                  {% call kebab_menu(id="txn-" ~ row.id) %}
+                    <li role="none">
+                      <button type="button"
+                              role="menuitem"
+                              hx-get="/transactions/{{ row.id }}/edit"
+                              hx-target="#modal-root"
+                              hx-swap="innerHTML">Edit</button>
+                    </li>
+                    <li role="none">
+                      <button type="button"
+                              role="menuitem"
+                              data-destructive
+                              hx-post="/transactions/{{ row.id }}/delete"
+                              hx-target="#txn-{{ row.id }}"
+                              hx-swap="outerHTML"
+                              hx-confirm="Delete this transaction?">Delete</button>
+                    </li>
+                  {% endcall %}
                 </td>
               </tr>
             {% elif view == "planned" %}
-              <tr id="planned-{{ row.key }}" class="row">
-                <td class="whitespace-nowrap font-semibold">{{ row.operation_date|date_fmt }}</td>
-                <td>{% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}</td>
-                <td class="text-right"><span class="tabular-nums">{{ row.amount_minor|money(row.currency) }}</span></td>
+              {% set days_delta = (row.operation_date - today_date).days if today_date is defined else 0 %}
+              {% set dir_value = row.category.direction.value if row.category else '' %}
+              {% set is_income = dir_value == 'income' %}
+              <tr id="planned-{{ row.key }}"
+                  class="row {% if (not row.is_promoted) and days_delta < 0 %}rd-row--overdue{% endif %}">
+                <td class="num mut whitespace-nowrap">{{ row.operation_date.strftime("%d %b") }}</td>
+                <td>
+                  <strong>{{ row.description or '—' }}</strong>
+                  <br>
+                  <small class="text-muted">{{ row.account.name if row.account else '' }}</small>
+                </td>
                 <td>{{ category_label(row.category) }}</td>
-                <td>{{ row.account.name if row.account else '' }}</td>
-                <td class="text-muted">{{ row.description }}</td>
+                <td class="text-right num {{ 'pos' if is_income else '' }}">
+                  {{ '+' if is_income else '' }}{{ row.amount_minor|money(row.currency) }}
+                </td>
                 <td>
                   {% if row.is_promoted %}
-                    <span class="pill pill-income">promoted</span>
+                    <span class="rd-pill rd-pill--income">✓ Promoted</span>
+                  {% elif days_delta < 0 %}
+                    <span class="rd-pill rd-pill--expense">{{ -days_delta }} days late</span>
+                  {% elif days_delta == 0 %}
+                    <span class="rd-pill">today</span>
                   {% else %}
-                    <span class="text-faint">—</span>
+                    <span class="text-muted">in {{ days_delta }} days</span>
                   {% endif %}
                 </td>
-                <td class="text-right">
+                <td class="rd-actions">
+                  {% if row.kind == "persisted" and not row.is_promoted %}
+                    <button type="button"
+                            class="rd-btn rd-btn--sm"
+                            hx-get="/planned/{{ row.persisted_id }}/promote"
+                            hx-target="#modal-root"
+                            hx-swap="innerHTML">Promote ↵</button>
+                  {% endif %}
                   {% if row.kind == "persisted" %}
+                    <button type="button"
+                            class="rd-btn rd-btn--sm rd-btn--ghost"
+                            hx-get="/planned/{{ row.persisted_id }}/edit"
+                            hx-target="#modal-root"
+                            hx-swap="innerHTML">Edit</button>
                     {% call kebab_menu(id="planned-" ~ row.key) %}
-                      <li role="none">
-                        <button type="button"
-                                role="menuitem"
-                                hx-get="/planned/{{ row.persisted_id }}/edit"
-                                hx-target="#modal-root"
-                                hx-swap="innerHTML">Edit</button>
-                      </li>
-                      {% if not row.is_promoted %}
-                        <li role="none">
-                          <button type="button"
-                                  role="menuitem"
-                                  hx-get="/planned/{{ row.persisted_id }}/promote"
-                                  hx-target="#modal-root"
-                                  hx-swap="innerHTML">Promote →</button>
-                        </li>
-                      {% endif %}
                       <li role="none">
                         <button type="button"
                                 role="menuitem"
@@ -129,8 +174,21 @@
                 </td>
               </tr>
             {% elif view == "recurring" %}
-              <tr id="recurring-{{ row.id }}" class="row">
-                <td data-cadence>{{ row.cadence.value|capitalize }}</td>
+              {%- set rec_cadence = (row.cadence.value if row.cadence is not string else row.cadence) -%}
+              {%- if ns.day != rec_cadence -%}
+                {%- set ns.day = rec_cadence -%}
+                <tr class="rd-day-head">
+                  <td colspan="7">
+                    <span class="rd-eyebrow">{{ rec_cadence|capitalize }}</span>
+                  </td>
+                </tr>
+              {%- endif -%}
+              {% set dir_value = row.category.direction.value if row.category else '' %}
+              {% set is_income = dir_value == 'income' %}
+              {% set has_expand = row.is_formula or (row.overrides and row.overrides|length > 0) %}
+              <tr id="recurring-{{ row.id }}"
+                  class="row{% if has_expand %} rd-rec-row--expandable{% endif %}"
+                  data-expand-row>
                 <td class="whitespace-nowrap tabular-nums" data-next-due>
                   {% if row.override_present %}
                     <strong data-override-present>{{ row.next_due|date_fmt }}</strong>
@@ -138,48 +196,34 @@
                     {{ row.next_due|date_fmt }}
                   {% endif %}
                 </td>
-                <td>{{ row.account.name if row.account else '' }}</td>
+                <td>
+                  <strong>{{ row.default_description or '—' }}</strong>
+                  {% if row.is_formula %}<kbd class="rd-kbd">ƒ</kbd>{% endif %}
+                  <br>
+                  <small class="text-muted">
+                    {{ row.account.name if row.account else '' }}{% if row.dest_account is defined and row.dest_account %} → {{ row.dest_account.name }}{% endif %}
+                  </small>
+                  {% if not row.active %}<span class="rd-pill rd-pill--muted">inactive</span>{% endif %}
+                </td>
                 <td>{{ category_label(row.category) }}</td>
-                <td class="text-muted">{{ row.default_description or '' }}</td>
-                <td class="text-right">
+                <td>{% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}</td>
+                <td class="text-right num {{ 'pos' if is_income else '' }}"
+                    data-cadence="{{ rec_cadence }}">
                   {% if row.amount_overridden %}
                     <em data-amount-overridden
-                        class="tabular-nums">{{ row.effective_amount_minor|money(row.currency) }}</em>
-                  {% elif row.is_formula %}
-                    <span class="tabular-nums" data-formula-amount title="{% for t in row.amount_formula.terms %}{{ t.sign }} {{ (t.coefficient_bps / 100)|round(2) }}% of {{ t.source_category_ids|length }} categor{{ 'y' if t.source_category_ids|length == 1 else 'ies' }}{% if not loop.last %} {% endif %}{% endfor %}">
-                      {{ row.effective_amount_minor|money(row.currency) }}
-                      <span class="formula-chip" aria-label="computed amount">ƒ</span>
-                    </span>
+                        class="num {{ 'pos' if is_income else '' }}">{{ '+' if is_income else '' }}{{ row.effective_amount_minor|money(row.currency) }}</em>
                   {% else %}
-                    <span class="tabular-nums">{{ row.effective_amount_minor|money(row.currency) }}</span>
+                    <span class="num {{ 'pos' if is_income else '' }}">{{ '+' if is_income else '' }}{{ row.effective_amount_minor|money(row.currency) }}</span>
                   {% endif %}
                 </td>
-                <td>{{ 'Yes' if row.active else 'No' }}</td>
-                <td>
-                  <details class="overrides-accordion">
-                    <summary>{{ row.overrides|length }} override{{ '' if row.overrides|length == 1 else 's' }}</summary>
-                    {% if row.overrides %}
-                      <ul class="overrides-list">
-                        {% for ov in row.overrides %}
-                          <li>
-                            <span class="tabular-nums">{{ ov.occurrence_date|date_fmt }}</span>
-                            <span class="text-muted">{{ ov.state.value }}</span>
-                            <button type="button"
-                                    class="overrides-list__remove"
-                                    data-destructive
-                                    hx-post="/recurring/{{ row.id }}/overrides/{{ ov.occurrence_date }}/delete"
-                                    hx-swap="none"
-                                    hx-confirm="Remove override for {{ ov.occurrence_date }}?"
-                                    aria-label="Remove override {{ ov.occurrence_date }} on rule {{ row.id }}">Remove</button>
-                          </li>
-                        {% endfor %}
-                      </ul>
-                    {% else %}
-                      <p class="text-faint text-sm">No overrides</p>
-                    {% endif %}
-                  </details>
+                <td class="num mut rd-rec-overrides">
+                  {% if row.overrides and row.overrides|length > 0 %}
+                    <span class="rd-pill rd-pill--adjust">{{ row.overrides|length }} override{{ '' if row.overrides|length == 1 else 's' }}</span>
+                  {% else %}
+                    0
+                  {% endif %}
                 </td>
-                <td class="text-right">
+                <td class="rd-actions">
                   {% call kebab_menu(id="recurring-" ~ row.id) %}
                     <li role="none">
                       <button type="button"
@@ -222,35 +266,156 @@
                       </li>
                     {% endif %}
                   {% endcall %}
+                  {% if has_expand %}
+                    <button type="button"
+                            class="rd-rec-chev"
+                            data-rec-chev="{{ row.id }}"
+                            aria-expanded="false"
+                            aria-controls="recurring-{{ row.id }}-expand"
+                            aria-label="Expand">▸</button>
+                  {% endif %}
                 </td>
               </tr>
+              {% if has_expand %}
+                <tr id="recurring-{{ row.id }}-expand" class="rd-rec-expand-row" hidden>
+                  <td colspan="7">
+                    <div class="rd-rec-panel">
+                      {% if row.overrides and row.overrides|length > 0 %}
+                        <div class="rd-rec-panel__overrides">
+                          <div class="rd-eyebrow">Overrides</div>
+                          <ul class="rd-rec-over-list">
+                            {% for ov in row.overrides %}
+                              <li class="rd-rec-over-item">
+                                <span>
+                                  <span class="num">{{ ov.occurrence_date|date_fmt }}</span>
+                                  <span class="rd-dir rd-dir--adjust">{{ ov.state.value }}</span>
+                                  {% if ov.amount_override %}
+                                    <span class="num">{{ ov.amount_override|money(row.currency) }}</span>
+                                  {% endif %}
+                                </span>
+                                <button type="button"
+                                        class="rd-btn rd-btn--sm rd-btn--ghost"
+                                        data-destructive
+                                        hx-post="/recurring/{{ row.id }}/overrides/{{ ov.occurrence_date }}/delete"
+                                        hx-swap="none"
+                                        hx-confirm="Remove override for {{ ov.occurrence_date }}?">Remove</button>
+                              </li>
+                            {% endfor %}
+                          </ul>
+                        </div>
+                      {% endif %}
+                      {% if row.is_formula %}
+                        <div class="rd-rec-panel__formula">
+                          <div class="rd-eyebrow">How {{ row.effective_amount_minor|money(row.currency) }} is derived</div>
+                          {% for t in row.amount_formula.terms %}
+                            {% set ns_src = namespace(names=[]) %}
+                            {% for cid in t.source_category_ids %}
+                              {% set c = categories_by_id.get(cid) if categories_by_id is defined else none %}
+                              {% if c %}
+                                {% set ns_src.names = ns_src.names + [c.name] %}
+                              {% endif %}
+                            {% endfor %}
+                            <div class="rd-rec-formula-row">
+                              <span class="num mut">{{ t.sign }}</span>
+                              <span>
+                                {{ ns_src.names|join(" + ") if ns_src.names else '— unknown source —' }}
+                                <span class="mut"
+                                      style="font-size: 0.75rem">rule · {{ (t.coefficient_bps / 100)|round(2) }}%</span>
+                              </span>
+                              <span class="num"></span>
+                            </div>
+                          {% endfor %}
+                          <div class="rd-rec-formula-row rd-rec-formula-row--total">
+                            <span class="num">=</span>
+                            <span>{{ row.default_description or 'result' }}</span>
+                            <span class="num">{{ row.effective_amount_minor|money(row.currency) }}<span class="cur"> {{ row.currency }}</span></span>
+                          </div>
+                          <p class="mut" style="font-size: 0.75rem; margin: 0.5rem 0 0;">
+                            Hover any source to jump to that rule. Editing a source updates this amount; cycles are blocked on save.
+                          </p>
+                        </div>
+                      {% endif %}
+                    </div>
+                  </td>
+                </tr>
+              {% endif %}
             {% endif %}
           {% endfor %}
         </tbody>
       </table>
     </div>
     {% if not rows %}
-      <p class="text-faint mt-4">No {{ view }} entries.</p>
+      {% if view == "planned" %}
+        <div class="rd-empty-state">
+          <strong>No planned entries</strong>
+          <p class="text-muted">
+            Capture one-off bills and transfers you expect to settle later.
+            They sit here until promoted into Actual.
+          </p>
+          <button type="button"
+                  class="rd-btn rd-btn--primary"
+                  hx-get="/planned/new"
+                  hx-target="#modal-root"
+                  hx-swap="innerHTML">+ Planned entry</button>
+        </div>
+      {% elif view == "recurring" %}
+        <div class="rd-empty-state">
+          <strong>No standing commitments</strong>
+          <p class="text-muted">Add rent, salary, subscriptions — anything that fires on a cadence.</p>
+          <button type="button"
+                  class="rd-btn rd-btn--primary"
+                  hx-get="/recurring/new"
+                  hx-target="#modal-root"
+                  hx-swap="innerHTML">+ Recurring rule</button>
+        </div>
+      {% else %}
+        <p class="text-faint mt-4">No entries match the current filters.</p>
+      {% endif %}
     {% endif %}
     {% if view == "actual" %}
-      <nav class="pagination mt-4 flex items-center gap-3 text-sm"
-           aria-label="Pagination">
+      <nav class="rd-pagination" aria-label="Pagination">
         {% if page > 1 %}
-          <a class="link-muted"
-             hx-get="/ledger/table?view={{ view }}&page={{ page - 1 }}"
-             hx-target="#ledger-table"
-             hx-swap="outerHTML"
-             href="/ledger?view={{ view }}&page={{ page - 1 }}">Prev</a>
+          <button type="button"
+                  class="rd-btn rd-btn--sm"
+                  hx-get="/ledger/table?view={{ view }}&page={{ page - 1 }}"
+                  hx-target="#ledger-table"
+                  hx-swap="outerHTML">← Newer</button>
         {% endif %}
-        <span class="text-muted">Page {{ page }}</span>
+        <span class="rd-pagination__state">Page {{ page }}</span>
         {% if has_next %}
-          <a class="link-muted"
-             hx-get="/ledger/table?view={{ view }}&page={{ page + 1 }}"
-             hx-target="#ledger-table"
-             hx-swap="outerHTML"
-             href="/ledger?view={{ view }}&page={{ page + 1 }}">Next</a>
+          <button type="button"
+                  class="rd-btn rd-btn--sm"
+                  hx-get="/ledger/table?view={{ view }}&page={{ page + 1 }}"
+                  hx-target="#ledger-table"
+                  hx-swap="outerHTML">Older →</button>
         {% endif %}
       </nav>
     {% endif %}
   </div>
 </div>
+{% if view == "recurring" %}
+  <script>
+    (function () {
+      document.addEventListener('click', function (evt) {
+        var btn = evt.target.closest('[data-rec-chev]');
+        if (!btn) return;
+        var id = btn.getAttribute('data-rec-chev');
+        var row = document.getElementById('recurring-' + id);
+        var panel = document.getElementById('recurring-' + id + '-expand');
+        if (!panel) return;
+        var open = panel.hasAttribute('hidden');
+        if (open) {
+          panel.removeAttribute('hidden');
+          btn.textContent = '▾';
+          btn.setAttribute('aria-expanded', 'true');
+          if (row) row.classList.add('rd-rec-row--expanded');
+        } else {
+          panel.setAttribute('hidden', '');
+          btn.textContent = '▸';
+          btn.setAttribute('aria-expanded', 'false');
+          if (row) row.classList.remove('rd-rec-row--expanded');
+        }
+      });
+    })();
+  </script>
+{% endif %}

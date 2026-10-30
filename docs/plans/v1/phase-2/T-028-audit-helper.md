@@ -154,7 +154,7 @@ Mocking boundaries: none. Live SQLite temp DB.
 - **Caller must open a transaction**: if a repository invokes `write_audit` with autocommit mode (`conn.isolation_level is None`), each insert commits immediately. In v1 the DB connection is opened with the default deferred isolation level (as per Phase 1 T-013 plan). Document in the module docstring and add a defensive assertion in `write_audit` that `conn.in_transaction is True` is **not** required (SQLite's `in_transaction` flips to `True` on the first write within a `with conn:` block, which is after the helper runs its first query). Skipping the defensive assertion for simplicity; the rollback test (13) is the regression guard.
 - **`entity_type` typos**: a typo (`"transction"`) will store silently. Phase 1 T-013's repository functions each hard-code their `entity_type` string in one place per repo, which caps blast radius.
 - **No partial field diffs**: `prev_json` / `new_json` carry the full snapshot. Historical diffs are reconstructed by consumers (future "revert this edit" feature per ADR-0019 consequences). Do not try to store diffs — hurts replay.
-- **PII**: free-text descriptions on transactions land in audit JSON verbatim. The system is single-user local in v1 (ADR-0005); fine. Note for v2 if the DB is ever persisted off the local machine.
+- **PII**: free-text descriptions on transactions land in audit JSON verbatim. The system is single-user local in v1 (ADR-0005); fine. Note for v3 when the DB is persisted off the local machine (remote deployment).
 
 ## Handoff notes
 

@@ -12,189 +12,255 @@
 <form hx-post="{{ action }}"
       hx-target="{% if rule %}#recurring-{{ rule.id }}{% else %}table.ledger tbody{% endif %}"
       hx-swap="{% if rule %}outerHTML{% else %}beforeend{% endif %}"
-      class="form-stack"
+      class="rd-form recurring-form"
       data-recurring-form
       {% if not rule %}data-reset-on-submit{% endif %}>
-  <label>
-    Cadence
-    <select name="cadence" required>
-      {% for cad in ['monthly', 'quarterly', 'yearly'] %}
-        <option value="{{ cad }}"
-                {% if rule and rule.cadence.value == cad %}selected{% endif %}>{{ cad|capitalize }}</option>
-      {% endfor %}
-    </select>
-  </label>
-  <label>
-    Start
-    <input type="date"
-           name="start_date"
-           value="{{ rule.start_date|date_fmt if rule else today_local() }}"
-           data-default-today
-           required>
-  </label>
-  <label>
-    <span>Category</span>
+  <label class="rd-field">
+    <span class="rd-field__label">Category</span>
     {{ combobox(name="category_id", items=categories,
       value_attr="id", label_attr="name",
       selected_value=rule.category_id if rule else "",
       required=True) }}
   </label>
-  <label>
-    <span>Account</span>
-    {{ combobox(name="account_id", items=accounts,
-      value_attr="id", label_attr="name",
-      selected_value=rule.account_id if rule else "",
-      required=True) }}
-  </label>
-  <label>
-    <span>Dest (transit)</span>
-    {{ combobox(name="dest_account_id", items=accounts,
-      value_attr="id", label_attr="name",
-      selected_value=rule.dest_account_id if (rule and rule.dest_account_id) else "",
-      placeholder="— none —") }}
-  </label>
-  <fieldset class="form-stack__group" data-amount-source-group>
-    <legend>Amount</legend>
-    <div class="form-stack__radio-row">
-      <label class="form-stack__radio">
-        <input type="radio"
-               name="amount_source"
-               value="fixed"
-               data-amount-source-radio
-               {% if not is_formula %}checked{% endif %}>
-        Fixed
-      </label>
-      <label class="form-stack__radio">
-        <input type="radio"
-               name="amount_source"
-               value="formula"
-               data-amount-source-radio
-               {% if is_formula %}checked{% endif %}>
-        Formula (linear combination of other rules)
-      </label>
+  <div class="rd-form-row rd-form-row--2col">
+    <label class="rd-field">
+      <span class="rd-field__label">Account</span>
+      {{ combobox(name="account_id", items=accounts,
+        value_attr="id", label_attr="name",
+        selected_value=rule.account_id if rule else "",
+        required=True) }}
+    </label>
+    <label class="rd-field">
+      <span class="rd-field__label">Dest · <em>transit</em></span>
+      {{ combobox(name="dest_account_id", items=accounts,
+        value_attr="id", label_attr="name",
+        selected_value=rule.dest_account_id if (rule and rule.dest_account_id) else "",
+        placeholder="— none —") }}
+    </label>
+  </div>
+  <fieldset class="rd-field rd-field--fieldset rd-amount-source"
+            data-amount-source-group>
+    <div class="rd-amount-source__head">
+      <legend class="rd-field__label">Amount</legend>
+      <div class="rd-segmented rd-segmented--radio"
+           role="tablist"
+           aria-label="Amount source">
+        <label class="rd-segmented__item{% if not is_formula %} rd-segmented__item--active{% endif %}">
+          <input type="radio"
+                 name="amount_source"
+                 value="fixed"
+                 data-amount-source-radio
+                 {% if not is_formula %}checked{% endif %}
+                 class="sr-only">
+          Fixed value
+        </label>
+        <label class="rd-segmented__item{% if is_formula %} rd-segmented__item--active{% endif %}">
+          <input type="radio"
+                 name="amount_source"
+                 value="formula"
+                 data-amount-source-radio
+                 {% if is_formula %}checked{% endif %}
+                 class="sr-only">
+          Formula ƒ
+        </label>
+      </div>
     </div>
-    <div data-amount-source-panel="fixed"
+    <div class="rd-amount-source__panel"
+         data-amount-source-panel="fixed"
          {% if is_formula %}hidden aria-hidden="true"{% endif %}>
-      <label>
-        Amount
-        <input type="text"
-               name="default_amount"
-               value="{{ rule.default_amount|money_major(rule_account.currency if rule_account else 'PLN') if rule and not is_formula else '' }}"
-               inputmode="decimal"
-               data-numeric>
+      <label class="rd-field">
+        <span class="rd-field__label sr-only">Amount</span>
+        <span class="rd-field__suffix"
+              data-currency-suffix
+              data-suffix="{{ rule_account.currency if rule_account else '' }}">
+          <input type="text"
+                 name="default_amount"
+                 value="{{ rule.default_amount|money_major(rule_account.currency if rule_account else 'PLN') if rule and not is_formula else '' }}"
+                 placeholder="0.00"
+                 inputmode="decimal"
+                 data-numeric>
+        </span>
       </label>
     </div>
-    <div data-amount-source-panel="formula"
+    <div class="rd-amount-source__panel rd-formula"
+         data-amount-source-panel="formula"
          {% if not is_formula %}hidden aria-hidden="true"{% endif %}>
-      <ul class="form-stack__terms" data-terms-list>
+      <ul class="rd-formula__terms" data-terms-list>
         {% for term in terms %}
           {% set term_idx = loop.index0 %}
-          <li class="form-stack__term" data-term-row>
-            <div class="form-stack__term-head">
-              <label class="form-stack__radio">
-                <input type="radio"
-                       name="terms[{{ term_idx }}][sign]"
-                       value="+"
-                       {% if term.sign == "+" %}checked{% endif %}>
-                +
+          <li class="rd-formula__term" data-term-row>
+            <div class="rd-formula__term-grid">
+              <div class="rd-formula__sign">
+                <label class="rd-chip">
+                  <input type="radio"
+                         name="terms[{{ term_idx }}][sign]"
+                         value="+"
+                         {% if term.sign == "+" %}checked{% endif %}
+                         class="sr-only">
+                  <span>+</span>
+                </label>
+                <label class="rd-chip">
+                  <input type="radio"
+                         name="terms[{{ term_idx }}][sign]"
+                         value="-"
+                         {% if term.sign == "-" %}checked{% endif %}
+                         class="sr-only">
+                  <span>−</span>
+                </label>
+              </div>
+              <div class="rd-formula__sources">
+                {% if source_categories %}
+                  <div class="rd-src-select" data-src-select>
+                    <button type="button"
+                            class="rd-src-select__trigger"
+                            data-src-trigger
+                            aria-expanded="false">
+                      <span data-src-summary>— pick sources —</span>
+                      <span class="mut">▾</span>
+                    </button>
+                    <div class="rd-src-select__panel" data-src-panel hidden>
+                      {% for cat in source_categories %}
+                        <label class="rd-src-select__opt">
+                          <input type="checkbox"
+                                 name="terms[{{ term_idx }}][source_category_ids]"
+                                 value="{{ cat.id }}"
+                                 {% if cat.id in term.source_category_ids %}checked{% endif %}>
+                          <span>{{ cat.name }}</span>
+                        </label>
+                      {% endfor %}
+                    </div>
+                  </div>
+                {% else %}
+                  <span class="text-muted text-sm">No eligible categories.</span>
+                {% endif %}
+              </div>
+              <label class="rd-field rd-field--inline rd-formula__coef">
+                <span class="rd-field__label sr-only">Coefficient (%)</span>
+                <span class="rd-field__suffix" data-suffix="%">
+                  <input type="text"
+                         name="terms[{{ term_idx }}][coefficient_percent]"
+                         value="{{ term.coefficient_percent }}"
+                         inputmode="decimal"
+                         data-numeric
+                         placeholder="100">
+                </span>
               </label>
-              <label class="form-stack__radio">
-                <input type="radio"
-                       name="terms[{{ term_idx }}][sign]"
-                       value="-"
-                       {% if term.sign == "-" %}checked{% endif %}>
-                −
-              </label>
-              <label class="form-stack__term-coef">
-                Coefficient (%)
-                <input type="text"
-                       name="terms[{{ term_idx }}][coefficient_percent]"
-                       value="{{ term.coefficient_percent }}"
-                       inputmode="decimal"
-                       data-numeric
-                       placeholder="e.g. 12">
-              </label>
-              <button type="button" data-term-remove class="btn-ghost btn-ghost--sm">Remove</button>
+              <button type="button"
+                      data-term-remove
+                      class="rd-btn rd-btn--ghost rd-btn--sm">Remove</button>
             </div>
-            {% if source_categories %}
-              <ul class="form-stack__checklist">
-                {% for cat in source_categories %}
-                  <li>
-                    <label>
-                      <input type="checkbox"
-                             name="terms[{{ term_idx }}][source_category_ids]"
-                             value="{{ cat.id }}"
-                             {% if cat.id in term.source_category_ids %}checked{% endif %}>
-                      {{ cat.name }}
-                      <span class="text-muted text-sm">({{ cat.direction.value }})</span>
-                    </label>
-                  </li>
-                {% endfor %}
-              </ul>
-            {% else %}
-              <p class="text-muted text-sm">No eligible categories.</p>
-            {% endif %}
           </li>
         {% endfor %}
       </ul>
-      <button type="button" data-term-add class="btn-ghost btn-ghost--sm">+ Add term</button>
+      <div class="rd-formula__foot">
+        <button type="button" data-term-add class="rd-btn rd-btn--ghost rd-btn--sm">+ Add term</button>
+        <p class="rd-formula__note text-muted">
+          Sources are other recurring rules; coefficient is a percent of their amount. Cycles and non-positive results are blocked on save.
+        </p>
+      </div>
     </div>
   </fieldset>
-  <label>
-    Day of month
-    <input type="text"
-           name="day_of_month"
-           value="{{ rule.day_of_month if rule else '' }}"
-           inputmode="numeric">
-  </label>
-  <label>
-    Description
-    <input type="text"
-           name="default_description"
-           value="{{ rule.default_description if rule else '' }}">
-  </label>
-  {% include "partials/_form_errors.html" %}
-  <div class="form-stack__actions">
-    <button type="submit" class="btn-accent">Save</button>
+  <div class="rd-form-row rd-form-row--2col">
+    <label class="rd-field">
+      <span class="rd-field__label">Start</span>
+      <input type="date"
+             name="start_date"
+             value="{{ rule.start_date|date_fmt if rule else today_local() }}"
+             data-default-today
+             required>
+    </label>
+    <label class="rd-field">
+      <span class="rd-field__label">Cadence</span>
+      <select name="cadence" required>
+        {% for cad in ['monthly', 'quarterly', 'yearly'] %}
+          <option value="{{ cad }}"
+                  {% if rule and rule.cadence.value == cad %}selected{% endif %}>{{ cad|capitalize }}</option>
+        {% endfor %}
+      </select>
+    </label>
   </div>
+  <div class="rd-form-row rd-form-row--2col">
+    <label class="rd-field">
+      <span class="rd-field__label">Day of month</span>
+      <input type="text"
+             name="day_of_month"
+             value="{{ rule.day_of_month if rule else '' }}"
+             inputmode="numeric"
+             placeholder="e.g. 7">
+    </label>
+    <label class="rd-field">
+      <span class="rd-field__label">Note</span>
+      <input type="text"
+             name="default_description"
+             value="{{ rule.default_description if rule else '' }}"
+             placeholder="optional description">
+    </label>
+  </div>
+  {% include "partials/_form_errors.html" %}
+  <footer class="rd-slideover-footer">
+    <button type="button"
+            class="rd-btn rd-btn--ghost"
+            onclick="var r=this.closest('.slide-over-root');if(r&&r.parentElement){r.parentElement.innerHTML='';}">
+      Cancel
+    </button>
+    <button type="submit" class="rd-btn rd-btn--primary">{% if rule %}Save rule{% else %}Add rule{% endif %}</button>
+  </footer>
 </form>
 <template data-term-template>
-  <li class="form-stack__term" data-term-row>
-    <div class="form-stack__term-head">
-      <label class="form-stack__radio">
-        <input type="radio" name="terms[__IDX__][sign]" value="+" checked>
-        +
+  <li class="rd-formula__term" data-term-row>
+    <div class="rd-formula__term-grid">
+      <div class="rd-formula__sign">
+        <label class="rd-chip">
+          <input type="radio"
+                 name="terms[__IDX__][sign]"
+                 value="+"
+                 checked
+                 class="sr-only">
+          <span>+</span>
+        </label>
+        <label class="rd-chip">
+          <input type="radio" name="terms[__IDX__][sign]" value="-" class="sr-only">
+          <span>−</span>
+        </label>
+      </div>
+      <div class="rd-formula__sources">
+        {% if source_categories %}
+          <div class="rd-src-select" data-src-select>
+            <button type="button"
+                    class="rd-src-select__trigger"
+                    data-src-trigger
+                    aria-expanded="false">
+              <span data-src-summary>— pick sources —</span>
+              <span class="mut">▾</span>
+            </button>
+            <div class="rd-src-select__panel" data-src-panel hidden>
+              {% for cat in source_categories %}
+                <label class="rd-src-select__opt">
+                  <input type="checkbox"
+                         name="terms[__IDX__][source_category_ids]"
+                         value="{{ cat.id }}">
+                  <span>{{ cat.name }}</span>
+                </label>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+      </div>
+      <label class="rd-field rd-field--inline rd-formula__coef">
+        <span class="rd-field__label sr-only">Coefficient (%)</span>
+        <span class="rd-field__suffix" data-suffix="%">
+          <input type="text"
+                 name="terms[__IDX__][coefficient_percent]"
+                 value=""
+                 inputmode="decimal"
+                 data-numeric
+                 placeholder="100">
+        </span>
       </label>
-      <label class="form-stack__radio">
-        <input type="radio" name="terms[__IDX__][sign]" value="-">
-        −
-      </label>
-      <label class="form-stack__term-coef">
-        Coefficient (%)
-        <input type="text"
-               name="terms[__IDX__][coefficient_percent]"
-               value=""
-               inputmode="decimal"
-               data-numeric
-               placeholder="e.g. 12">
-      </label>
-      <button type="button" data-term-remove class="btn-ghost btn-ghost--sm">Remove</button>
+      <button type="button"
+              data-term-remove
+              class="rd-btn rd-btn--ghost rd-btn--sm">Remove</button>
     </div>
-    {% if source_categories %}
-      <ul class="form-stack__checklist">
-        {% for cat in source_categories %}
-          <li>
-            <label>
-              <input type="checkbox"
-                     name="terms[__IDX__][source_category_ids]"
-                     value="{{ cat.id }}">
-              {{ cat.name }}
-              <span class="text-muted text-sm">({{ cat.direction.value }})</span>
-            </label>
-          </li>
-        {% endfor %}
-      </ul>
-    {% endif %}
   </li>
 </template>
 <script>
@@ -220,6 +286,11 @@
           panel.setAttribute('hidden', '');
           panel.setAttribute('aria-hidden', 'true');
         }
+      });
+      /* Mirror active state onto the segmented chips. */
+      form.querySelectorAll('.rd-amount-source__head .rd-segmented__item').forEach(function (chip) {
+        var r = chip.querySelector('[data-amount-source-radio]');
+        chip.classList.toggle('rd-segmented__item--active', !!(r && r.checked));
       });
     }
     radios.forEach(function (r) { r.addEventListener('change', syncPanels); });
@@ -259,5 +330,53 @@
     }
     if (addBtn) addBtn.addEventListener('click', addTerm);
     if (list) list.addEventListener('click', removeTerm);
+
+    // Compact multi-select source dropdown (per term).
+    function syncSrcSummary(wrap) {
+      var sum = wrap.querySelector('[data-src-summary]');
+      var checks = wrap.querySelectorAll('input[type="checkbox"]:checked');
+      if (!sum) return;
+      if (checks.length === 0) { sum.textContent = '— pick sources —'; sum.classList.add('mut'); return; }
+      var names = Array.from(checks).map(function (c) {
+        return c.parentElement.querySelector('span').textContent.trim();
+      });
+      sum.textContent = names.join(', ');
+      sum.classList.remove('mut');
+    }
+    function wireSrcSelects() {
+      form.querySelectorAll('[data-src-select]').forEach(function (wrap) {
+        if (wrap.dataset.srcWired === '1') return;
+        wrap.dataset.srcWired = '1';
+        syncSrcSummary(wrap);
+        var trig = wrap.querySelector('[data-src-trigger]');
+        var panel = wrap.querySelector('[data-src-panel]');
+        if (trig && panel) {
+          trig.addEventListener('click', function (evt) {
+            evt.stopPropagation();
+            var open = panel.hasAttribute('hidden');
+            if (open) { panel.removeAttribute('hidden'); trig.setAttribute('aria-expanded', 'true'); }
+            else { panel.setAttribute('hidden', ''); trig.setAttribute('aria-expanded', 'false'); }
+          });
+        }
+        wrap.addEventListener('change', function () { syncSrcSummary(wrap); });
+      });
+    }
+    document.addEventListener('click', function (evt) {
+      form.querySelectorAll('[data-src-select]').forEach(function (wrap) {
+        if (wrap.contains(evt.target)) return;
+        var panel = wrap.querySelector('[data-src-panel]');
+        var trig = wrap.querySelector('[data-src-trigger]');
+        if (panel && !panel.hasAttribute('hidden')) {
+          panel.setAttribute('hidden', '');
+          if (trig) trig.setAttribute('aria-expanded', 'false');
+        }
+      });
+    });
+    wireSrcSelects();
+    if (list) {
+      var origAdd = addBtn && addBtn.onclick;
+      var mo = new MutationObserver(wireSrcSelects);
+      mo.observe(list, { childList: true });
+    }
   })();
 </script>

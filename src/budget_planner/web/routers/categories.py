@@ -1,7 +1,8 @@
-"""Categories router (T-033)."""
+"""Categories router (T-033; archive + restore per T-R44, ADR-0056 §6)."""
 
 from __future__ import annotations
 
+import json
 import sqlite3
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -10,6 +11,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from budget_planner.domain.categories import NewCategory, PatchCategory, normalise_color
 from budget_planner.domain.enums import Direction
 from budget_planner.repositories import categories as categories_repo
+from budget_planner.services import categories as categories_service
 from budget_planner.web.deps import get_db
 from budget_planner.web.htmx import trigger
 from budget_planner.web.rendering import render
@@ -32,7 +34,9 @@ def index() -> RedirectResponse:
 def new_form(request: Request) -> HTMLResponse:
     return render(
         request,
-        "partials/categories/_form.html",
+        "partials/_slideover.html",
+        slide_over_title="New category",
+        form_include="partials/categories/_form.html",
         category=None,
         action="/categories",
         errors={},
@@ -125,7 +129,9 @@ def edit_form(
         )
     return render(
         request,
-        "partials/categories/_form.html",
+        "partials/_slideover.html",
+        slide_over_title="Edit category",
+        form_include="partials/categories/_form.html",
         category=cat,
         action=f"/categories/{category_id}",
         errors={},
@@ -192,4 +198,69 @@ def delete_category(category_id: int, conn: sqlite3.Connection = Depends(get_db)
     categories_repo.soft_delete(conn, category_id)
     resp = Response(content="", media_type="text/html")
     trigger(resp, "budget-stale")
+    return resp
+
+
+# ---------------------------------------------------------------------------
+# T-R44 — Archive + Restore (ADR-0056 §6, ADR-0022 soft delete, ADR-0019 audit)
+# ---------------------------------------------------------------------------
+def _toast_trigger(
+    resp: Response,
+    *,
+    message: str,
+    variant: str,
+    undo_url: str | None,
+    stale_event: str = "settings-categories-stale",
+) -> None:
+    payload: dict[str, object] = {
+        "toast": {"variant": variant, "message": message},
+        stale_event: True,
+        "budget-stale": True,
+    }
+    if undo_url is not None:
+        toast = payload["toast"]
+        assert isinstance(toast, dict)
+        toast["undo_url"] = undo_url
+    resp.headers["HX-Trigger"] = json.dumps(payload)
+
+
+@router.post("/{category_id}/archive")
+def archive_category(
+    category_id: int,
+    conn: sqlite3.Connection = Depends(get_db),
+) -> Response:
+    try:
+        categories_service.archive(conn, category_id)
+    except categories_service.CategoryNotFoundError:
+        return Response(status_code=404, content="not found")
+    except categories_service.SystemCategoryError:
+        return Response(status_code=403, content="system categories cannot be archived")
+    except categories_service.CategoryHasLiveRulesError as exc:
+        return Response(status_code=422, content=str(exc))
+    resp = Response(status_code=204)
+    _toast_trigger(
+        resp,
+        message="Category archived",
+        variant="success",
+        undo_url=f"/categories/{category_id}/restore",
+    )
+    return resp
+
+
+@router.post("/{category_id}/restore")
+def restore_category(
+    category_id: int,
+    conn: sqlite3.Connection = Depends(get_db),
+) -> Response:
+    try:
+        categories_service.restore(conn, category_id)
+    except categories_service.CategoryNotFoundError:
+        return Response(status_code=404, content="not found")
+    resp = Response(status_code=204)
+    _toast_trigger(
+        resp,
+        message="Category restored",
+        variant="success",
+        undo_url=None,
+    )
     return resp

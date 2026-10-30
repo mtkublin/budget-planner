@@ -309,7 +309,7 @@ Per service and repository. Target ≥90% coverage. Pure-function heavy, mocks o
 ### ✅ T-060 [S] ADR-0023 + Phase 6 docs scaffolding
 - Write [`docs/adr/0023-ux-redesign-information-architecture.md`](../../adr/0023-ux-redesign-information-architecture.md).
 - Add Phase 6 directory + 12 task stub files under `docs/plans/v1/phase-6/`.
-- Rename prior "Phase 6 — Deferred to v2" to Phase 7 (below).
+- Rename prior "Phase 6 — Deferred to v2" to Phase 7 (below). (The deferred bucket moved to v3 after the v2 slot was reassigned to the Rising Dough redesign on 2026-10-28.)
 
 ### ✅ T-061 [S] Base shell refactor → T-060
 - Left rail + `#drawer-root` + `#modal-root` + FAB slot in `base.html`.
@@ -729,7 +729,7 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 
 ---
 
-## Phase 7 — Deferred to v2
+## Phase 7 — Deferred to v3 (originally labelled v2; renumbered 2026-10-28 when v2 became the Rising Dough redesign)
 
 - CSV import with pluggable parsers.
 - Auth and multi-user.

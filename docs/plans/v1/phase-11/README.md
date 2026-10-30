@@ -1,4 +1,4 @@
-# Phase 11 — Shared Form Primitives + Overview Enhancements + Budget Page v2 + Fixes
+# Phase 11 — Shared Form Primitives + Overview Enhancements + Budget Page v2 (page-composition version 2) + Fixes
 
 > Status: pending (docs scaffolding landed via T-110; code starts at T-111). Scope: web layer only. No change to data model, service arithmetic, or repository shape. Six task files land together: the Budget + Account + Overview changes compose from the same shared primitives, and two surgical fixes (ledger row actions + transit lock) ride on the same phase.
 

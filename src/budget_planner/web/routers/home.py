@@ -93,6 +93,9 @@ class UpcomingRow:
     planned_id: int | None
     rule_id: int | None
     override_present: bool
+    category_id: int
+    account_id: int
+    dest_account_id: int | None
 
 
 def _convert_minor(
@@ -198,6 +201,9 @@ def _list_upcoming(
             planned_id=item.planned_id,
             rule_id=item.rule_id,
             override_present=item.override_present,
+            category_id=item.category_id,
+            account_id=item.account_id,
+            dest_account_id=item.dest_account_id,
         )
         for item in items
     )
@@ -209,6 +215,13 @@ def home(
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
 ) -> HTMLResponse:
+    """Legacy Overview surface kept at ``/`` for v1 compat.
+
+    Rising Dough v2 ships ``/today`` as the canonical landing (ADR-0051).
+    Phase 7 cleanup (T-R58) will swap this to a 302 → ``/today``; keeping
+    the direct render for now preserves bookmarks and the integration test
+    contract.
+    """
     today = datetime.now(ZoneInfo(settings.display_timezone)).date()  # ADR-0007
     year, month = today.year, today.month
     base_ccy = settings.base_currency
@@ -217,8 +230,6 @@ def home(
     fortune = fortune_service.compute_fortune(conn, settings)
     summary = budget_service.month_summary(conn, year, month, today=today)
     pace = _pace_tag(summary.totals.spent_minor, summary.totals.budgeted_minor, today, year, month)
-    # ADR-0041 F4.6: days-left mirrors Budget period cutoff (next income anchor),
-    # not end-of-month. ``MonthSummary.days_until_next_income`` is floored at 1.
     days_left = summary.days_until_next_income
     bar_pct = 0
     if summary.totals.budgeted_minor > 0:

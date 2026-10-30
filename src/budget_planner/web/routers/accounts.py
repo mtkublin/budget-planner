@@ -8,6 +8,7 @@ router parses + renders.
 from __future__ import annotations
 
 import contextlib
+import json
 import sqlite3
 from datetime import date
 from decimal import Decimal, InvalidOperation
@@ -20,8 +21,13 @@ from budget_planner.config import Settings
 from budget_planner.domain.accounts import NewAccount, PatchAccount
 from budget_planner.domain.money import to_minor_units
 from budget_planner.domain.snapshots import NewAccountSnapshot
-from budget_planner.repositories import accounts as accounts_repo, snapshots as snapshots_repo
+from budget_planner.repositories import (
+    accounts as accounts_repo,
+    categories as categories_repo,
+    snapshots as snapshots_repo,
+)
 from budget_planner.services import (
+    accounts as accounts_service,
     balance as balance_service,
     fortune as fortune_service,
     reconciliation as reconciliation_service,
@@ -66,6 +72,7 @@ def _card_context(conn: sqlite3.Connection, account_id: int) -> dict[str, Any]:
         "stats": stats,
         "series": series,
         "sparkline_points": sparkline,
+        "sparkline_values": series_values,
         "sparkline_area_points": sparkline_area,
         "sparkline_width": _SPARKLINE_WIDTH,
         "sparkline_height": _SPARKLINE_HEIGHT,
@@ -76,6 +83,16 @@ def _card_context(conn: sqlite3.Connection, account_id: int) -> dict[str, Any]:
 def _hydrate(conn: sqlite3.Connection, settings: Settings) -> dict[str, Any]:
     accs = accounts_repo.list_all(conn)
     cards: list[dict[str, Any]] = [_card_context(conn, a.id) for a in accs]
+    # ADR-0056 §7 — sort by balance desc; liabilities (negative balance) move
+    # to the bottom. Assets land first, biggest first; liabilities land last,
+    # smallest-liability-first so the credit card with the largest balance
+    # sits closer to the assets block visually.
+    cards.sort(
+        key=lambda card: (
+            0 if card["balance"] >= 0 else 1,
+            -(card["balance"] if card["balance"] >= 0 else -card["balance"]),
+        )
+    )
     fortune = fortune_service.compute_fortune(conn, settings)
     return {
         "cards": cards,
@@ -83,6 +100,7 @@ def _hydrate(conn: sqlite3.Connection, settings: Settings) -> dict[str, Any]:
         "base_ccy": settings.base_currency,
         "totals_by_ccy": fortune.net_by_ccy,
         "fortune_base": fortune.net_base,
+        "today_date": _today(),
     }
 
 
@@ -94,6 +112,24 @@ def index(
 ) -> HTMLResponse:
     data = _hydrate(conn, settings)
     return render(request, "accounts/index.html", **data)
+
+
+@router.get("/last-checked", response_class=HTMLResponse)
+def last_checked(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+) -> HTMLResponse:
+    """ADR-0056 §6 — latest snapshot or reconcile date per account.
+
+    Powers the Accounts table "last checked" column + any inline
+    freshness indicator. Pure read; no DB write.
+    """
+    rows = accounts_service.last_checked(conn)
+    return render(
+        request,
+        "partials/accounts/_last_checked.html",
+        rows=rows,
+    )
 
 
 @router.get("/new", response_class=HTMLResponse)
@@ -283,7 +319,13 @@ def update_account(  # noqa: PLR0917
 def delete_account(account_id: int, conn: sqlite3.Connection = Depends(get_db)) -> Response:
     accounts_repo.soft_delete(conn, account_id)
     resp = Response(content="", media_type="text/html")
-    trigger(resp, "balance-stale", "forecast-stale")
+    resp.headers["HX-Trigger"] = json.dumps(
+        {
+            "balance-stale": True,
+            "forecast-stale": True,
+            "toast": {"kind": "success", "message": "Account deleted"},
+        }
+    )
     return resp
 
 
@@ -300,12 +342,16 @@ def take_snapshot(
     snap = snapshots_repo.create(
         conn, NewAccountSnapshot(account_id=account_id, balance=bal, note="user snapshot")
     )
-    return render(
+    resp = render(
         request,
         "partials/accounts/_snapshot_item.html",
         snapshot=snap,
         account=acc,
     )
+    resp.headers["HX-Trigger"] = json.dumps(
+        {"toast": {"kind": "success", "message": "Snapshot saved"}}
+    )
+    return resp
 
 
 @router.get("/{account_id}/reconcile", response_class=HTMLResponse)
@@ -323,20 +369,28 @@ def reconcile_form(
             status_code=404,
         )
     derived = balance_service.derive_balance(conn, account_id)
+    snapshots = snapshots_repo.list_for_account(conn, account_id)
+    categories = [c for c in categories_repo.list_all(conn) if not c.is_system]
+    reconciliation_cat = categories_repo.find_by_name(conn, "Reconciliation")
     return render(
         request,
         "partials/accounts/_reconcile_modal.html",
         account=acc,
         derived=derived,
+        snapshots=snapshots[:5],
+        categories=categories,
+        reconciliation_cat=reconciliation_cat,
         errors={},
     )
 
 
 @router.post("/{account_id}/reconcile")
-def reconcile_submit(
+def reconcile_submit(  # noqa: PLR0917
     account_id: int,
     request: Request,
     actual_balance: str = Form(...),
+    category_id: str = Form(""),
+    save_snapshot: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
 ) -> Response:
     acc = accounts_repo.find_by_id(conn, account_id)
@@ -350,16 +404,33 @@ def reconcile_submit(
             "partials/accounts/_reconcile_modal.html",
             account=acc,
             derived=0,
+            categories=[c for c in categories_repo.list_all(conn) if not c.is_system],
+            reconciliation_cat=categories_repo.find_by_name(conn, "Reconciliation"),
             errors={"actual_balance": "invalid number"},
             status_code=422,
         )
     actual_minor = to_minor_units(actual, acc.currency)
+    chosen_cat_id: int | None = None
+    if category_id.strip():
+        try:
+            chosen_cat_id = int(category_id)
+        except ValueError:
+            chosen_cat_id = None
     with contextlib.suppress(reconciliation_service.NoAdjustmentNeededError):
-        reconciliation_service.reconcile(conn, account_id, actual_minor, _today())
+        reconciliation_service.reconcile(
+            conn, account_id, actual_minor, _today(), category_id=chosen_cat_id
+        )
+    if save_snapshot.strip().lower() in ("1", "on", "true", "yes"):
+        bal = balance_service.derive_balance(conn, account_id)
+        snapshots_repo.create(
+            conn,
+            NewAccountSnapshot(account_id=account_id, balance=bal, note="reconcile snapshot"),
+        )
     html = render(
         request,
-        "partials/accounts/_card.html",
+        "partials/accounts/_row.html",
         card=_card_context(conn, account_id),
+        today_date=_today(),
     )
     trigger(html, "balance-stale", "forecast-stale")
     return html

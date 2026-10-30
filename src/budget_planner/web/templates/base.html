@@ -3,63 +3,58 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}Budget Planner{% endblock %}</title>
+    <title>{% block title %}Rising Dough{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet"
+          href="{{ url_for('static', path='fonts.css') }}?v=rd1">
+    <link rel="stylesheet"
+          href="{{ url_for('static', path='tokens.css') }}?v=rd1">
     <link rel="stylesheet"
           href="{{ url_for('static', path='tailwind.css') }}?v=t102">
     <link rel="stylesheet"
           href="{{ url_for('static', path='app.css') }}?v=fit1">
+    <link rel="stylesheet"
+          href="{{ url_for('static', path='rising-dough.css') }}?v=rd1">
     <script src="https://unpkg.com/htmx.org@2"></script>
-    <script src="https://cdn.plot.ly/plotly-2.35.0.min.js"></script>
     {% block head_extra %}{% endblock %}
   </head>
-  <body class="min-h-screen bg-[color:var(--surface)] text-[color:var(--ink)]">
+  <body class="rd min-h-screen">
     <a class="skip-link sr-only focus:not-sr-only" href="#main">Skip to content</a>
-    <div class="app-shell">
-      <header class="app-shell__rail">
+    <div class="rd-shell">
+      <aside class="rd-rail">
         {% block nav %}
           {% include "partials/_nav.html" %}
         {% endblock %}
-      </header>
-      <div class="app-shell__content">
-        <main id="main" tabindex="-1" class="app-shell__main">
-          <div id="flash-region"
-               role="status"
-               aria-live="polite"
-               class="flash-region"></div>
-          <div id="flash-region-assertive"
-               role="alert"
-               aria-live="assertive"
-               class="flash-region"></div>
-          {% block main %}{% endblock %}
-        </main>
-        <footer class="app-shell__footer">
-          <p>
-            <span class="eyebrow">Budget Planner</span> · local-first
-          </p>
-        </footer>
-      </div>
+      </aside>
+      <main id="main" tabindex="-1" class="rd-main">
+        <div id="flash-region"
+             role="status"
+             aria-live="polite"
+             class="flash-region"></div>
+        <div id="flash-region-assertive"
+             role="alert"
+             aria-live="assertive"
+             class="flash-region"></div>
+        {% block main %}{% endblock %}
+      </main>
     </div>
+    <nav class="rd-tabbar" aria-label="Primary mobile navigation">
+      {% include "partials/_tabbar.html" ignore missing %}
+    </nav>
     <div id="drawer-root" aria-live="polite"></div>
     <div id="modal-root"></div>
-    {% block fab %}
-      {% if fab_target_for(request) %}
-        {% include "partials/_fab.html" ignore missing %}
-      {% endif %}
-    {% endblock %}
-    {# T-068 — Command palette + shortcuts cheatsheet mounted globally so every
-       page gets ⌘K / Ctrl+K and `?` without opting in. #}
+    <div id="toast-root" aria-live="polite"></div>
     {% include "partials/_palette.html" %}
     {% include "partials/_shortcuts.html" %}
     <script src="{{ url_for('static', path='js/palette.js') }}" defer></script>
-    <script src="{{ url_for('static', path='js/shortcuts.js') }}" defer></script>
+    <script src="{{ url_for('static', path='js/shortcuts.js') }}?v=rd1" defer></script>
     <script src="{{ url_for('static', path='js/numeric-input.js') }}?v=t110"
             defer></script>
     <script src="{{ url_for('static', path='js/combobox.js') }}?v=t110" defer></script>
     <script src="{{ url_for('static', path='js/kebab.js') }}?v=kebab" defer></script>
-    {# T-110 / ADR-0030 §5 — shared form primitives:
-       1. Expose today in display_timezone so reset handlers can re-apply it.
-       2. Clear create forms + close hosting slide-over on successful submit.
-       3. Allow HTMX to swap 422 responses so inline validation renders. #}
+    <script src="{{ url_for('static', path='js/bulk-select.js') }}?v=rd1" defer></script>
+    <script src="{{ url_for('static', path='js/rising-dough.js') }}?v=rd1" defer></script>
     <script>
       window.__TODAY_LOCAL__ = "{{ today_local() }}";
       document.body.addEventListener("htmx:beforeSwap", function (evt) {
@@ -68,13 +63,6 @@
           evt.detail.isError = false;
         }
       });
-      // T-124 / ADR-0040 — scope reset-and-close to the form's own submit
-      // event. The `evt.target` on an HTMX form submission is the form
-      // element itself; on input-level side-effect requests (e.g. the
-      // amount input's `hx-get="/transactions/_limit_preview"`) it is the
-      // input, which fails the instanceof + attribute check. The verb
-      // check is defence in depth against a rare `hx-get` on the form
-      // root (e.g. a future live-search form).
       document.body.addEventListener("htmx:afterRequest", function (evt) {
         var detail = evt.detail || {};
         var xhr = detail.xhr;
@@ -99,6 +87,37 @@
           slide.parentElement.innerHTML = "";
         }
       });
+      /* Toast handler via HX-Trigger. */
+      document.body.addEventListener("toast", function (e) {
+        var d = e.detail || {};
+        var root = document.getElementById("toast-root");
+        if (!root) return;
+        var el = document.createElement("div");
+        el.className = "rd-toast rd-toast--" + (d.kind || "info");
+        el.innerHTML = '<span>' + (d.message || "") + '</span>';
+        if (d.undo_href) {
+          var btn = document.createElement("button");
+          btn.className = "rd-toast__undo";
+          btn.textContent = "Undo";
+          btn.addEventListener("click", function () {
+            htmx.ajax("POST", d.undo_href, { target: "body", swap: "none" });
+            el.remove();
+          });
+          el.appendChild(btn);
+        }
+        root.appendChild(el);
+        setTimeout(function () { el.remove(); }, 4000);
+      });
+      /* View Transitions default. */
+      if (document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        document.body.addEventListener("htmx:beforeSwap", function (evt) {
+          if (!evt.detail || !evt.detail.xhr) return;
+          var swap = evt.detail.target && evt.detail.target.getAttribute && evt.detail.target.getAttribute("hx-swap") || "";
+          if (swap.indexOf("transition:true") !== -1) {
+            evt.detail.doSwap = function (f) { document.startViewTransition(f); };
+          }
+        });
+      }
     </script>
     {% block scripts %}{% endblock %}
   </body>

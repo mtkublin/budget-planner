@@ -23,7 +23,6 @@ from budget_planner.domain.money import (
     format_money,
     from_minor_units,
 )
-from budget_planner.web.context import fab_target_for
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
 
@@ -200,8 +199,6 @@ def build_jinja_env(settings: Settings) -> Environment:
     env.globals["base_ccy"] = settings.base_currency
     env.globals["csrf_token"] = _csrf_token
     env.globals["Direction"] = Direction
-    # T-069 — per-request FAB routing without threading state through routers.
-    env.globals["fab_target_for"] = fab_target_for
     # T-110 / ADR-0030 — shared primitives: default-date-today + ISO 4217 list.
     env.globals["today_local"] = _today_local_factory(settings.display_timezone)
     env.globals["iso_4217_currencies"] = ISO_4217_CURRENCIES

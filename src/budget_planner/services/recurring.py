@@ -558,6 +558,67 @@ def skip_and_advance(
     return new_next_due
 
 
+# ---------------------------------------------------------------------------
+# T-R45 — Batch promote-due (ADR-0056 §6, ADR-0038)
+# ---------------------------------------------------------------------------
+@dataclass(frozen=True, slots=True)
+class BatchPromoteResult:
+    """Summary of a batch recurring promote-due pass.
+
+    ``promoted_txn_ids`` carries the id of every transaction created.
+    ``advanced_rule_ids`` carries the id of every rule whose ``next_due``
+    was advanced (one per promotion). ``skipped_rule_ids`` carries the id
+    of every active due rule that was intentionally not promoted (e.g. a
+    skipped override on next_due).
+    """
+
+    promoted_txn_ids: tuple[int, ...]
+    advanced_rule_ids: tuple[int, ...]
+    skipped_rule_ids: tuple[int, ...]
+
+
+def batch_promote_due(
+    conn: sqlite3.Connection,
+    today: dt.date,
+) -> BatchPromoteResult:
+    """Promote every active rule whose ``next_due`` is on-or-before ``today``.
+
+    Runs inside a single DB transaction. If any inner promote raises
+    (``ValidationError`` from a formula resolving to a non-positive amount,
+    etc.), the whole batch rolls back. Skipped-override rows advance via
+    :func:`skip_and_advance` so the caller does not have to re-run the
+    batch after a skip.
+    """
+    from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
+    from budget_planner.repositories._shared import transaction as db_transaction  # noqa: PLC0415
+
+    promoted: list[int] = []
+    advanced: list[int] = []
+    skipped: list[int] = []
+    with db_transaction(conn):
+        for rule in recurring_repo.list_rules(conn, active_only=True):
+            if rule.next_due > today:
+                continue
+            override = _resolve_override_for_next_due(
+                recurring_repo.list_overrides(conn, rule.id), rule.next_due
+            )
+            from budget_planner.domain.enums import OverrideState  # noqa: PLC0415
+
+            if override is not None and override.state is OverrideState.SKIPPED:
+                # Advance past the skip without creating a transaction.
+                skip_and_advance(conn, rule.id)
+                skipped.append(rule.id)
+                continue
+            txn = promote_recurring(conn, rule.id, PromotionEdits())
+            promoted.append(txn.id)
+            advanced.append(rule.id)
+    return BatchPromoteResult(
+        promoted_txn_ids=tuple(promoted),
+        advanced_rule_ids=tuple(advanced),
+        skipped_rule_ids=tuple(skipped),
+    )
+
+
 # Re-export the runtime-aware expand so callers that need formula substitution
 # can grab it from the main service module alongside the pure helpers.
 from budget_planner.services.recurring_formula import (  # noqa: E402
@@ -566,12 +627,14 @@ from budget_planner.services.recurring_formula import (  # noqa: E402
 )
 
 __all__ = [
+    "BatchPromoteResult",
     "CannotPromoteSkippedError",
     "InactiveRecurringError",
     "PromotionEdits",
     "RecurringNotFoundError",
     "advance_next_due",
     "apply_overrides",
+    "batch_promote_due",
     "expand",
     "first_due_on_or_after",
     "generate_occurrences",

@@ -1,0 +1,27 @@
+{# period_header(label, range_start, range_end, spent_minor, budget_minor, committed_minor, days_left, currency)
+   Shared between Today hero and Plan tabs. #}
+{%- macro period_header(label, range_start, range_end, spent_minor, budget_minor, committed_minor, days_left, currency) -%}
+  {%- set budget_f = (budget_minor|int) / 100.0 -%}
+  {%- set spent_f = (spent_minor|int) / 100.0 -%}
+  {%- set comm_f = (committed_minor|int) / 100.0 -%}
+  {%- set spent_pct = (100.0 * spent_f / budget_f) if budget_f > 0 else 0 -%}
+  {%- set comm_pct = (100.0 * comm_f / budget_f) if budget_f > 0 else 0 -%}
+  <section class="rd-period">
+    <div>
+      <div class="rd-eyebrow">{{ label }}</div>
+      <div class="rd-period__range">{{ range_start }} → {{ range_end }}</div>
+    </div>
+    <div class="rd-period__bar">
+      <span style="width: {{ [spent_pct, 100]|min }}%"></span>
+      {%- if comm_pct > 0 %}
+        <span class="committed"
+              style="left: {{ [spent_pct, 100]|min }}%;
+                     width: {{ [comm_pct, 100 - [spent_pct, 100]|min]|min }}%"></span>
+      {%- endif %}
+    </div>
+    <div class="rd-period__amt">
+      {{ "{:,.2f}".format((budget_f - spent_f) / (days_left or 1)) }}
+      <small>{{ currency }} / day · {{ "{:,.2f}".format(comm_f) }} committed · {{ days_left }} days left</small>
+    </div>
+  </section>
+{%- endmacro -%}

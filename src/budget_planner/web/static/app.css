@@ -1388,90 +1388,49 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
 .overrides-list__remove:hover,
 .overrides-list__remove:focus-visible { color: var(--ink); }
 
-/* ---- Quick-add FAB + slide-over (T-069) -----------------------------------
-   Composes existing tokens only. The FAB sits above the drawer; the
-   slide-over wraps form fragments launched from the FAB and rides on top
-   of the FAB (so clicking outside closes it without re-triggering). All
-   motion stays on compositor-friendly transform + opacity. */
-
-.fab {
-  position: fixed;
-  bottom: var(--space-6);
-  right: var(--space-6);
-  width: 56px;
-  height: 56px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--accent);
-  color: var(--accent-ink);
-  border: 0;
-  border-radius: var(--radius-pill);
-  box-shadow: var(--elevation-2);
-  cursor: pointer;
-  font-size: 1.75rem;
-  font-weight: 400;
-  line-height: 1;
-  z-index: 40;
-  transition: transform var(--duration-fast) var(--ease-out-expo),
-              box-shadow var(--duration-fast) var(--ease-out-expo);
-}
-
-.fab:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 1px 0 0 var(--rule), 0 14px 32px -14px rgba(0, 0, 0, 0.22);
-}
-.fab:active { transform: translateY(0); }
-
-.fab:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 3px;
-}
-
-@media (width <= 768px) {
-  .fab {
-    width: 48px;
-    height: 48px;
-    bottom: var(--space-4);
-    right: var(--space-4);
-    font-size: 1.5rem;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .fab { transition: none; }
-  .fab:hover { transform: none; }
-}
-
+/* ---- Modal shell (shared, used by every entry overlay) -------------------- *
+ * Mockups render overlays as CENTERED scrim modals (overlay-11..15 all show
+ * a centred card over a dim scrim). Legacy class names (.slide-over*) keep
+ * so existing templates do not need to be renamed. Mobile ≤640px flips to
+ * a bottom-sheet variant that rises from the bottom. */
 .slide-over-root {
   position: fixed;
   inset: 0;
   background: color-mix(in oklab, var(--ink) 32%, transparent);
+  backdrop-filter: blur(3px);
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
   z-index: 50;
   animation: slide-over-fade var(--duration-normal) var(--ease-out-expo);
 }
 
 .slide-over {
-  width: min(480px, 100vw);
-  height: 100%;
+  width: 100%;
+  max-width: 560px;
+  max-height: 95vh;
   background: var(--surface-raised);
   color: var(--ink);
-  border-left: 1px solid var(--rule);
-  box-shadow: var(--elevation-2);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgb(30 20 10 / 0.14);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  animation: slide-over-in var(--duration-normal) var(--ease-out-expo);
+  animation: modal-in var(--duration-normal) var(--ease-out-expo);
 }
+.slide-over--add { max-width: 620px; }
+.slide-over--repeats { max-width: 720px; }
+.slide-over .rd-form { gap: 0.6rem; }
+.slide-over .rd-form-row { gap: 0.6rem; margin: 0; }
+.slide-over .rd-field { margin: 0; }
+.slide-over .rd-slideover-footer { padding-top: 0.7rem; margin-top: 0.5rem; }
 
 .slide-over__header {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding: var(--space-5) var(--space-5) var(--space-3);
-  border-bottom: 1px solid var(--rule);
+  padding: 16px 24px 6px;
 }
 
 .slide-over__title {
@@ -1493,12 +1452,12 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
 .slide-over__close:hover { color: var(--ink); }
 
 .slide-over__body {
-  padding: var(--space-4) var(--space-5) var(--space-5);
+  padding: 4px 24px 6px;
 }
 
-@keyframes slide-over-in {
-  from { transform: translateX(100%); opacity: 0; }
-  to   { transform: translateX(0);    opacity: 1; }
+@keyframes modal-in {
+  from { transform: scale(0.98); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
 }
 
 @keyframes slide-over-fade {
@@ -1509,6 +1468,22 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
 @media (prefers-reduced-motion: reduce) {
   .slide-over-root,
   .slide-over { animation: none; }
+}
+
+@media (width <= 640px) {
+  .slide-over-root { align-items: flex-end; padding: 0; }
+
+  .slide-over {
+    max-width: 100vw;
+    max-height: 90dvh;
+    border-radius: 12px 12px 0 0;
+    animation: sheet-up var(--duration-normal) var(--ease-out-expo);
+  }
+
+  @keyframes sheet-up {
+    from { transform: translateY(100%); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
 }
 
 /* ---------------------------------------------------------------------- *

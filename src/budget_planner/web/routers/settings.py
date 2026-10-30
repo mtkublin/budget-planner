@@ -58,7 +58,21 @@ def drawer(
     active_tab = _coerce_tab(tab)
     context: dict[str, Any] = {"active_tab": active_tab}
     if active_tab == "categories":
-        context["categories"] = categories_repo.list_all(conn)
+        all_cats = categories_repo.list_all(conn)
+        context["categories"] = all_cats
+        # ADR-0056 §8 — grouped sections (Expense · Income · System).
+        context["expense_categories"] = [
+            c for c in all_cats if (not c.is_system) and c.direction is Direction.EXPENSE
+        ]
+        context["income_categories"] = [
+            c for c in all_cats if (not c.is_system) and c.direction is Direction.INCOME
+        ]
+        context["system_categories"] = [c for c in all_cats if c.is_system]
+        # Mirror the Preferences income-anchor control at the top of the tab.
+        context["anchor_income_categories"] = [
+            c for c in all_cats if c.direction is Direction.INCOME and c.deleted_at is None
+        ]
+        context["current_anchor_id"] = preferences_svc.get_income_anchor_category_id(conn)
     elif active_tab == "fx":
         context["fx_rates"] = fx_repo.list_recent(conn, limit=_FX_LIMIT)
     elif active_tab == "prefs":
@@ -69,7 +83,11 @@ def drawer(
             if c.direction is Direction.INCOME and c.deleted_at is None
         ]
         context["current_anchor_id"] = preferences_svc.get_income_anchor_category_id(conn)
-    return render(request, "settings/_drawer.html", **context)
+    # Rising Dough v2 — Settings is a full page (ADR-0051 §7). The template
+    # extends base.html and reuses the existing panel fragments.
+    hx = request.headers.get("HX-Request") == "true"
+    tmpl = "settings/_drawer.html" if hx else "settings/index.html"
+    return render(request, tmpl, **context)
 
 
 @router.get("/close", response_class=HTMLResponse)

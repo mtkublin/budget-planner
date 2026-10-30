@@ -56,4 +56,4 @@ Budget rules discoverability is improved by copy, not by a new FAB target: the R
 ## Follow-ups
 
 - Prune `data-add-kind` placeholder attributes (e.g. `+ Planned` on Overview Upcoming panel) once T-093 wires them directly to the correct slide-over endpoint.
-- Revisit if a future phase introduces a surface where "add" is ambiguous (none planned in v1 or v2).
+- Revisit if a future phase introduces a surface where "add" is ambiguous (none planned in v1, v2, or v3). Note: v2 (Rising Dough) retires the FAB in favour of a top-bar `+ Add` button; this ADR's rationale is historical.

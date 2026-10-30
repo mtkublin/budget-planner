@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#ebe8e1;font-family:'Hanken Grotesk',system-ui,sans-serif}
+a{color:oklch(0.45 0.14 265)}a:hover{color:oklch(0.3 0.14 265)}
+.dv-turn{padding:40px 44px 32px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 6px}
+.dv-tid{font:600 10px 'IBM Plex Mono',monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:500 26px 'Newsreader',serif;color:#1a1a1a}
+.dv-sub{font:600 11px 'Hanken Grotesk';letter-spacing:.14em;text-transform:uppercase;color:rgba(0,0,0,.5);margin:34px 0 14px}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start;width:2600px}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px 'IBM Plex Mono',monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 12px/1.3 'Hanken Grotesk';color:rgba(0,0,0,.6)}
+.dv-card{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.dv-next{margin:22px 0 0;font:12px/1.5 'Hanken Grotesk';color:rgba(0,0,0,.5)}
+.fr,.mf,.doc{--bg:oklch(0.985 0.004 85);--surf:oklch(0.997 0.002 85);--sunk:oklch(0.962 0.006 85);--line:oklch(0.9 0.008 85);--ink:oklch(0.21 0.01 60);--mute:oklch(0.5 0.01 70);--acc:oklch(0.45 0.14 265);--accs:oklch(0.95 0.03 265);--inc:oklch(0.45 0.11 155);--incs:oklch(0.95 0.04 155);--exp:oklch(0.5 0.15 28);--exps:oklch(0.955 0.035 28);--tr:oklch(0.45 0.09 230);--trs:oklch(0.95 0.03 230);--warn:oklch(0.48 0.1 75);--warns:oklch(0.95 0.05 85);background:var(--bg);color:var(--ink);font:14px/1.45 'Hanken Grotesk',sans-serif;box-sizing:border-box}
+.fr *,.mf *,.doc *{box-sizing:border-box}
+.fr{width:1280px;display:grid;grid-template-columns:208px 1fr}
+.sb{border-right:1px solid var(--line);padding:24px 14px;display:flex;flex-direction:column;gap:2px;background:var(--bg)}
+.brand{font:500 20px 'Newsreader',serif;padding:0 10px}
+.brand small{display:block;font:600 10px 'Hanken Grotesk';letter-spacing:.14em;color:var(--mute);margin-top:2px}
+.ni{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:6px;color:var(--mute);font-weight:500}
+.ni.on{background:var(--sunk);color:var(--ink);box-shadow:inset 2px 0 0 var(--acc)}
+.kbd{font:500 11px 'IBM Plex Mono',monospace;border:1px solid var(--line);padding:0 5px;border-radius:4px;color:var(--mute);background:var(--surf);line-height:18px}
+.main{padding:26px 40px 44px;min-width:0}
+.top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;gap:20px}
+.eb{font:600 11px 'Hanken Grotesk';letter-spacing:.13em;text-transform:uppercase;color:var(--mute)}
+.h1{font:400 40px/1.05 'Newsreader',serif;letter-spacing:-.01em;margin:4px 0 0}
+.h2{font:500 22px/1.15 'Newsreader',serif;margin:0}
+.num{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
+.cur{color:var(--mute);font-size:.72em;margin-left:.3em;font-weight:400}
+.card{background:var(--surf);border:1px solid var(--line);border-radius:10px}
+.btn{font:500 13px 'Hanken Grotesk';border:1px solid var(--line);background:var(--surf);color:var(--ink);border-radius:6px;padding:6px 12px;display:inline-flex;gap:8px;align-items:center;white-space:nowrap}
+.btn.p{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.s{padding:4px 9px;font-size:12px}
+.btn.g{border-color:transparent;background:transparent;color:var(--mute)}
+.pill{display:inline-block;font:600 10.5px 'Hanken Grotesk';letter-spacing:.04em;text-transform:uppercase;padding:2px 9px;border-radius:99px;white-space:nowrap}
+.db{display:inline-flex;gap:5px;align-items:center;font:600 10.5px 'Hanken Grotesk';letter-spacing:.05em;text-transform:uppercase;padding:2px 7px;border-radius:4px}
+.db.e{background:var(--exps);color:var(--exp)}.db.i{background:var(--incs);color:var(--inc)}.db.t{background:var(--trs);color:var(--tr)}.db.a{background:var(--warns);color:var(--warn)}
+.tag{font:600 11px 'Hanken Grotesk';padding:3px 9px;border-radius:99px;display:inline-flex;gap:6px;align-items:center}
+.tag.ok{background:var(--incs);color:var(--inc)}.tag.od{background:var(--exp);color:#fff}.tag.wn{background:var(--warns);color:var(--warn)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;background:var(--surf)}
+.seg span{padding:6px 14px;font-weight:500;font-size:13px;color:var(--mute);border-right:1px solid var(--line)}.seg span:last-child{border:0}.seg span.on{background:var(--ink);color:var(--bg)}
+.fl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:12px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.chip{border:1px solid var(--line);border-radius:7px;padding:5px 11px;font-size:13px;background:var(--surf);color:var(--mute);display:inline-flex;gap:6px;align-items:center}
+.row{display:grid;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line)}
+.th{font:600 10.5px 'Hanken Grotesk';letter-spacing:.12em;text-transform:uppercase;color:var(--mute);padding:10px 0}
+.pos{color:var(--inc)}.neg{color:var(--exp)}.mut{color:var(--mute)}
+.bar{height:6px;border-radius:3px;background:var(--sunk);overflow:hidden;display:flex}
+.mf{width:390px;padding:0 0 78px;position:relative;min-height:760px}
+.mt{position:absolute;bottom:0;left:0;right:0;border-top:1px solid var(--line);background:var(--surf);display:grid;grid-template-columns:repeat(5,1fr);padding:8px 6px 18px}
+.mt div{text-align:center;font:500 11px 'Hanken Grotesk';color:var(--mute);padding:4px 0}.mt div.on{color:var(--acc);font-weight:600}
+.mt i{display:block;width:22px;height:3px;border-radius:2px;margin:0 auto 6px;background:transparent}.mt .on i{background:var(--acc)}
+.mt .add{background:var(--acc);color:#fff;border-radius:12px;margin:-18px 8px 0;padding:12px 0;font-size:20px;line-height:1;font-weight:400}
+.mh{padding:18px 20px 10px}
+.mp{padding:0 20px}
+.doc{width:1280px;padding:44px 52px}
+.doc h3{font:500 26px 'Newsreader',serif;margin:0 0 6px}
+.doc p{margin:0 0 10px;max-width:70ch}
+.sw{border:1px solid var(--line);border-radius:8px;overflow:hidden;font-size:12px}
+.sw b{display:block;height:54px}.sw div{padding:6px 8px;font:11px 'IBM Plex Mono';color:var(--mute)}
+.hc{height:34px;display:flex;align-items:center;justify-content:center;font:500 11.5px 'IBM Plex Mono';border-radius:3px;position:relative}
+.hc.o{font-weight:600;box-shadow:inset 0 0 0 1.5px var(--acc)}.hc.r{font-style:italic;background-image:repeating-linear-gradient(135deg,transparent 0 4px,rgba(60,50,160,.16) 4px 5px)}
+.wrap{padding:44px;background:#d9d5cb;display:flex;justify-content:center}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Round 2 · feedback changes and missing screens</span></div>
+<p style="margin:0;max-width:80ch;font:14px/1.5 'Hanken Grotesk';color:rgba(0,0,0,.6)">Edited in place in round 1: <a href="#1f">1f</a> (row actions), <a href="#1g">1g</a> (month switch), <a href="#1h">1h</a> (one-off vs every year), <a href="#1k">1k</a> (category on reconcile), <a href="#1l">1l</a> (category-driven direction, fixed vs formula). New below: Ledger Planned, Analytics, and the three create modals. Analytics lives as a fourth tab in Plan, next to Budget, Year and Forecast.</p>
+<div class="dv-sub">New screens</div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="2a"><div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Ledger · Planned (amounts and dates illustrative; your data has none yet)</div>
+<div class="dv-card fr"><div class="sb"><div class="brand">Rising Dough</div><div style="height:22px"></div><sc-for list="{{ nav1 }}" as="it" hint-placeholder-count="4"><div class="{{ it.c }}"><span>{{ it.l }}</span><span class="kbd">{{ it.k }}</span></div></sc-for><div style="flex:1;min-height:520px"></div><div class="ni" style="border-top:1px solid var(--line);border-radius:0;padding-top:14px"><span>Settings</span><span class="kbd">g s</span></div></div>
+<div class="main"><div class="top"><div><div class="eb">Ledger</div><h1 class="h1">Planned one-offs</h1></div><span class="btn p">+ Add <span class="kbd" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.4)">n</span></span></div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><div class="seg"><span>Actual</span><span class="on">Planned <i style="font-style:normal;opacity:.7">3</i></span><span>Recurring</span></div><span class="mut num" style="font-size:12.5px">3 items · 3,150.00 PLN over the next 60 days</span></div>
+<div class="fl"><span class="chip">Pending ▾</span><span class="chip">All categories ▾</span><span class="chip">All accounts ▾</span><span style="flex:1"></span><span class="chip" style="width:230px;justify-content:space-between">Search <span class="kbd">/</span></span></div>
+<div class="row th" style="grid-template-columns:78px 1.3fr 150px 130px 130px 190px"><span>Due</span><span>Description</span><span>Category</span><span style="text-align:right">Amount</span><span>Status</span><span></span></div>
+<div class="row" style="grid-template-columns:78px 1.3fr 150px 130px 130px 190px;background:var(--exps);margin:0 -10px;padding:11px 10px"><span class="num" style="font-size:12.5px">25 Oct</span><span><span style="font-weight:500">serwis auto</span><br><span class="mut" style="font-size:12px">karta kredytowa (mBank)</span></span><span><span class="pill" style="{{ cs.base }}">SAMOCHÓD</span></span><span class="num" style="text-align:right">900.00<span class="cur">PLN</span></span><span><span class="tag od">! 3 days late</span></span><span style="display:flex;gap:4px;justify-content:flex-end"><span class="btn s">Promote ↵</span><span class="btn s g">Edit</span><span class="btn s g">⋯</span></span></div>
+<div class="row" style="grid-template-columns:78px 1.3fr 150px 130px 130px 190px;"><span class="num" style="font-size:12.5px">18 Nov</span><span><span style="font-weight:500">prezent dla Elizy</span><br><span class="mut" style="font-size:12px">osobiste (mBank)</span></span><span><span class="pill" style="{{ cs.base }}">PREZENTY</span></span><span class="num" style="text-align:right">400.00<span class="cur">PLN</span></span><span><span class="mut" style="font-size:12.5px">in 21 days</span></span><span style="display:flex;gap:4px;justify-content:flex-end"><span class="btn s">Promote ↵</span><span class="btn s g">Edit</span><span class="btn s g">⋯</span></span></div>
+<div class="row" style="grid-template-columns:78px 1.3fr 150px 130px 130px 190px;"><span class="num" style="font-size:12.5px">03 Dec</span><span><span style="font-weight:500">bilety lotnicze</span><br><span class="mut" style="font-size:12px">karta kredytowa (mBank)</span></span><span><span class="pill" style="{{ cs.base }}">WAKACJE I WYJAZDY</span></span><span class="num" style="text-align:right">1,850.00<span class="cur">PLN</span></span><span><span class="mut" style="font-size:12.5px">in 36 days</span></span><span style="display:flex;gap:4px;justify-content:flex-end"><span class="btn s">Promote ↵</span><span class="btn s g">Edit</span><span class="btn s g">⋯</span></span></div>
+<div class="eb" style="padding:26px 0 6px">Already promoted</div>
+<div class="row" style="grid-template-columns:78px 1.3fr 150px 130px 130px 190px;color:var(--mute)"><span class="num" style="font-size:12.5px">12 Oct</span><span>wizyta u dentysty</span><span><span class="pill" style="{{ cs.base }}">ZDROWIE I URODA</span></span><span class="num" style="text-align:right">320.00 PLN</span><span class="tag ok" style="width:fit-content">✓ Promoted</span><span style="text-align:right"><a href="#2a" style="font-size:12.5px">View transaction →</a></span></div>
+<div class="card" style="margin-top:26px;padding:22px 26px;display:flex;gap:20px;align-items:center;background:var(--sunk);border-style:dashed"><div style="flex:1"><div class="h2">Nothing planned</div><div class="mut" style="margin-top:4px">Empty state: one-off intents such as a trip or a purchase show up here and in Upcoming on Today.</div></div><span class="btn">+ Planned entry</span></div>
+</div></div></div>
+
+<div class="dv-opt" id="2b"><div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a>Plan · Analytics</div>
+<div class="dv-card fr"><div class="sb"><div class="brand">Rising Dough</div><div style="height:22px"></div><sc-for list="{{ nav2 }}" as="it" hint-placeholder-count="4"><div class="{{ it.c }}"><span>{{ it.l }}</span><span class="kbd">{{ it.k }}</span></div></sc-for><div style="flex:1;min-height:480px"></div><div class="ni" style="border-top:1px solid var(--line);border-radius:0;padding-top:14px"><span>Settings</span><span class="kbd">g s</span></div></div>
+<div class="main"><div class="top"><div><div class="eb">Plan</div><h1 class="h1">Where it went</h1></div><div style="display:flex;gap:12px;align-items:center"><div class="seg"><span>Budget</span><span>Year</span><span>Forecast</span><span class="on">Analytics</span></div></div></div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px"><div class="seg"><span>←</span><span class="on" style="min-width:120px;text-align:center">October 2026</span><span>→</span></div><div class="seg"><span class="on">Month</span><span>3 months</span><span>Year to date</span><span>12 months</span></div></div>
+<div style="display:grid;grid-template-columns:1.5fr 1fr;gap:22px">
+<div class="card" style="padding:20px 24px"><div style="display:flex;justify-content:space-between;align-items:baseline"><span class="h2">Spend by category</span><span class="num" style="font-size:13px">5,595.00 <span class="cur">PLN actual</span></span></div>
+<div class="row th" style="grid-template-columns:150px 1fr 90px 100px;margin-top:8px"><span>Category</span><span></span><span style="text-align:right">October</span><span style="text-align:right">vs 12-mo avg</span></div>
+<sc-for list="{{ an }}" as="r" hint-placeholder-count="8"><div class="row" style="grid-template-columns:150px 1fr 90px 100px;padding:8px 0"><span><span class="pill" style="{{ r.cs }}">{{ r.cat }}</span></span><span class="bar" style="height:8px"><span style="width:{{ r.w }};background:var(--ink)"></span></span><span class="num" style="text-align:right;font-size:13px">{{ r.a }}</span><span class="num {{ r.k }}" style="text-align:right;font-size:12.5px">{{ r.d }}</span></div></sc-for>
+<div class="mut" style="font-size:12px;margin-top:10px">Click a category to open its transactions in Ledger. Red means above the 12-month average.</div></div>
+<div style="display:flex;flex-direction:column;gap:22px">
+<div class="card" style="padding:20px 24px"><div class="h2">Income vs expense</div>
+<svg viewBox="0 0 480 200" width="100%" style="margin-top:8px"><line x1="30" x2="470" y1="170" y2="170" stroke="oklch(0.9 0.008 85)"></line>
+<sc-for list="{{ ie }}" as="g" hint-placeholder-count="4"><g><rect x="{{ g.x }}" y="{{ g.yi }}" width="36" height="{{ g.hi }}" fill="oklch(0.45 0.11 155)"></rect><rect x="{{ g.x2 }}" y="{{ g.ye }}" width="36" height="{{ g.he }}" fill="oklch(0.5 0.15 28)"></rect><text x="{{ g.tx }}" y="190" text-anchor="middle" font-family="Hanken Grotesk" font-size="12" fill="oklch(0.5 0.01 70)">{{ g.m }}</text></g></sc-for></svg>
+<div style="display:flex;gap:16px;font-size:12.5px"><span><i style="display:inline-block;width:9px;height:9px;background:var(--inc);margin-right:6px"></i>Income</span><span><i style="display:inline-block;width:9px;height:9px;background:var(--exp);margin-right:6px"></i>Expenses</span></div>
+<div class="mut" style="font-size:12px;margin-top:8px">Bars follow your current chart (approximate). Oct: about +11.2k surplus.</div></div>
+<div class="card" style="padding:20px 24px"><div class="h2">Largest single items</div>
+<div class="row" style="grid-template-columns:1fr auto;font-size:13.5px"><span>VAT <span class="mut" style="font-size:12px">· 15 Oct</span></span><span class="num">5,441.00</span></div><div class="row" style="grid-template-columns:1fr auto;font-size:13.5px"><span>kredyt auto <span class="mut" style="font-size:12px">· 15 Oct</span></span><span class="num">2,642.16</span></div><div class="row" style="grid-template-columns:1fr auto;font-size:13.5px;border:0"><span>ZUS <span class="mut" style="font-size:12px">· 15 Oct</span></span><span class="num">2,757.34</span></div></div>
+</div></div></div></div></div>
+
+</div>
+<div class="dv-sub">Create modals and add entry (fixed value)</div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="2c"><div class="dv-olabel"><a class="dv-oid" href="#2c">2c</a>Create account</div>
+<div class="dv-card" style="width:520px"><div class="mf" style="width:520px;min-height:0;padding:0;background:var(--surf)">
+<div style="padding:22px 28px 10px;display:flex;justify-content:space-between"><div class="h2">New account</div><span class="kbd">Esc</span></div>
+<div style="padding:6px 28px 8px;display:grid;gap:16px">
+<div ><div class="eb" style="margin-bottom:4px">Name</div><div class="chip" style="width:100%;justify-content:space-between;color:var(--ink)">revolut EUR</div></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px"><div ><div class="eb" style="margin-bottom:4px">Currency</div><div class="chip" style="width:100%;justify-content:space-between;color:var(--ink)">EUR <span class="mut">▾</span></div></div><div ><div class="eb" style="margin-bottom:4px">Type</div><div class="chip" style="width:100%;justify-content:space-between;color:var(--ink)">bank <span class="mut">▾</span></div></div></div>
+<div class="mut" style="font-size:12px;margin-top:-8px">Currency can't be changed after creation. Type is free text: bank, cash, brokerage, savings…</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px"><div><div class="eb" style="margin-bottom:4px">Opening balance</div><div class="chip num" style="width:100%;color:var(--ink);justify-content:flex-end;font-size:16px">0.00 <span class="cur">EUR</span></div></div><div ><div class="eb" style="margin-bottom:4px">As of</div><div class="chip" style="width:100%;justify-content:space-between;color:var(--ink)"><span class="num">2026-10-28</span></div></div></div>
+<div style="display:flex;gap:12px;align-items:center;padding:12px 14px;background:var(--sunk);border-radius:8px"><span style="width:34px;height:20px;border-radius:99px;background:var(--acc);position:relative;display:inline-block;flex:none"><i style="position:absolute;right:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff"></i></span><span style="flex:1"><b>This is a liability</b><br><span class="mut" style="font-size:12px">Counts against net worth (credit card, loan).</span></span></div>
+<div><div class="eb" style="margin-bottom:4px">Credit limit <span style="text-transform:none;letter-spacing:0;font-weight:400">· optional</span></div><div class="chip num" style="width:100%;color:var(--ink);justify-content:flex-end;font-size:16px">5,000.00 <span class="cur">EUR</span></div></div>
+</div>
+<div style="padding:16px 28px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;margin-top:14px"><span class="btn">Cancel</span><span class="btn p">Create account ↵</span></div></div></div></div>
+
+<div class="dv-opt" id="2d"><div class="dv-olabel"><a class="dv-oid" href="#2d">2d</a>Create category</div>
+<div class="dv-card" style="width:520px"><div class="mf" style="width:520px;min-height:0;padding:0;background:var(--surf)">
+<div style="padding:22px 28px 10px;display:flex;justify-content:space-between"><div class="h2">New category</div><span class="kbd">Esc</span></div>
+<div style="padding:6px 28px 8px;display:grid;gap:16px">
+<div ><div class="eb" style="margin-bottom:4px">Name</div><div class="chip" style="width:100%;justify-content:space-between;color:var(--ink)">Zwierzęta</div></div>
+<div><div class="eb" style="margin-bottom:4px">Direction</div><div class="seg" style="display:flex"><span class="on" style="flex:1;text-align:center">↓ Expense</span><span style="flex:1;text-align:center">↑ Income</span></div><div class="mut" style="font-size:12px;margin-top:6px">Fixed once created: every entry in this category inherits it. Transit and Adjustment are system categories.</div></div>
+<div><div class="eb" style="margin-bottom:8px">Colour</div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="chip" style="color:var(--ink)">Use direction colour</span><sc-for list="{{ swatches }}" as="w" hint-placeholder-count="10"><i style="width:24px;height:24px;border-radius:50%;background:{{ w.v }};display:inline-block;{{ w.ring }}"></i></sc-for></div></div>
+<div style="background:var(--sunk);border-radius:8px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center"><span class="eb">Preview</span><span style="display:flex;gap:8px;align-items:center"><span class="pill" style="background:oklch(0.94 0.045 300);color:oklch(0.4 0.13 300)">Zwierzęta</span><span class="db e">↓ Expense</span></span></div>
+</div>
+<div style="padding:16px 28px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;margin-top:14px"><span class="btn">Cancel</span><span class="btn p">Create category ↵</span></div></div></div></div>
+
+<div class="dv-opt" id="2e"><div class="dv-olabel"><a class="dv-oid" href="#2e">2e</a>Add entry · fixed value expense (compare <a class="dv-oid" href="#1l">1l</a>)</div>
+<div class="dv-card" style="width:560px"><div class="mf" style="width:560px;min-height:0;padding:0;background:var(--surf)">
+<div style="padding:22px 28px 6px;display:flex;justify-content:space-between;align-items:center"><div class="h2">New entry</div><span class="kbd">Esc</span></div>
+<div style="padding:8px 28px 6px"><div style="display:flex;gap:8px;margin:6px 0 16px"><span class="chip" style="background:var(--ink);color:var(--bg);border-color:var(--ink)">Happened</span><span class="chip">Planned</span><span class="chip">Repeats</span></div>
+<div class="eb" style="margin-bottom:4px">Category</div><div class="chip" style="width:100%;justify-content:space-between;color:var(--ink)"><span style="display:flex;gap:10px;align-items:center"><span class="pill" style="{{ cs.base }}">Takeaway</span><span class="db e">↓ Expense</span></span><span class="mut">▾</span></div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 8px"><span class="eb">Amount</span><div class="seg"><span class="on">Fixed value</span><span>Formula ƒ</span></div></div>
+<div style="display:flex;align-items:baseline;gap:10px;border-bottom:2px solid var(--acc);padding-bottom:6px"><span class="num" style="font-size:44px;letter-spacing:-.02em">32.00</span><span class="num mut" style="font-size:18px">PLN</span></div>
+<div class="mut num" style="font-size:12px;margin-top:6px">leaves 187.87 / day after this</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px"><div ><div class="eb" style="margin-bottom:4px">Account</div><div class="chip" style="width:100%;justify-content:space-between;color:var(--ink)">karta kredytowa (mBank) <span class="mut">▾</span></div></div><div ><div class="eb" style="margin-bottom:4px">Date</div><div class="chip" style="width:100%;justify-content:space-between;color:var(--ink)"><span class="num">2026-10-28</span></div></div><div style="grid-column:span 2"><div class="eb" style="margin-bottom:4px">Note</div><div class="chip" style="width:100%;justify-content:space-between;color:var(--ink)">oyche</div></div></div></div>
+<div style="padding:16px 28px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;margin-top:16px"><span class="mut" style="font-size:12.5px"><span class="kbd">⌘↵</span> save and add another</span><span style="display:flex;gap:8px"><span class="btn">Cancel</span><span class="btn p">Save ↵</span></span></div></div></div></div>
+
+</div>
+<p class="dv-next">Try next: "make the recurring row actions show only on hover" · "add a month/year switch to Today" · "show Analytics as its own nav item"</p>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Rising Dough redesign · desktop + mobile</span></div>
+<p style="margin:0;max-width:78ch;font:14px/1.5 'Hanken Grotesk';color:rgba(0,0,0,.6)">Direction: the editorial / Swiss base is kept and tightened (warm paper, one indigo accent, serif display, mono amounts), organised around one question, "what can I spend today". Navigation drops to Today · Ledger · Plan · Accounts, with Settings below. Plan merges Budget and Forecast. Quick add lives in the top bar, on <span class="kbd" style="font:500 11px 'IBM Plex Mono';border:1px solid #ccc;padding:0 5px;border-radius:4px">n</span> and in ⌘K. Figures are the real ones from your screenshots; the few illustrative values (some overrides, reconcile bank balance) are marked in the rationale.</p>
+
+<div class="dv-sub">System · direction, components, IA</div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a"><div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Visual direction</div>
+<div class="dv-card doc">
+<div class="eb">Visual direction</div><h3 style="margin-top:4px;font-size:34px">Ledger paper, one ink-blue accent</h3>
+<p style="color:var(--mute)">An editorial, hairline-first surface. Hierarchy comes from type scale and whitespace, not boxes. Colour is reserved for meaning: indigo for action and focus, and four directional hues that always travel with a label and glyph.</p>
+<div style="display:grid;grid-template-columns:repeat(8,1fr);gap:10px;margin:22px 0">
+<sc-for list="{{ palette }}" as="c" hint-placeholder-count="8"><div class="sw"><b style="background:{{ c.v }}"></b><div>{{ c.n }}<br>{{ c.o }}</div></div></sc-for>
+</div>
+<div style="display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:36px;margin-top:8px">
+<div><div class="eb">Type</div>
+<div style="font:400 52px/1 'Newsreader',serif;margin:10px 0 4px;letter-spacing:-.01em">Left today</div><div class="mut" style="font-size:12px">Newsreader · display, 400/500, optical size on</div>
+<div style="font:500 17px 'Hanken Grotesk';margin:16px 0 2px">Hanken Grotesk — labels, body, buttons</div><div class="mut" style="font-size:12px">400 / 500 / 600 · eyebrows tracked +0.13em caps</div>
+<div class="num" style="font-size:22px;margin:16px 0 2px">52,748.21 <span class="cur">PLN</span></div><div class="mut" style="font-size:12px">IBM Plex Mono · every amount, tabular, currency always shown in muted suffix</div></div>
+<div><div class="eb">Elevation &amp; shape</div>
+<p style="margin-top:10px">Hairlines (1px, 90% L) over shadows. Cards are 10px radius, buttons 6px, pills fully round. A single shadow exists, for overlays: <span class="num" style="font-size:12px">0 12px 40px / 14%</span>. Focus ring: 2px indigo with 2px paper offset.</p>
+<div class="eb" style="margin-top:18px">Directions</div>
+<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><span class="db e">↓ Expense</span><span class="db i">↑ Income</span><span class="db t">⇄ Transit</span><span class="db a">± Adjust</span></div>
+<p class="mut" style="margin-top:10px;font-size:12px">User colour overrides tint the category pill only; the direction badge stays semantic.</p></div>
+<div><div class="eb">Motion</div>
+<p style="margin-top:10px">120–180 ms ease-out. Used for state only: a promoted row collapses and its amount slides into "spent"; the hero number counts to its new value; overlays rise 8px. Everything is CSS or a few lines of JS, and is off under <span class="num" style="font-size:12px">prefers-reduced-motion</span>.</p>
+<div class="eb" style="margin-top:18px">Contrast</div><p style="margin-top:10px">Body ink on paper 15:1; muted text 5.2:1; pills ≥ 4.8:1. No state is colour-only.</p></div>
+</div></div></div>
+
+<div class="dv-opt" id="1b"><div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Component sketch</div>
+<div class="dv-card doc">
+<div class="eb">Components</div><h3 style="margin-top:4px">Parts, as used across the screens</h3>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:34px 40px;margin-top:22px">
+<div><div class="eb">Amount</div><div style="display:flex;flex-direction:column;gap:8px;margin-top:10px"><span class="num" style="font-size:20px">20,620.63<span class="cur">PLN</span></span><span class="num neg">−3,855.00<span class="cur">PLN</span></span><span class="num pos">+20,945.45<span class="cur">PLN</span> <span class="kbd" title="formula">ƒ</span></span><span class="num mut" style="font-size:12px">≈ 412.10 PLN · 1 EUR = 4.2936 (28 Oct)</span></div></div>
+<div><div class="eb">Category pill</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"><span class="pill" style="{{ cs.base }}">Takeaway</span><span class="pill" style="{{ cs.koszty }}">Koszty stałe</span><span class="pill" style="{{ cs.bank }}">Opłaty bankowe</span><span class="pill" style="{{ cs.podatki }}">Podatki</span><span class="pill" style="{{ cs.subs }}">Subskrypcje</span><span class="pill" style="{{ cs.inc }}">Wypłata</span></div></div>
+<div><div class="eb">Direction badge &amp; pace tags</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center"><span class="db e">↓ Expense</span><span class="db i">↑ Income</span><span class="db t">⇄ Transit</span><span class="tag ok">● On track</span><span class="tag wn">▲ Tight</span><span class="tag od">! 2 overdue</span></div></div>
+<div><div class="eb">Overdue chip (loud, not muted)</div><div class="row" style="grid-template-columns:50px 1fr auto;margin-top:8px;border-top:1px solid var(--line);background:var(--exps);padding:10px 8px"><span class="num" style="font-size:12px">Oct 24</span><span style="font-weight:600">bookbeat</span><span class="tag od">3 days late</span></div></div>
+<div><div class="eb">Buttons &amp; Add</div><div style="display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap"><span class="btn p">+ Add <span class="kbd" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.4)">n</span></span><span class="btn">Promote <span class="kbd">↵</span></span><span class="btn g">Skip</span></div><div class="mut" style="font-size:12px;margin-top:8px">The FAB is replaced by a persistent top-bar Add, and a centre tab on mobile.</div></div>
+<div><div class="eb">Filter row</div><div class="fl" style="margin-top:8px;border:0;padding:0"><span class="chip">Oct 1 – Oct 28</span><span class="chip">All categories ▾</span><span class="chip">/ Search</span></div><div class="seg" style="margin-top:10px"><span class="on">Actual</span><span>Planned</span><span>Recurring</span></div></div>
+<div><div class="eb">Form controls</div><div style="display:grid;gap:8px;margin-top:10px"><div style="border:1px solid var(--line);border-radius:6px;padding:7px 10px;background:var(--surf)" class="num">1,250.00 <span class="cur">PLN</span></div><div style="border:1px solid var(--line);border-radius:6px;padding:7px 10px;background:var(--surf);display:flex;justify-content:space-between"><span>osobiste (mBank)</span><span class="mut">▾</span></div><div style="display:flex;gap:10px;align-items:center"><span style="width:34px;height:20px;border-radius:99px;background:var(--acc);position:relative;display:inline-block"><i style="position:absolute;right:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff"></i></span><span>Liability</span></div></div></div>
+<div><div class="eb">Row with inline actions</div><div class="row" style="grid-template-columns:44px 1fr auto auto;margin-top:8px;border-top:1px solid var(--line)"><span class="num mut" style="font-size:12px">Nov 01</span><span style="font-weight:500">księgowa</span><span class="num">356.70</span><span style="display:flex;gap:6px"><span class="btn s">Promote ↵</span><span class="btn s g">Skip</span><span class="btn s g">⋯</span></span></div></div>
+<div><div class="eb">Overlay</div><div class="card" style="margin-top:10px;padding:12px 14px;box-shadow:0 12px 40px rgba(30,20,10,.14)"><div style="font-weight:600">Slide-over / modal / palette</div><div class="mut" style="font-size:12.5px">Only the topmost responds to Esc. Heading in Newsreader, footer holds the primary action.</div></div></div>
+</div></div></div>
+
+<div class="dv-opt" id="1c"><div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>IA rationale</div>
+<div class="dv-card doc">
+<div class="eb">Information architecture</div><h3 style="margin-top:4px">Five places, one question each</h3>
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin:20px 0 26px">
+<sc-for list="{{ iaMap }}" as="x" hint-placeholder-count="5"><div style="border-top:2px solid var(--ink);padding-top:10px"><div style="font:500 20px 'Newsreader',serif">{{ x.t }}</div><div class="mut" style="font-size:12px;margin-bottom:6px" >{{ x.q }}</div><div style="font-size:13px">{{ x.d }}</div></div></sc-for>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 44px">
+<sc-for list="{{ iaNotes }}" as="n" hint-placeholder-count="6"><div><b>{{ n.q }}</b><p style="margin:2px 0 0;font-size:13.5px">{{ n.a }}</p></div></sc-for>
+</div></div></div>
+</div>
+
+<div class="dv-sub">Desktop · 1280</div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1d"><div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>Today (overview), with inline promote and "can I afford it"</div>
+<div class="dv-card fr">
+<div class="sb"><div class="brand">Rising Dough</div><div style="height:22px"></div>
+<sc-for list="{{ nav0 }}" as="it" hint-placeholder-count="4"><div class="{{ it.c }}"><span>{{ it.l }}</span><span class="kbd">{{ it.k }}</span></div></sc-for>
+<div style="flex:1;min-height:400px"></div><div class="ni" style="border-top:1px solid var(--line);border-radius:0;padding-top:14px"><span>Settings</span><span class="kbd">g s</span></div></div>
+<div class="main">
+<div class="top"><div><div class="eb">Wednesday, 28 October 2026</div><h1 class="h1">Today</h1></div>
+<div style="display:flex;gap:8px;align-items:center"><span class="btn" style="width:230px;justify-content:space-between;color:var(--mute)">Search or jump… <span class="kbd">⌘K</span></span><span class="btn p">+ Add <span class="kbd" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.4)">n</span></span></div></div>
+
+<div style="display:grid;grid-template-columns:1.55fr 1fr;gap:20px">
+<div class="card" style="padding:26px 28px">
+<div style="display:flex;justify-content:space-between;align-items:center"><span class="eb">Left to spend per day</span><span class="tag ok">● On track</span></div>
+<div style="display:flex;align-items:baseline;gap:12px;margin:8px 0 2px"><span style="font:400 96px/1 'Newsreader',serif;font-feature-settings:'lnum','tnum';letter-spacing:-.02em">191.08</span><span class="num mut" style="font-size:20px">PLN / day</span></div>
+<div class="mut">1,910.78 PLN left · 10 days until next income (unit8 wypłata, 7 Nov)</div>
+<div style="margin:22px 0 8px" class="bar"><div style="width:70.7%;background:var(--ink)"></div><div style="width:5.1%;background:repeating-linear-gradient(135deg,var(--ink) 0 2px,var(--sunk) 2px 5px)"></div><div style="flex:1;background:var(--accs)"></div></div>
+<div style="display:flex;justify-content:space-between;font-size:12.5px"><span><i style="display:inline-block;width:9px;height:9px;background:var(--ink);margin-right:6px"></i>Spent <span class="num">5,595.00</span></span><span><i style="display:inline-block;width:9px;height:9px;background:repeating-linear-gradient(135deg,var(--ink) 0 2px,var(--sunk) 2px 5px);margin-right:6px"></i>Committed <span class="num">402.19</span></span><span><i style="display:inline-block;width:9px;height:9px;background:var(--accs);border:1px solid var(--acc);margin-right:6px"></i>Left <span class="num">1,910.78</span></span><span class="mut">of <span class="num">7,907.97</span></span></div>
+<div style="margin-top:14px;font-size:12.5px;color:var(--mute);display:flex;gap:8px;align-items:center"><span class="kbd">Period</span> 15 Oct → 7 Nov · day 14 of 24</div>
+<div style="margin-top:22px;border-top:1px solid var(--line);padding-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+<span style="font-weight:600">Can I afford it?</span>
+<span style="border:1px solid var(--acc);box-shadow:0 0 0 3px var(--accs);border-radius:6px;padding:6px 10px;background:var(--surf)" class="num">250.00<span class="cur">PLN</span></span>
+<span class="mut">→ per day becomes</span><span class="num" style="font-size:18px;font-weight:600">166.08</span><span class="num neg" style="font-size:13px">−25.00 / day</span></div>
+</div>
+
+<div class="card" style="padding:22px 24px;display:flex;flex-direction:column">
+<div class="eb">Net worth · all accounts</div>
+<div class="num" style="font-size:30px;margin:6px 0 2px;letter-spacing:-.02em">52,748.21<span class="cur">PLN</span></div>
+<div class="mut num" style="font-size:12px">Assets 56,603.21 · Liabilities 3,855.00</div>
+<div style="margin-top:14px;flex:1">
+<sc-for list="{{ accTop }}" as="a" hint-placeholder-count="6"><div class="row" style="grid-template-columns:1fr auto;padding:8px 0;font-size:13.5px"><span>{{ a.n }} <span class="mut" style="font-size:11.5px">{{ a.t }}</span></span><span class="num {{ a.k }}">{{ a.b }}</span></div></sc-for>
+</div>
+<div style="display:flex;justify-content:space-between;margin-top:12px"><a href="#1j" style="font-size:13px">All 10 accounts →</a><a href="#1i" style="font-size:13px">Forecast →</a></div>
+</div></div>
+
+<div class="card" style="margin-top:20px;padding:6px 28px 14px">
+<div style="display:flex;justify-content:space-between;align-items:center;padding:16px 0 6px"><div style="display:flex;gap:16px;align-items:center"><span class="h2">Upcoming</span><div class="seg"><span>7 days</span><span class="on">30 days</span><span>All</span></div></div><div style="display:flex;gap:8px"><span class="btn s">Promote all due <span class="kbd">⇧↵</span></span><span class="btn s">+ Planned</span><span class="btn s">+ Recurring</span></div></div>
+
+<div class="eb" style="padding:14px 0 6px">Next 7 days</div>
+<div style="border:1.5px solid var(--acc);border-radius:8px;padding:12px 14px;background:var(--accs);margin-bottom:2px">
+<div style="display:grid;grid-template-columns:52px 1.3fr 130px 140px 140px;gap:12px;align-items:end">
+<span class="num" style="font-size:12px;padding-bottom:8px">Nov 01</span>
+<div><div class="mut" style="font-size:11px">księgowa · <span class="pill" style="{{ cs.koszty }}">Koszty stałe</span></div><div style="border:1px solid var(--line);background:var(--surf);border-radius:6px;padding:6px 10px;margin-top:4px">karta kredytowa (mBank) ▾</div></div>
+<div><div class="mut" style="font-size:11px">Date</div><div class="num" style="border:1px solid var(--line);background:var(--surf);border-radius:6px;padding:6px 10px;margin-top:4px">2026-11-01</div></div>
+<div><div class="mut" style="font-size:11px">Amount</div><div class="num" style="border:1px solid var(--acc);background:var(--surf);border-radius:6px;padding:6px 10px;margin-top:4px;box-shadow:0 0 0 3px #fff">356.70 <span class="cur">PLN</span></div></div>
+<div style="display:flex;gap:6px;justify-content:flex-end"><span class="btn p">Confirm ↵</span><span class="btn g">Esc</span></div></div>
+<div class="mut" style="font-size:12px;margin-top:8px">Inline confirm, no modal. Records a real transaction on karta kredytowa and advances next due to 1 Dec. After: left per day 191.08 → 191.08 (already committed).</div></div>
+<sc-for list="{{ upA }}" as="r" hint-placeholder-count="2"><div class="row" style="grid-template-columns:52px 1fr 150px 140px 200px"><span class="num mut" style="font-size:12px">{{ r.d }}</span><span><span style="font-weight:500">{{ r.n }}</span> <span class="mut" style="font-size:12px">· {{ r.acc }}</span></span><span><span class="pill" style="{{ r.cs }}">{{ r.cat }}</span></span><span class="num {{ r.k }}" style="text-align:right">{{ r.a }}<span class="cur">PLN</span></span><span style="display:flex;gap:6px;justify-content:flex-end"><span class="btn s">Promote</span><span class="btn s g">Skip</span><span class="btn s g">Override</span></span></div></sc-for>
+<div class="eb" style="padding:18px 0 6px">5 – 12 November</div>
+<sc-for list="{{ upB }}" as="r" hint-placeholder-count="5"><div class="row" style="grid-template-columns:52px 1fr 150px 140px 200px"><span class="num mut" style="font-size:12px">{{ r.d }}</span><span><span style="font-weight:500">{{ r.n }}</span> <span class="mut" style="font-size:12px">· {{ r.acc }}</span> <span class="kbd" style="display:{{ r.f }}">ƒ</span></span><span><span class="pill" style="{{ r.cs }}">{{ r.cat }}</span></span><span class="num {{ r.k }}" style="text-align:right">{{ r.a }}<span class="cur">PLN</span></span><span style="display:flex;gap:6px;justify-content:flex-end"><span class="btn s">Promote</span><span class="btn s g">Skip</span><span class="btn s g">Override</span></span></div></sc-for>
+<div style="padding:12px 0 0;font-size:13px"><a href="#1e">Showing 6 of 24 in the next 30 days · open in Ledger →</a></div>
+</div>
+</div></div></div>
+
+<div class="dv-opt" id="1e"><div class="dv-olabel"><a class="dv-oid" href="#1e">1e</a>Ledger · Actual</div>
+<div class="dv-card fr">
+<div class="sb"><div class="brand">Rising Dough</div><div style="height:22px"></div>
+<sc-for list="{{ nav1 }}" as="it" hint-placeholder-count="4"><div class="{{ it.c }}"><span>{{ it.l }}</span><span class="kbd">{{ it.k }}</span></div></sc-for>
+<div style="flex:1;min-height:560px"></div><div class="ni" style="border-top:1px solid var(--line);border-radius:0;padding-top:14px"><span>Settings</span><span class="kbd">g s</span></div></div>
+<div class="main">
+<div class="top"><div><div class="eb">Ledger</div><h1 class="h1">Everything that happened</h1></div><span class="btn p">+ Add <span class="kbd" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.4)">n</span></span></div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><div class="seg"><span class="on">Actual <i class="mut" style="font-style:normal;opacity:.7">456</i></span><span>Planned <i style="font-style:normal;opacity:.7">0</i></span><span>Recurring <i style="font-style:normal;opacity:.7">27</i></span></div><span class="mut" style="font-size:12px"><span class="kbd">[</span> <span class="kbd">]</span> switch tab</span></div>
+<div class="fl"><span class="chip">1 Oct → 28 Oct ▾</span><span class="chip">All categories ▾</span><span class="chip">All accounts ▾</span><span class="chip">Any direction ▾</span><span style="flex:1"></span><span class="chip" style="width:230px;justify-content:space-between">Search description <span class="kbd">/</span></span></div>
+<div class="row th" style="grid-template-columns:1.5fr 150px 100px 130px 60px;padding:10px 0"><span>Description · account</span><span>Category</span><span>Direction</span><span style="text-align:right">Amount</span><span></span></div>
+<sc-for list="{{ ledDays }}" as="g" hint-placeholder-count="3">
+<div style="display:flex;justify-content:space-between;padding:14px 0 6px;border-bottom:1px solid var(--ink)"><span style="font:500 17px 'Newsreader',serif">{{ g.day }}</span><span class="num mut" style="font-size:12px">net {{ g.net }}</span></div>
+<sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="3"><div class="row" style="grid-template-columns:1.5fr 150px 100px 130px 60px"><span><span style="font-weight:500">{{ r.n }}</span><br><span class="mut" style="font-size:12px">{{ r.acc }}</span></span><span><span class="pill" style="{{ r.cs }}">{{ r.cat }}</span></span><span><span class="db {{ r.dc }}">{{ r.dl }}</span></span><span class="num {{ r.k }}" style="text-align:right">{{ r.a }}<span class="cur">PLN</span></span><span class="mut" style="text-align:right;letter-spacing:2px">⋯</span></div></sc-for>
+</sc-for>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px;font-size:13px"><span class="mut">Deleted items are archived and can be restored from ⋯ or <a href="#1e">Recently deleted</a>.</span><span style="display:flex;gap:8px"><span class="btn s">← Newer</span><span class="btn s">Older →</span></span></div>
+</div></div></div>
+
+<div class="dv-opt" id="1f"><div class="dv-olabel"><a class="dv-oid" href="#1f">1f</a>Ledger · Recurring, with visible formula derivation and compact overrides</div>
+<div class="dv-card fr">
+<div class="sb"><div class="brand">Rising Dough</div><div style="height:22px"></div>
+<sc-for list="{{ nav1 }}" as="it" hint-placeholder-count="4"><div class="{{ it.c }}"><span>{{ it.l }}</span><span class="kbd">{{ it.k }}</span></div></sc-for>
+<div style="flex:1;min-height:560px"></div><div class="ni" style="border-top:1px solid var(--line);border-radius:0;padding-top:14px"><span>Settings</span><span class="kbd">g s</span></div></div>
+<div class="main">
+<div class="top"><div><div class="eb">Ledger</div><h1 class="h1">Standing commitments</h1></div><span class="btn p">+ Recurring rule</span></div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><div class="seg"><span>Actual</span><span>Planned</span><span class="on">Recurring</span></div><span class="mut num" style="font-size:12.5px">Monthly out ≈ 11,886 · Monthly in 27,763 PLN</span></div>
+<div class="fl"><span class="chip">Active ▾</span><span class="chip">All cadences ▾</span><span class="chip">All categories ▾</span><span style="flex:1"></span><span class="chip" style="width:230px;justify-content:space-between">Search <span class="kbd">/</span></span></div>
+<div class="row th" style="grid-template-columns:70px 1.4fr 140px 150px 90px 250px"><span>Next due</span><span>Rule</span><span>Category</span><span style="text-align:right">Amount</span><span>Overrides</span><span></span></div>
+<div style="padding:10px 0 4px;font:500 17px 'Newsreader',serif">Monthly</div>
+<sc-for list="{{ recA }}" as="r" hint-placeholder-count="2"><div class="row" style="grid-template-columns:70px 1.4fr 140px 150px 90px 250px"><span class="num" style="font-size:12.5px">{{ r.d }}</span><span><span style="font-weight:500">{{ r.n }}</span><br><span class="mut" style="font-size:12px">{{ r.acc }}</span></span><span><span class="pill" style="{{ r.cs }}">{{ r.cat }}</span></span><span class="num" style="text-align:right">{{ r.a }}<span class="cur">PLN</span></span><span class="mut" style="font-size:12px">{{ r.o }}</span><span style="display:flex;gap:2px;justify-content:flex-end;align-items:center"><span class="btn s g">Edit</span><span class="btn s g">Skip next</span><span class="btn s g">⋯</span><span class="mut">▸</span></span></div></sc-for>
+
+<div style="background:var(--sunk);margin:0 -12px;padding:0 12px;border-bottom:1px solid var(--line)">
+<div class="row" style="grid-template-columns:70px 1.4fr 140px 150px 90px 250px;border:0"><span class="num" style="font-size:12.5px;font-weight:600">07 Nov</span><span><span style="font-weight:600">unit8 wypłata</span><br><span class="mut" style="font-size:12px">firmowe PLN (mBank) · income anchor</span></span><span><span class="pill" style="{{ cs.inc }}">Wypłata</span></span><span class="num" style="text-align:right;font-style:italic">20,945.45<span class="cur">PLN</span></span><span><span class="tag wn">3 overrides</span></span><span style="display:flex;gap:2px;justify-content:flex-end;align-items:center"><span class="btn s g">Edit</span><span class="btn s g">Skip next</span><span class="btn s g">⋯</span><span class="mut">▾</span></span></div>
+<div style="padding:0 0 14px 70px;display:grid;grid-template-columns:1fr 1fr;gap:10px 28px">
+<sc-for list="{{ ovr }}" as="o" hint-placeholder-count="3"><div style="display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);background:var(--surf);border-radius:6px;padding:7px 10px"><span><span class="num" style="font-size:12px">{{ o.d }}</span> <span class="db {{ o.c }}">{{ o.l }}</span> <span class="num" style="font-size:12.5px">{{ o.v }}</span></span><span class="btn s g" style="padding:2px 8px">Remove</span></div></sc-for>
+</div></div>
+
+<div style="background:var(--sunk);margin:0 -12px;padding:0 12px;border-bottom:1px solid var(--line)">
+<div class="row" style="grid-template-columns:70px 1.4fr 140px 150px 90px 250px;border:0"><span class="num" style="font-size:12.5px;font-weight:600">12 Nov</span><span><span style="font-weight:600">na osobiste</span> <span class="kbd">ƒ</span><br><span class="mut" style="font-size:12px">firmowe PLN → osobiste (mBank)</span></span><span><span class="pill" style="{{ cs.tr }}">Transit</span></span><span class="num" style="text-align:right">15,650.66<span class="cur">PLN</span></span><span class="mut" style="font-size:12px">0</span><span style="display:flex;gap:2px;justify-content:flex-end;align-items:center"><span class="btn s g">Edit</span><span class="btn s g">Skip next</span><span class="btn s g">⋯</span><span class="mut">▾</span></span></div>
+<div style="margin:0 0 14px 70px;border:1px solid var(--line);background:var(--surf);border-radius:8px;padding:14px 16px">
+<div class="eb" style="margin-bottom:8px">How 15,650.66 is derived</div>
+<sc-for list="{{ deriv }}" as="d" hint-placeholder-count="5"><div style="display:grid;grid-template-columns:34px 1fr auto;gap:10px;padding:5px 0;border-bottom:1px dashed var(--line)"><span class="num mut">{{ d.s }}</span><span>{{ d.n }} <span class="mut" style="font-size:12px">{{ d.c }}</span></span><span class="num">{{ d.v }}</span></div></sc-for>
+<div style="display:grid;grid-template-columns:34px 1fr auto;gap:10px;padding:8px 0 0;font-weight:600"><span class="num">=</span><span>na osobiste</span><span class="num">15,650.66 PLN</span></div>
+<div class="mut" style="font-size:12px;margin-top:8px">Hover any source to jump to that rule. Editing a source updates this amount; cycles are blocked on save.</div></div></div>
+
+<sc-for list="{{ recB }}" as="r" hint-placeholder-count="2"><div class="row" style="grid-template-columns:70px 1.4fr 140px 150px 90px 250px"><span class="num" style="font-size:12.5px">{{ r.d }}</span><span><span style="font-weight:500">{{ r.n }}</span><br><span class="mut" style="font-size:12px">{{ r.acc }}</span></span><span><span class="pill" style="{{ r.cs }}">{{ r.cat }}</span></span><span class="num" style="text-align:right">{{ r.a }}<span class="cur">PLN</span></span><span class="mut" style="font-size:12px">{{ r.o }}</span><span style="display:flex;gap:2px;justify-content:flex-end;align-items:center"><span class="btn s g">Edit</span><span class="btn s g">Skip next</span><span class="btn s g">⋯</span><span class="mut">▸</span></span></div></sc-for>
+<div style="padding:18px 0 4px;font:500 17px 'Newsreader',serif">Yearly</div>
+<sc-for list="{{ recY }}" as="r" hint-placeholder-count="3"><div class="row" style="grid-template-columns:70px 1.4fr 140px 150px 90px 250px"><span class="num" style="font-size:12.5px">{{ r.d }}</span><span><span style="font-weight:500">{{ r.n }}</span><br><span class="mut" style="font-size:12px">{{ r.acc }}</span></span><span><span class="pill" style="{{ r.cs }}">{{ r.cat }}</span></span><span class="num" style="text-align:right">{{ r.a }}<span class="cur">PLN</span></span><span class="mut" style="font-size:12px">0</span><span style="display:flex;gap:2px;justify-content:flex-end;align-items:center"><span class="btn s g">Edit</span><span class="btn s g">Skip next</span><span class="btn s g">⋯</span><span class="mut">▸</span></span></div></sc-for>
+<div style="display:grid;grid-template-columns:1fr 250px;gap:28px;margin-top:22px;align-items:start"><div class="mut" style="font-size:12.5px"><b style="color:var(--ink)">Row actions.</b> One click: <b>Edit</b> and <b>Skip next</b> (the two most common). <b>⋯</b> holds the rest. The chevron expands the rule to show its overrides and formula derivation. The same actions appear on Upcoming rows on Today. Deactivated rules sit under the "Active" filter and can be restored.</div><div class="card" style="padding:6px;box-shadow:0 12px 40px rgba(30,20,10,.14)"><div class="ni" style="color:var(--ink)">Override next…</div><div class="ni" style="color:var(--ink)">Duplicate</div><div class="ni" style="color:var(--ink)">Deactivate</div><div class="ni" style="color:var(--exp)">Archive rule</div></div></div>
+</div></div></div>
+
+<div class="dv-opt" id="1g"><div class="dv-olabel"><a class="dv-oid" href="#1g">1g</a>Plan · Budget (rules merged into the summary: click Planned to edit the default, ⋯ for overrides)</div>
+<div class="dv-card fr">
+<div class="sb"><div class="brand">Rising Dough</div><div style="height:22px"></div>
+<sc-for list="{{ nav2 }}" as="it" hint-placeholder-count="4"><div class="{{ it.c }}"><span>{{ it.l }}</span><span class="kbd">{{ it.k }}</span></div></sc-for>
+<div style="flex:1;min-height:700px"></div><div class="ni" style="border-top:1px solid var(--line);border-radius:0;padding-top:14px"><span>Settings</span><span class="kbd">g s</span></div></div>
+<div class="main">
+<div class="top"><div><div class="eb">Plan</div><h1 class="h1">October budget</h1></div><div style="display:flex;gap:12px;align-items:center"><div class="seg"><span class="on">Budget</span><span>Year</span><span>Forecast</span><span>Analytics</span></div><div class="seg"><span>←</span><span class="on" style="min-width:120px;text-align:center">October 2026</span><span>→</span></div></div></div>
+<div class="card" style="padding:16px 22px;display:grid;grid-template-columns:auto 1fr auto;gap:30px;align-items:center;margin-bottom:22px">
+<div><div class="eb">Period</div><div style="font:500 18px 'Newsreader',serif;margin-top:2px">15 Oct → 7 Nov</div><div class="mut" style="font-size:12px">anchor: WYPŁATA · <a href="#1n">change</a></div></div>
+<div class="bar" style="height:10px"><div style="width:70.7%;background:var(--ink)"></div><div style="width:5.1%;background:repeating-linear-gradient(135deg,var(--ink) 0 2px,var(--sunk) 2px 5px)"></div><div style="flex:1;background:var(--accs)"></div></div>
+<div style="text-align:right"><span class="num" style="font-size:26px">191.08</span><span class="cur num"> PLN / day</span><div class="mut num" style="font-size:12px">402.19 committed · 10 days left</div></div></div>
+<div class="row th" style="grid-template-columns:170px 120px 120px 1fr 120px 30px;padding:6px 0"><span>Category</span><span style="text-align:right">Planned</span><span style="text-align:right">Actual</span><span>Used</span><span style="text-align:right">Remaining</span><span></span></div>
+<sc-for list="{{ bud }}" as="b" hint-placeholder-count="6"><div class="row" style="grid-template-columns:170px 120px 120px 1fr 120px 30px;padding:9px 0"><span><span class="pill" style="{{ b.cs }}">{{ b.cat }}</span></span><span class="num" style="text-align:right;{{ b.ps }}">{{ b.p }}</span><span class="num" style="text-align:right">{{ b.a }}</span><span class="bar"><span style="width:{{ b.w }};background:{{ b.col }}"></span></span><span class="num {{ b.k }}" style="text-align:right">{{ b.r }}</span><span class="mut" style="letter-spacing:2px">⋯</span></div></sc-for>
+<div class="row" style="grid-template-columns:170px 120px 120px 1fr 120px 30px;font-weight:600;border-bottom:0"><span>Total</span><span class="num" style="text-align:right">7,907.97</span><span class="num" style="text-align:right">5,595.00</span><span></span><span class="num" style="text-align:right">1,910.78</span><span></span></div>
+<div style="margin-top:6px;border:1px solid var(--acc);border-radius:8px;background:var(--surf);padding:12px 14px;width:430px;box-shadow:0 12px 40px rgba(30,20,10,.14)">
+<div style="font-weight:600;margin-bottom:8px">Override · WYJŚCIA</div>
+<div class="seg" style="margin-bottom:10px"><span class="on">This month only</span><span>Every Nov</span><span>New default</span></div>
+<div style="display:flex;gap:8px;align-items:center"><span class="num" style="border:1px solid var(--acc);border-radius:6px;padding:6px 10px;flex:1">900.00 <span class="cur">PLN</span></span><span class="btn p">Save ↵</span></div>
+<div class="mut" style="font-size:12px;margin-top:8px">Default 750.00 · wins over default for Oct 2026 only</div></div>
+<div class="mut" style="font-size:12px;margin-top:14px">Categories without a budget but with spend this month: Koszty stałe 7,254.99 · Podatki 10,833.34 · Opłaty bankowe 0.00. Shown in the sheet below the total.</div>
+</div></div></div>
+
+<div class="dv-opt" id="1h"><div class="dv-olabel"><a class="dv-oid" href="#1h">1h</a>Plan · Year (heatmap grid, tier legend, inline edit)</div>
+<div class="dv-card fr">
+<div class="sb"><div class="brand">Rising Dough</div><div style="height:22px"></div>
+<sc-for list="{{ nav2 }}" as="it" hint-placeholder-count="4"><div class="{{ it.c }}"><span>{{ it.l }}</span><span class="kbd">{{ it.k }}</span></div></sc-for>
+<div style="flex:1;min-height:560px"></div><div class="ni" style="border-top:1px solid var(--line);border-radius:0;padding-top:14px"><span>Settings</span><span class="kbd">g s</span></div></div>
+<div class="main">
+<div class="top"><div><div class="eb">Plan</div><h1 class="h1">Budget 2026</h1></div><div style="display:flex;gap:12px;align-items:center"><div class="seg"><span>Budget</span><span class="on">Year</span><span>Forecast</span><span>Analytics</span></div><div class="seg"><span>←</span><span class="on">2026</span><span>→</span></div></div></div>
+<div style="display:flex;gap:22px;align-items:center;margin-bottom:14px;font-size:12.5px;flex-wrap:wrap">
+<span style="display:flex;gap:7px;align-items:center"><span class="hc" style="width:44px;height:22px;background:oklch(0.88 0.05 265)">500</span>Default</span>
+<span style="display:flex;gap:7px;align-items:center"><span class="hc o" style="width:44px;height:22px;background:oklch(0.88 0.05 265)">500</span>One-off for that month</span>
+<span style="display:flex;gap:7px;align-items:center"><span class="hc r" style="width:44px;height:22px;background:oklch(0.88 0.05 265)">500</span>Recurring every year</span>
+<span style="display:flex;gap:7px;align-items:center"><span class="hc" style="width:44px;height:22px;background:var(--sunk);color:var(--mute)">—</span>Unset</span>
+<span class="mut" style="margin-left:auto">Darker = larger amount. Click a cell to edit; ↵ saves a one-off.</span></div>
+<div style="position:relative">
+<div style="display:grid;grid-template-columns:150px repeat(12,1fr) 86px;gap:3px;align-items:center">
+<span class="th"></span><sc-for list="{{ months }}" as="m" hint-placeholder-count="12"><span class="th" style="text-align:center;padding:6px 0">{{ m }}</span></sc-for><span class="th" style="text-align:right">Total</span>
+<sc-for list="{{ yr }}" as="y" hint-placeholder-count="6">
+<span><span class="pill" style="{{ y.cs }}">{{ y.cat }}</span></span>
+<sc-for list="{{ y.cells }}" as="c" hint-placeholder-count="12"><span class="hc {{ c.t }}" style="{{ c.s }}">{{ c.v }}</span></sc-for>
+<span class="num" style="text-align:right;font-size:12.5px">{{ y.tot }}</span>
+</sc-for>
+</div>
+<div style="position:absolute;left:620px;top:376px;width:290px;border:1px solid var(--acc);border-radius:8px;background:var(--surf);padding:12px 14px;box-shadow:0 12px 40px rgba(30,20,10,.18)">
+<div style="font-weight:600">WAKACJE I WYJAZDY · Sep 2026</div><div class="seg" style="margin-top:8px;display:flex"><span class="on" style="flex:1;text-align:center">One-off · Sep 2026</span><span style="flex:1;text-align:center">Every year · Sep</span></div>
+<div style="display:flex;gap:8px;align-items:center;margin:8px 0"><span class="num" style="border:1px solid var(--acc);border-radius:6px;padding:6px 10px;flex:1">16,000.00</span><span class="btn p s">Save ↵</span></div>
+<div class="mut" style="font-size:12px">Default is 1,250.00. One-off applies to Sep 2026 only; "Every year" repeats each September until changed. <a href="#1h">Reset to default</a></div></div>
+</div>
+<div class="mut" style="font-size:12px;margin-top:18px;max-width:80ch">Only expense categories with a value are listed; categories with no budget are collapsed into "3 unset". On narrow screens the category column stays sticky and the months scroll sideways, or the grid switches to per-category cards (see mobile).</div>
+</div></div></div>
+
+<div class="dv-opt" id="1i"><div class="dv-olabel"><a class="dv-oid" href="#1i">1i</a>Plan · Forecast</div>
+<div class="dv-card fr">
+<div class="sb"><div class="brand">Rising Dough</div><div style="height:22px"></div>
+<sc-for list="{{ nav2 }}" as="it" hint-placeholder-count="4"><div class="{{ it.c }}"><span>{{ it.l }}</span><span class="kbd">{{ it.k }}</span></div></sc-for>
+<div style="flex:1;min-height:560px"></div><div class="ni" style="border-top:1px solid var(--line);border-radius:0;padding-top:14px"><span>Settings</span><span class="kbd">g s</span></div></div>
+<div class="main">
+<div class="top"><div><div class="eb">Plan</div><h1 class="h1">Projected balance</h1><div class="mut" style="margin-top:6px">Oct 2026 → Sep 2027 · PLN · budget overlay on</div></div><div style="display:flex;gap:12px;align-items:center"><div class="seg"><span>Budget</span><span>Year</span><span class="on">Forecast</span><span>Analytics</span></div><div class="seg"><span>6</span><span class="on">12</span><span>24</span><span>60</span></div></div></div>
+<div style="display:flex;gap:44px;margin-bottom:6px"><div><div class="eb">Now</div><div class="num" style="font-size:24px">49,775.97</div></div><div><div class="eb">Sep 2027</div><div class="num" style="font-size:24px">104,218.31</div></div><div><div class="eb">Peak · Aug 2027</div><div class="num" style="font-size:24px">115,109.45</div></div></div>
+<svg viewBox="0 0 900 280" width="100%" style="display:block;margin-top:6px">
+<sc-for list="{{ fc.grid }}" as="g" hint-placeholder-count="5"><g><line x1="52" x2="890" y1="{{ g.y }}" y2="{{ g.y }}" stroke="oklch(0.92 0.006 85)"></line><text x="44" y="{{ g.ty }}" text-anchor="end" font-family="IBM Plex Mono" font-size="11" fill="oklch(0.5 0.01 70)">{{ g.l }}</text></g></sc-for>
+<polygon points="{{ fc.area }}" fill="oklch(0.95 0.03 265)"></polygon>
+<polyline points="{{ fc.line }}" fill="none" stroke="oklch(0.45 0.14 265)" stroke-width="2"></polyline>
+<sc-for list="{{ fc.dots }}" as="d" hint-placeholder-count="12"><g><circle cx="{{ d.x }}" cy="{{ d.y }}" r="3.5" fill="oklch(0.997 0.002 85)" stroke="oklch(0.45 0.14 265)" stroke-width="2"></circle><text x="{{ d.x }}" y="270" text-anchor="middle" font-family="Hanken Grotesk" font-size="11" fill="oklch(0.5 0.01 70)">{{ d.m }}</text></g></sc-for>
+<g><line x1="{{ fc.a1.x }}" x2="{{ fc.a1.x }}" y1="{{ fc.a1.y }}" y2="{{ fc.a1.ly }}" stroke="oklch(0.21 0.01 60)"></line><text x="{{ fc.a1.tx }}" y="{{ fc.a1.ly }}" font-family="Hanken Grotesk" font-size="12" font-weight="600" fill="oklch(0.21 0.01 60)">Mar: +43,200.00 unit8 PROFIT SHARE</text></g>
+<g><line x1="{{ fc.a2.x }}" x2="{{ fc.a2.x }}" y1="{{ fc.a2.y }}" y2="{{ fc.a2.ly }}" stroke="oklch(0.5 0.15 28)"></line><text x="{{ fc.a2.tx }}" y="{{ fc.a2.ly }}" text-anchor="end" font-family="Hanken Grotesk" font-size="12" font-weight="600" fill="oklch(0.5 0.15 28)">Sep: 22,195.00 planned, incl. 16,000 holiday</text></g>
+</svg>
+<div class="row th" style="grid-template-columns:90px 1fr 1fr 1fr 150px 1fr;margin-top:10px"><span>Month</span><span style="text-align:right">Income</span><span style="text-align:right">Expenses</span><span style="text-align:right">Planned budget</span><span style="text-align:right">Net</span><span style="text-align:right">End of month</span></div>
+<sc-for list="{{ fcRows }}" as="r" hint-placeholder-count="12"><div class="row" style="grid-template-columns:90px 1fr 1fr 1fr 150px 1fr;padding:8px 0"><span style="font-weight:600">{{ r.m }}</span><span class="num" style="text-align:right">{{ r.i }}</span><span class="num" style="text-align:right">{{ r.e }}</span><span class="num" style="text-align:right">{{ r.p }}</span><span style="display:flex;align-items:center;gap:8px;justify-content:flex-end"><span style="width:{{ r.w }};height:6px;background:{{ r.col }};border-radius:2px;order:{{ r.o }}"></span><span class="num {{ r.k }}">{{ r.n }}</span></span><span class="num" style="text-align:right;font-weight:600">{{ r.b }}</span></div></sc-for>
+<div class="mut" style="font-size:12px;margin-top:12px">Oct row comes from the Budget summary so both pages agree. All figures in PLN base.</div>
+</div></div></div>
+
+<div class="dv-opt" id="1j"><div class="dv-olabel"><a class="dv-oid" href="#1j">1j</a>Accounts (assets vs liabilities, reconcile as a status)</div>
+<div class="dv-card fr">
+<div class="sb"><div class="brand">Rising Dough</div><div style="height:22px"></div>
+<sc-for list="{{ nav3 }}" as="it" hint-placeholder-count="4"><div class="{{ it.c }}"><span>{{ it.l }}</span><span class="kbd">{{ it.k }}</span></div></sc-for>
+<div style="flex:1;min-height:540px"></div><div class="ni" style="border-top:1px solid var(--line);border-radius:0;padding-top:14px"><span>Settings</span><span class="kbd">g s</span></div></div>
+<div class="main">
+<div class="top"><div><div class="eb">Accounts · 10</div><h1 class="h1">Net worth</h1></div><span class="btn p">+ New account</span></div>
+<div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:20px;margin-bottom:22px;align-items:end">
+<div><div class="num" style="font-size:44px;letter-spacing:-.02em">52,748.21<span class="cur">PLN</span></div><div class="mut" style="font-size:12px">All balances in base currency PLN. No FX conversions needed today.</div></div>
+<div><div class="eb">Assets</div><div class="num" style="font-size:22px">56,603.21</div></div><div><div class="eb">Liabilities</div><div class="num neg" style="font-size:22px">3,855.00</div></div></div>
+<div class="row th" style="grid-template-columns:1.3fr 110px 110px 60px 160px 100px"><span>Account</span><span>Trend</span><span>Checked</span><span>Txns</span><span style="text-align:right">Balance</span><span></span></div>
+<sc-for list="{{ accs }}" as="a" hint-placeholder-count="9"><div style="border-bottom:1px solid var(--line);padding:12px 0"><div style="display:grid;grid-template-columns:1.3fr 110px 110px 60px 160px 100px;gap:14px;align-items:center"><span><span style="font:500 17px 'Newsreader',serif">{{ a.n }}</span> <span class="mut" style="font-size:12px;margin-left:6px">{{ a.t }}</span></span><svg width="100" height="26" viewBox="0 0 100 26"><polyline points="{{ a.pts }}" fill="none" stroke="oklch(0.45 0.14 265)" stroke-width="1.5"></polyline></svg><span style="font-size:12.5px"><span class="tag {{ a.ck }}" style="padding:2px 8px">{{ a.cl }}</span></span><span class="num mut" style="font-size:12.5px">{{ a.tx }}</span><span class="num {{ a.k }}" style="text-align:right;font-size:16px">{{ a.b }}<span class="cur">PLN</span></span><span style="text-align:right"><span class="btn s">Reconcile</span></span></div>
+<div style="display:{{ a.cd }};margin:10px 0 0 0;max-width:520px"><div style="display:flex;justify-content:space-between;font-size:12px" class="mut"><span>Limit 20,000.00</span><span>Available 16,145.00</span><span>Used 19%</span></div><div class="bar" style="margin-top:4px"><div style="width:19%;background:var(--exp)"></div></div></div></div></sc-for>
+<div class="mut" style="font-size:12px;margin-top:14px">"Checked" shows when the balance was last compared with the bank. Snapshots live inside the reconcile panel instead of a collapsed list per card.</div>
+</div></div></div>
+
+</div>
+
+<div class="dv-sub">Overlays · reconcile, add, command palette, settings</div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1k"><div class="dv-olabel"><a class="dv-oid" href="#1k">1k</a>Reconcile slide-over (3-step narrative)</div>
+<div class="dv-card" style="width:480px"><div class="mf" style="width:480px;min-height:0;padding:0;background:var(--surf)">
+<div style="padding:24px 28px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between"><div><div class="eb">Reconcile</div><div style="font:500 28px 'Newsreader',serif">osobiste (mBank)</div></div><span class="kbd" style="height:22px">Esc</span></div>
+<div style="padding:22px 28px">
+<div style="display:flex;gap:10px;margin-bottom:22px;font-size:12.5px"><span style="font-weight:600;color:var(--acc)">① Open your bank</span><span class="mut">② Enter its balance</span><span class="mut">③ Review</span></div>
+<p style="margin:0 0 18px;color:var(--mute)">Compare this account with your bank. If the numbers differ, the app records the gap as a separate correction. Nothing you entered is changed or deleted.</p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px"><div><div class="eb">Rising Dough says</div><div class="num" style="font-size:22px;margin-top:4px">4,731.08</div></div><div><div class="eb">Your bank says</div><div class="num" style="font-size:22px;margin-top:4px;border-bottom:2px solid var(--acc)">4,702.18</div></div></div>
+<div style="background:var(--warns);border-radius:8px;padding:14px 16px;margin:20px 0"><div style="display:flex;justify-content:space-between"><b>Difference</b><span class="num neg" style="font-weight:600">−28.90 PLN</span></div><div style="font-size:13px;margin-top:6px">Will be saved on 28 Oct as an adjustment in "Reconciliation (system)". It appears in the ledger and can be undone.</div></div>
+<div style="margin-bottom:18px"><div class="eb" style="margin-bottom:4px">Record as</div><div class="chip" style="width:100%;justify-content:space-between;color:var(--ink)"><span><span class="db a">± Adjust</span> Reconciliation (system)</span><span class="mut">▾ default</span></div><div class="mut" style="font-size:12px;margin-top:4px">If you know what caused the gap, pick that category instead (for example Takeaway or Wpływy inne).</div></div><div style="display:flex;gap:10px;align-items:center;margin-bottom:6px"><span style="width:18px;height:18px;border-radius:4px;background:var(--acc);color:#fff;font-size:12px;text-align:center;line-height:18px">✓</span>Also save a balance snapshot</div>
+<div class="eb" style="margin-top:22px">Previous checks</div>
+<div class="row" style="grid-template-columns:1fr auto;font-size:13px"><span>14 Oct</span><span class="num">4,980.12</span></div><div class="row" style="grid-template-columns:1fr auto;font-size:13px"><span>30 Sep</span><span class="num">3,412.50</span></div></div>
+<div style="padding:16px 28px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px"><span class="btn">Cancel</span><span class="btn p">Record −28.90 ↵</span></div>
+</div></div></div>
+
+<div class="dv-opt" id="1l"><div class="dv-olabel"><a class="dv-oid" href="#1l">1l</a>Add modal · recurring transit with formula (direction comes from the category)</div>
+<div class="dv-card" style="width:640px"><div class="mf" style="width:640px;min-height:0;padding:0;background:var(--surf)">
+<div style="padding:22px 28px 6px;display:flex;justify-content:space-between;align-items:center"><div class="h2">New entry</div><span class="kbd">Esc</span></div>
+<div style="padding:8px 28px 6px"><div style="display:flex;gap:8px;margin:6px 0 16px"><span class="chip">Happened</span><span class="chip">Planned</span><span class="chip" style="background:var(--ink);color:var(--bg);border-color:var(--ink)">Repeats · monthly</span></div>
+<div class="eb" style="margin-bottom:4px">Category</div><div class="chip" style="width:100%;justify-content:space-between;color:var(--ink)"><span style="display:flex;gap:10px;align-items:center"><span class="pill" style="{{ cs.tr }}">Transit</span><span class="db t">⇄ Transit</span><span class="mut" style="font-size:12px">direction comes from the category</span></span><span class="mut">▾</span></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px"><div><div class="eb" style="margin-bottom:4px">From</div><div class="chip" style="width:100%;justify-content:space-between;color:var(--ink)">firmowe PLN (mBank) <span class="mut">▾</span></div></div><div><div class="eb" style="margin-bottom:4px">To</div><div class="chip" style="width:100%;justify-content:space-between;color:var(--ink)">osobiste (mBank) <span class="mut">▾</span></div></div></div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 8px"><span class="eb">Amount</span><div class="seg"><span>Fixed value</span><span class="on">Formula ƒ</span></div></div>
+<div style="background:var(--sunk);border-radius:8px;padding:12px 14px"><div style="display:grid;grid-template-columns:62px 1fr 76px 120px;gap:8px;align-items:center;padding:4px 0"><span class="chip" style="justify-content:center;color:var(--ink)">+ ▾</span><span class="chip" style="color:var(--ink);justify-content:space-between">unit8 wypłata <span class="mut">▾</span></span><span class="chip num" style="color:var(--ink);justify-content:flex-end">100 %</span><span class="num" style="text-align:right">20,945.45</span></div><div style="display:grid;grid-template-columns:62px 1fr 76px 120px;gap:8px;align-items:center;padding:4px 0"><span class="chip" style="justify-content:center;color:var(--ink)">− ▾</span><span class="chip" style="color:var(--ink);justify-content:space-between">ZUS <span class="mut">▾</span></span><span class="chip num" style="color:var(--ink);justify-content:flex-end">100 %</span><span class="num" style="text-align:right">2,757.34</span></div><div style="display:grid;grid-template-columns:62px 1fr 76px 120px;gap:8px;align-items:center;padding:4px 0"><span class="chip" style="justify-content:center;color:var(--ink)">− ▾</span><span class="chip" style="color:var(--ink);justify-content:space-between">dochodowy <span class="mut">▾</span></span><span class="chip num" style="color:var(--ink);justify-content:flex-end">100 %</span><span class="num" style="text-align:right">2,513.45</span></div><div style="display:grid;grid-template-columns:62px 1fr 76px 120px;gap:8px;align-items:center;padding:4px 0"><span class="chip" style="justify-content:center;color:var(--ink)">− ▾</span><span class="chip" style="color:var(--ink);justify-content:space-between">opłaty bankowe <span class="mut">▾</span></span><span class="chip num" style="color:var(--ink);justify-content:flex-end">100 %</span><span class="num" style="text-align:right">24.00</span></div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;border-top:1px solid var(--line);padding-top:10px"><span class="btn s">+ Add term</span><span><span class="mut" style="font-size:12px">result </span><span class="num" style="font-size:26px;letter-spacing:-.02em">15,650.66</span><span class="cur num">PLN</span></span></div>
+<div class="mut" style="font-size:12px;margin-top:6px">Sources are other recurring rules; coefficient is a percent of their amount. Cycles and non-positive results are blocked on save.</div></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px"><div><div class="eb" style="margin-bottom:4px">Description</div><div class="chip" style="width:100%;color:var(--ink)">na osobiste</div></div><div><div class="eb" style="margin-bottom:4px">Next due · Cadence</div><div style="display:flex;gap:8px"><span class="chip num" style="color:var(--ink)">2026-11-12</span><span class="chip" style="color:var(--ink)">Monthly ▾</span></div></div></div></div>
+<div style="padding:16px 28px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;margin-top:16px"><span class="mut" style="font-size:12.5px"><span class="kbd">⌘↵</span> save and add another</span><span style="display:flex;gap:8px"><span class="btn">Cancel</span><span class="btn p">Save rule ↵</span></span></div>
+</div></div></div>
+
+<div class="dv-opt" id="1m"><div class="dv-olabel"><a class="dv-oid" href="#1m">1m</a>Command palette</div>
+<div class="dv-card" style="width:640px"><div class="wrap" style="padding:30px"><div class="card" style="width:560px;box-shadow:0 12px 40px rgba(30,20,10,.22);background:var(--surf)" ><div class="mf" style="width:100%;min-height:0;padding:0;background:var(--surf);border-radius:10px">
+<div style="padding:16px 18px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center"><span class="mut">⌘K</span><span style="font-size:16px">prom</span><span style="width:1px;height:18px;background:var(--acc)"></span></div>
+<div style="padding:6px 8px 10px">
+<sc-for list="{{ pal }}" as="g" hint-placeholder-count="3"><div class="eb" style="padding:12px 10px 4px">{{ g.h }}</div><sc-for list="{{ g.items }}" as="p" hint-placeholder-count="3"><div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:6px;{{ p.s }}"><span>{{ p.l }} <span class="mut num" style="font-size:12px">{{ p.m }}</span></span><span class="kbd">{{ p.k }}</span></div></sc-for></sc-for>
+</div></div></div></div></div></div>
+
+<div class="dv-opt" id="1n"><div class="dv-olabel"><a class="dv-oid" href="#1n">1n</a>Settings · Categories as a page</div>
+<div class="dv-card fr" style="width:1000px;grid-template-columns:1fr">
+<div class="main" style="padding:30px 44px 40px">
+<div class="top"><div><div class="eb">Settings</div><h1 class="h1">Categories</h1></div><span class="btn p">+ New category</span></div>
+<div class="seg" style="margin-bottom:12px"><span class="on">Categories</span><span>Currency &amp; FX</span><span>Preferences</span></div>
+<div class="card" style="padding:14px 18px;display:flex;justify-content:space-between;align-items:center;margin:8px 0 18px"><span><b>Income anchor</b> <span class="mut">· starts each paycheck window</span></span><span class="chip" style="color:var(--ink)"><span class="pill" style="{{ cs.inc }}">Wypłata</span> ▾</span></div>
+<sc-for list="{{ catGroups }}" as="g" hint-placeholder-count="3">
+<div style="font:500 18px 'Newsreader',serif;padding:16px 0 4px;border-bottom:1px solid var(--ink)">{{ g.h }} <span class="mut" style="font:12px 'Hanken Grotesk'">{{ g.note }}</span></div>
+<sc-for list="{{ g.rows }}" as="c" hint-placeholder-count="5"><div class="row" style="grid-template-columns:240px 130px 1fr 150px;padding:7px 0"><span><span class="pill" style="{{ c.cs }}">{{ c.n }}</span></span><span><span class="db {{ c.dc }}">{{ c.dl }}</span></span><span class="mut" style="font-size:12.5px;display:flex;gap:8px;align-items:center"><i style="width:12px;height:12px;border-radius:50%;background:{{ c.sw }};display:inline-block"></i>{{ c.cn }}</span><span style="text-align:right;font-size:13px">{{ c.act }}</span></div></sc-for>
+</sc-for>
+<div class="mut" style="font-size:12px;margin-top:14px">"Archive" hides a category but keeps its history; archived categories are restorable. System categories cannot be edited.</div>
+</div></div></div>
+
+</div>
+
+<div class="dv-sub">Mobile · 390</div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1o"><div class="dv-olabel"><a class="dv-oid" href="#1o">1o</a>Today</div>
+<div class="dv-card mf">
+<div class="mh"><div class="eb">Wed 28 Oct</div><div style="display:flex;justify-content:space-between;align-items:center"><span class="h1" style="font-size:34px">Today</span><span class="tag ok">● On track</span></div></div>
+<div class="mp"><div class="card" style="padding:18px 18px 16px"><div class="eb">Left to spend per day</div><div style="font:400 76px/1 'Newsreader',serif;font-feature-settings:'lnum','tnum';margin:6px 0 0;letter-spacing:-.02em">191.08</div><div class="num mut" style="font-size:13px">PLN / day · 10 days left</div>
+<div class="bar" style="margin:14px 0 6px;height:8px"><div style="width:70.7%;background:var(--ink)"></div><div style="width:5.1%;background:repeating-linear-gradient(135deg,var(--ink) 0 2px,var(--sunk) 2px 5px)"></div><div style="flex:1;background:var(--accs)"></div></div>
+<div class="mut num" style="font-size:11.5px;display:flex;justify-content:space-between"><span>spent 5,595.00</span><span>left 1,910.78</span></div>
+<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;font-size:13px">Can I afford</span><span class="num" style="border:1px solid var(--acc);border-radius:6px;padding:4px 10px">250.00</span><span class="num neg" style="font-size:13px">→ 166.08</span></div></div>
+<div style="display:flex;justify-content:space-between;align-items:baseline;margin:22px 0 4px"><span class="h2">Upcoming</span><a href="#1o" style="font-size:13px">24 in 30 days</a></div>
+<sc-for list="{{ upM }}" as="r" hint-placeholder-count="5"><div class="row" style="grid-template-columns:1fr auto;gap:8px;padding:12px 0"><span><span style="font-weight:600">{{ r.n }}</span><br><span class="mut" style="font-size:12px">{{ r.d }} · {{ r.cat }}</span></span><span style="text-align:right"><span class="num {{ r.k }}">{{ r.a }}</span><br><span style="color:var(--acc);font-weight:600;font-size:12.5px">Promote ›</span></span></div></sc-for>
+<div class="mut" style="font-size:12px;margin-top:10px">Swipe right to promote, left to skip. Tap a row to override.</div>
+<div class="card" style="padding:14px 16px;margin-top:20px"><div class="eb">Net worth</div><div class="num" style="font-size:24px">52,748.21<span class="cur">PLN</span></div></div></div>
+<div class="mt"><sc-for list="{{ mt0 }}" as="t"><div class="{{ t.c }}"><i></i>{{ t.l }}</div></sc-for></div></div></div>
+
+<div class="dv-opt" id="1p"><div class="dv-olabel"><a class="dv-oid" href="#1p">1p</a>Ledger</div>
+<div class="dv-card mf">
+<div class="mh"><div class="eb">Ledger</div><div class="h1" style="font-size:34px">Ledger</div></div>
+<div class="mp"><div class="seg" style="display:flex;margin-bottom:12px"><span class="on" style="flex:1;text-align:center">Actual</span><span style="flex:1;text-align:center">Planned</span><span style="flex:1;text-align:center">Recurring</span></div>
+<div style="display:flex;gap:8px;overflow:hidden;padding-bottom:12px"><span class="chip">Oct ▾</span><span class="chip">Categories ▾</span><span class="chip">Accounts ▾</span><span class="chip">⌕</span></div>
+<sc-for list="{{ ledDaysM }}" as="g" hint-placeholder-count="2"><div style="display:flex;justify-content:space-between;padding:10px 0 4px;border-bottom:1px solid var(--ink)"><span style="font:500 16px 'Newsreader',serif">{{ g.day }}</span><span class="num mut" style="font-size:12px">{{ g.net }}</span></div>
+<sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="3"><div class="row" style="grid-template-columns:1fr auto;gap:8px;padding:10px 0"><span><span style="font-weight:500">{{ r.n }}</span><br><span class="pill" style="{{ r.cs }};margin-top:3px">{{ r.cat }}</span> <span class="db {{ r.dc }}" style="margin-top:3px">{{ r.dl }}</span></span><span class="num {{ r.k }}" style="text-align:right">{{ r.a }}</span></div></sc-for></sc-for></div>
+<div class="mt"><sc-for list="{{ mt1 }}" as="t"><div class="{{ t.c }}"><i></i>{{ t.l }}</div></sc-for></div></div></div>
+
+<div class="dv-opt" id="1q"><div class="dv-olabel"><a class="dv-oid" href="#1q">1q</a>Plan · Budget, and the year as category cards</div>
+<div class="dv-card mf">
+<div class="mh"><div class="eb">Plan</div><div class="h1" style="font-size:34px">October</div></div>
+<div class="mp"><div class="seg" style="display:flex;margin-bottom:14px"><span class="on" style="flex:1;text-align:center">Budget</span><span style="flex:1;text-align:center">Year</span><span style="flex:1;text-align:center">Forecast</span></div>
+<sc-for list="{{ budM }}" as="b" hint-placeholder-count="6"><div style="padding:11px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;align-items:center"><span class="pill" style="{{ b.cs }}">{{ b.cat }}</span><span class="num {{ b.k }}" style="font-size:13px">{{ b.r }} left</span></div><div class="bar" style="margin:8px 0 4px"><span style="width:{{ b.w }};background:{{ b.col }}"></span></div><div class="num mut" style="font-size:11.5px;display:flex;justify-content:space-between"><span>{{ b.a }} spent</span><span>of {{ b.p }}</span></div></div></sc-for>
+<div class="eb" style="margin:22px 0 6px">Year · WAKACJE I WYJAZDY</div>
+<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:3px"><sc-for list="{{ vac }}" as="c" hint-placeholder-count="12"><div class="hc {{ c.t }}" style="{{ c.s }};height:44px;flex-direction:column;font-size:10px"><span style="opacity:.7;font-size:9px">{{ c.m }}</span>{{ c.v }}</div></sc-for></div></div>
+<div class="mt"><sc-for list="{{ mt2 }}" as="t"><div class="{{ t.c }}"><i></i>{{ t.l }}</div></sc-for></div></div></div>
+
+<div class="dv-opt" id="1r"><div class="dv-olabel"><a class="dv-oid" href="#1r">1r</a>Plan · Forecast</div>
+<div class="dv-card mf">
+<div class="mh"><div class="eb">Plan</div><div class="h1" style="font-size:34px">Projected balance</div></div>
+<div class="mp"><div class="seg" style="display:flex;margin-bottom:14px"><span style="flex:1;text-align:center">Budget</span><span style="flex:1;text-align:center">Year</span><span class="on" style="flex:1;text-align:center">Forecast</span></div>
+<div class="num" style="font-size:26px">104,218.31<span class="cur">PLN</span></div><div class="mut" style="font-size:12px;margin-bottom:6px">end of Sep 2027 · from 49,775.97 today</div>
+<svg viewBox="0 0 350 150" width="100%"><polygon points="{{ fcm.area }}" fill="oklch(0.95 0.03 265)"></polygon><polyline points="{{ fcm.line }}" fill="none" stroke="oklch(0.45 0.14 265)" stroke-width="2"></polyline><text x="12" y="144" font-family="Hanken Grotesk" font-size="10" fill="oklch(0.5 0.01 70)">Oct</text><text x="338" y="144" text-anchor="end" font-family="Hanken Grotesk" font-size="10" fill="oklch(0.5 0.01 70)">Sep 27</text></svg>
+<sc-for list="{{ fcRowsM }}" as="r" hint-placeholder-count="6"><div class="row" style="grid-template-columns:1fr auto;gap:6px;padding:10px 0"><span><b>{{ r.m }}</b><br><span class="num mut" style="font-size:11.5px">+{{ r.i }} − {{ r.e }}</span></span><span style="text-align:right"><span class="num" style="font-weight:600">{{ r.b }}</span><br><span class="num {{ r.k }}" style="font-size:11.5px">{{ r.n }}</span></span></div></sc-for></div>
+<div class="mt"><sc-for list="{{ mt2 }}" as="t"><div class="{{ t.c }}"><i></i>{{ t.l }}</div></sc-for></div></div></div>
+
+<div class="dv-opt" id="1s"><div class="dv-olabel"><a class="dv-oid" href="#1s">1s</a>Accounts</div>
+<div class="dv-card mf">
+<div class="mh"><div class="eb">Accounts · 10</div><div class="num" style="font-size:30px;margin-top:4px">52,748.21<span class="cur">PLN</span></div><div class="mut num" style="font-size:12px">Assets 56,603.21 · Liabilities 3,855.00</div></div>
+<div class="mp">
+<sc-for list="{{ accsM }}" as="a" hint-placeholder-count="6"><div style="padding:12px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:500 17px 'Newsreader',serif">{{ a.n }}</span><span class="num {{ a.k }}">{{ a.b }}</span></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><span class="mut" style="font-size:12px">{{ a.t }} · <span class="{{ a.cc }}">{{ a.cl }}</span></span><svg width="80" height="20" viewBox="0 0 100 26"><polyline points="{{ a.pts }}" fill="none" stroke="oklch(0.45 0.14 265)" stroke-width="2"></polyline></svg></div></div></sc-for></div>
+<div class="mt"><sc-for list="{{ mt3 }}" as="t"><div class="{{ t.c }}"><i></i>{{ t.l }}</div></sc-for></div></div></div>
+
+<div class="dv-opt" id="1t"><div class="dv-olabel"><a class="dv-oid" href="#1t">1t</a>Add (bottom sheet)</div>
+<div class="dv-card mf" style="background:#cfcbc1">
+<div style="position:absolute;left:0;right:0;bottom:0;background:var(--surf);border-radius:18px 18px 0 0;padding:10px 20px 24px;box-shadow:0 -12px 40px rgba(30,20,10,.2)">
+<div style="width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 14px"></div>
+<div class="seg" style="display:flex"><span class="on" style="flex:1;text-align:center">Expense</span><span style="flex:1;text-align:center">Income</span><span style="flex:1;text-align:center">Transit</span></div>
+<div style="display:flex;align-items:baseline;gap:8px;margin:22px 0 4px;border-bottom:2px solid var(--acc);padding-bottom:4px"><span class="num" style="font-size:48px;letter-spacing:-.02em">32.00</span><span class="num mut" style="font-size:16px">PLN</span></div>
+<div class="mut num" style="font-size:12px;margin-bottom:14px">Today · leaves 187.87 / day</div>
+<div style="display:grid;gap:8px"><div class="chip" style="justify-content:space-between;color:var(--ink)"><span>Category</span><span class="pill" style="{{ cs.base }}">Takeaway</span></div><div class="chip" style="justify-content:space-between;color:var(--ink)"><span>Account</span><span>karta kredytowa</span></div><div class="chip" style="justify-content:space-between;color:var(--ink)"><span>Note</span><span class="mut">oyche</span></div><div class="chip" style="justify-content:space-between;color:var(--ink)"><span>Repeat</span><span class="mut">Once ▾</span></div></div>
+<div style="margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px"><sc-for list="{{ keys }}" as="k"><div style="text-align:center;padding:10px 0;font:500 18px 'IBM Plex Mono';border:1px solid var(--line);border-radius:8px">{{ k }}</div></sc-for></div>
+<div class="btn p" style="width:100%;justify-content:center;margin-top:12px;padding:12px">Save expense</div></div></div></div>
+
+</div>
+<p class="dv-next">Try next: "make the Today hero smaller and put accounts first" · "show the Year view as a stacked-bar timeline instead of a heatmap" · "build the Today screen as a clickable prototype" · "dark variant of the palette"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const H = { koszty: 320, bank: 205, podatki: 285, subs: 85, base: 28, inc: 155, tr: 230 };
+    const st = h => `background:oklch(0.94 0.045 ${h});color:oklch(0.4 0.13 ${h})`;
+    const cs = {}; Object.keys(H).forEach(k => cs[k] = st(H[k]));
+    const byName = { 'KOSZTY STAŁE': cs.koszty, 'OPŁATY BANKOWE': cs.bank, 'PODATKI': cs.podatki, 'SUBSKRYPCJE': cs.subs, 'WYPŁATA': cs.inc, 'WYPŁATA VAT': cs.inc, 'WPŁYWY INNE': cs.inc, 'Transit': cs.tr };
+    const c = n => byName[n] || cs.base;
+    const nav = a => ['Today:g o', 'Ledger:g l', 'Plan:g p', 'Accounts:g a'].map((s, i) => ({ l: s.split(':')[0], k: s.split(':')[1], c: i === a ? 'ni on' : 'ni' }));
+    const mt = a => ['Today', 'Ledger', '+', 'Plan', 'Accounts'].map((l, i) => ({ l: l === '+' ? '+' : l, c: l === '+' ? 'add' : ((['Today', 'Ledger', 'Plan', 'Accounts'][a] === l) ? 'on' : '') }));
+    const palette = [
+      ['Paper', 'oklch(0.985 0.004 85)', '#fbfaf6'], ['Sunk', 'oklch(0.962 0.006 85)', '#f3f1ec'], ['Hairline', 'oklch(0.9 0.008 85)', '#e2dfd7'], ['Ink', 'oklch(0.21 0.01 60)', '#25221e'],
+      ['Accent', 'oklch(0.45 0.14 265)', '#2f3fa8'], ['Income', 'oklch(0.45 0.11 155)', '#1f6b45'], ['Expense', 'oklch(0.5 0.15 28)', '#b03d2b'], ['Transit', 'oklch(0.45 0.09 230)', '#1f5f80']
+    ].map(p => ({ n: p[0], o: p[1].replace('oklch', ''), v: p[1] }));
+    const iaMap = [
+      { t: 'Today', q: 'What can I spend now?', d: 'Per-day hero, can-I-afford check, net worth, upcoming with inline promote.' },
+      { t: 'Ledger', q: 'What happened, what is committed?', d: 'Actual, Planned and Recurring as tabs. Transactions page folds in here.' },
+      { t: 'Plan', q: 'What should happen?', d: 'Budget, Year and Forecast in one place, sharing the paycheck period.' },
+      { t: 'Accounts', q: 'Where is the money?', d: 'Assets and liabilities, reconcile status, snapshots in the reconcile panel.' },
+      { t: 'Settings', q: 'How is it set up?', d: 'A page: Categories, FX, Preferences with the income anchor.' }
+    ];
+    const iaNotes = [
+      { q: 'Transactions into Ledger', a: 'Same list with the same filters. Bulk actions and export appear as a toolbar when rows are selected.' },
+      { q: 'Budget + Forecast merged', a: 'Both answer "how will the period go". Shared period header and horizon; the current forecast month reads from the budget summary.' },
+      { q: 'Overview absorbs part of Accounts', a: 'Today shows net worth and the largest balances. The full list and reconcile stay on Accounts, where the work happens.' },
+      { q: 'Quick add', a: 'A persistent Add in the top bar, n anywhere, and ⌘K actions. Mobile uses a centre tab. The FAB is dropped because it covered table content.' },
+      { q: 'Planned vs recurring', a: 'Still two concepts, but Upcoming lists them together with one set of actions (Promote, Skip, Override).' },
+      { q: 'Paycheck window', a: 'Shown as a one-line "Period 15 Oct → 7 Nov" under the hero and in the Plan header, with a link to change the anchor.' },
+      { q: 'Settings as a page', a: 'Categories need room for colours and archive. Drawer-sized forms remain for add/edit.' },
+      { q: 'Illustrative values', a: 'Reconcile bank balance, previous checks, three unit8 overrides and the Mar 2026 / Sep 2026 cell markers are mock; everything else follows your screenshots.' }
+    ];
+    const accTop = [['IKZE (mBank)', 'investment', '20,620.63', ''], ['fundusz awaryjny', 'savings', '15,000.00', ''], ['fundusz konserw.', 'investment', '8,931.38', ''], ['osobiste (mBank)', 'bank', '4,731.08', ''], ['lokata 6,5%', 'investment', '3,600.00', ''], ['karta kredytowa', 'credit card', '−3,855.00', 'neg']].map(a => ({ n: a[0], t: a[1], b: a[2], k: a[3] }));
+    const U = (d, n, acc, cat, a, k, f) => ({ d, n, acc, cat, cs: c(cat), a, k: k || '', f: f ? 'inline' : 'none' });
+    const upA = [U('Nov 01', 'prime', 'karta kredytowa', 'SUBSKRYPCJE', '15.50')];
+    const upB = [U('Nov 05', 'hbo', 'osobiste', 'SUBSKRYPCJE', '29.99'), U('Nov 07', 'mieszkanie', 'osobiste', 'KOSZTY STAŁE', '3,500.00'), U('Nov 07', 'unit8 wypłata', 'firmowe PLN', 'WYPŁATA', '+20,945.45', 'pos', 1), U('Nov 12', 'ZUS', 'firmowe PLN', 'PODATKI', '2,757.34'), U('Nov 12', 'na osobiste', 'firmowe PLN', 'Transit', '15,650.66', '', 1)];
+    const upM = [['księgowa', 'Nov 01', 'KOSZTY STAŁE', '356.70', ''], ['prime', 'Nov 01', 'SUBSKRYPCJE', '15.50', ''], ['hbo', 'Nov 05', 'SUBSKRYPCJE', '29.99', ''], ['mieszkanie', 'Nov 07', 'KOSZTY STAŁE', '3,500.00', ''], ['unit8 wypłata', 'Nov 07', 'WYPŁATA', '+20,945.45', 'pos']].map(a => ({ n: a[0], d: a[1], cat: a[2], a: a[3], k: a[4] }));
+    const D = { e: ['e', '↓ Expense'], i: ['i', '↑ Income'], t: ['t', '⇄ Transit'] };
+    const L = (n, acc, cat, a, d) => ({ n, acc, cat, cs: c(cat), a: (d === 'i' ? '+' : d === 't' ? '' : '−') + a, k: d === 'i' ? 'pos' : '', dc: D[d][0], dl: D[d][1] });
+    const ledDays = [
+      { day: 'Tue 27 Oct', net: '−801.89', rows: [L('cinema city', 'karta kredytowa', 'WYJŚCIA', '175.50', 'e'), L('apteka', 'karta kredytowa', 'ZDROWIE I URODA', '39.50', 'e'), L('oyche', 'karta kredytowa', 'TAKEAWAY', '32.00', 'e'), L('claude max', 'karta kredytowa', 'SUBSKRYPCJE', '554.89', 'e')] },
+      { day: 'Mon 26 Oct', net: '−331.39', rows: [L('?', 'karta kredytowa', 'INNE', '19.70', 'e'), L('od Stacha za kino', 'osobiste', 'WPŁYWY INNE', '31.00', 'i'), L('pizza fresca', 'karta kredytowa', 'TAKEAWAY', '60.19', 'e'), L('lidl', 'karta kredytowa', 'ZAKUPY CODZIENNE', '218.50', 'e'), L('zobaczysz wszystko w baranach', 'osobiste', 'ROZRYWKA', '64.00', 'e'), L('spłata karty', 'osobiste → karta kredytowa', 'Transit', '31.00', 't')] },
+      { day: 'Sun 25 Oct', net: '−77.98', rows: [L('autostrada', 'karta kredytowa', 'TRANSPORT', '36.00', 'e'), L('kfc', 'karta kredytowa', 'TAKEAWAY', '5.00', 'e')] }
+    ];
+    const ledDaysM = [ledDays[0], { day: ledDays[1].day, net: ledDays[1].net, rows: ledDays[1].rows.slice(0, 3) }];
+    const R = (d, n, acc, cat, a, o) => ({ d, n, acc, cat, cs: c(cat), a, o: o || '0' });
+    const recA = [R('01 Nov', 'księgowa', 'karta kredytowa (mBank)', 'KOSZTY STAŁE', '356.70'), R('01 Nov', 'prime', 'karta kredytowa (mBank)', 'SUBSKRYPCJE', '15.50'), R('07 Nov', 'mieszkanie', 'osobiste (mBank)', 'KOSZTY STAŁE', '3,500.00')];
+    const recB = [R('12 Nov', 'ZUS', 'firmowe PLN (mBank)', 'PODATKI', '2,757.34', '1'), R('15 Nov', 'kredyt auto', 'osobiste (mBank)', 'KOSZTY STAŁE', '2,642.16')];
+    const recY = [R('07 Mar 27', 'unit8 PROFIT SHARE', 'firmowe PLN (mBank)', 'WYPŁATA', '43,200.00'), R('10 Mar 27', 'multisport', 'firmowe PLN (mBank)', 'SPORT I HOBBY', '1,111.00'), R('10 Mar 27', 'UBEZPIECZENIE AUTO', 'osobiste (mBank)', 'SAMOCHÓD', '5,000.00')];
+    const ovr = [{ d: 'Dec 07', c: 'a', l: 'Amount', v: '21,500.00' }, { d: 'Jan 07', c: 'e', l: 'Skipped', v: '' }, { d: 'Feb 07', c: 't', l: 'Moved', v: '→ Feb 09' }];
+    const deriv = [{ s: '+', n: 'unit8 wypłata', c: 'rule', v: '20,945.45' }, { s: '−', n: 'ZUS', c: 'rule', v: '2,757.34' }, { s: '−', n: 'dochodowy', c: 'rule', v: '2,513.45' }, { s: '−', n: 'opłaty bankowe', c: 'rule', v: '24.00' }];
+    const B = (cat, p, a, ov) => { const pn = parseFloat(p.replace(/,/g, '')), an = parseFloat(a.replace(/,/g, '')); const left = pn - an; const over = left < 0; const f = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); return { cat, cs: c(cat), p, a, ps: ov ? 'font-weight:700;box-shadow:inset 0 -2px 0 var(--acc)' : '', w: Math.min(100, an / pn * 100).toFixed(0) + '%', col: over ? 'var(--exp)' : 'var(--ink)', r: (over ? '−' : '') + f(Math.abs(left)), k: over ? 'neg' : '' }; };
+    const bud = [B('INNE', '500.00', '306.58'), B('PREZENTY', '500.00', '0.00'), B('ROZRYWKA', '250.00', '332.09'), B('SAMOCHÓD', '500.00', '164.43'), B('SPORT I HOBBY', '500.00', '24.00'), B('SUBSKRYPCJE', '157.97', '712.86'), B('TAKEAWAY', '500.00', '726.74'), B('TRANSPORT', '250.00', '275.28'), B('WAKACJE I WYJAZDY', '1,250.00', '44.76'), B('WYJŚCIA', '900.00', '1,741.50', 1), B('ZAKUPY CODZIENNE', '1,500.00', '573.32'), B('ZAKUPY WIĘKSZE', '750.00', '279.00'), B('ZDROWIE I URODA', '500.00', '414.44')];
+    const budM = bud.slice(0, 7).map(b => ({ ...b, p: b.p }));
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const heat = v => { const t = Math.sqrt(Math.min(v, 1600) / 1600); return `background:oklch(${(0.97 - 0.24 * t).toFixed(3)} ${(0.012 + 0.07 * t).toFixed(3)} 265);color:${t > 0.62 ? '#fff' : 'oklch(0.21 0.01 60)'}`; };
+    const fmt = n => n.toLocaleString('en-US', { minimumFractionDigits: 0 });
+    const Y = (cat, v, ov) => { const vals = Array(12).fill(v); const ot = {}; if (ov) Object.assign(ot, ov); const cells = vals.map((x, i) => { const val = ot[i] ? ot[i][0] : x; const t = ot[i] ? ot[i][1] : ''; return { v: val === 0 ? '—' : fmt(val), t, s: val === 0 ? 'background:var(--sunk);color:var(--mute)' : heat(val) }; }); const tot = cells.reduce((s, _, i) => s + (ot[i] ? ot[i][0] : v), 0); return { cat, cs: c(cat), cells, tot: tot ? fmt(tot) : '—' }; };
+    const yr = [Y('INNE', 500), Y('PREZENTY', 500), Y('ROZRYWKA', 250), Y('SAMOCHÓD', 500, { 2: [5000, 'r'] }), Y('SPORT I HOBBY', 500), Y('SUBSKRYPCJE', 158), Y('TAKEAWAY', 500), Y('TRANSPORT', 250), Y('WAKACJE I WYJAZDY', 1250, { 8: [16000, 'o'] }), Y('WYJŚCIA', 750), Y('ZAKUPY CODZIENNE', 1500), Y('ZAKUPY WIĘKSZE', 750), Y('ZDROWIE I URODA', 500)];
+    const vac = months.map((m, i) => { const v = i === 8 ? 16000 : 1250; return { m, v: fmt(v), t: i === 8 ? 'o' : '', s: heat(v) }; });
+    const bal = [49775.97, 50696.83, 51809.68, 55692.43, 59301.29, 95815.15, 99674.01, 103532.87, 107391.73, 111250.59, 115109.45, 104218.31];
+    const mn = ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'];
+    const X = i => 70 + i * (800 / 11), Yy = v => 240 - (v - 40000) / 80000 * 200;
+    const dots = bal.map((v, i) => ({ x: X(i).toFixed(1), y: Yy(v).toFixed(1), m: mn[i] }));
+    const line = dots.map(d => d.x + ',' + d.y).join(' ');
+    const fc = { line, area: `${X(0)},240 ${line} ${X(11)},240`, dots, grid: [40, 60, 80, 100, 120].map(k => ({ y: Yy(k * 1000).toFixed(1), ty: (Yy(k * 1000) + 4).toFixed(1), l: k + 'k' })), a1: { x: X(5).toFixed(1), y: Yy(bal[5]).toFixed(1), ly: 70, tx: (X(5) + 8).toFixed(1) }, a2: { x: X(11).toFixed(1), y: Yy(bal[11]).toFixed(1), ly: 100, tx: (X(11) - 8).toFixed(1) } };
+    const mx = (i, j) => 12 + i * (326 / 11), my = v => 130 - (v - 40000) / 80000 * 110;
+    const ml = bal.map((v, i) => mx(i).toFixed(1) + ',' + my(v).toFixed(1)).join(' ');
+    const fcm = { line: ml, area: `${mx(0)},135 ${ml} ${mx(11)},135` };
+    const F = (m, i, e, p, n, b) => { const neg = n.startsWith('-'); const v = Math.abs(parseFloat(n.replace(/[-,]/g, ''))); return { m, i, e, p, n: (neg ? '−' : '') + n.replace('-', ''), k: neg ? 'neg' : '', b, w: Math.max(3, v / 36513 * 56).toFixed(0) + 'px', col: neg ? 'var(--exp)' : 'var(--inc)', o: neg ? 0 : 2 }; };
+    const fcRows = [F('Oct 2026', '0.00', '402.19', '1,910.78', '-2,312.97', '49,775.97'), F('Nov 2026', '26,762.90', '18,147.04', '7,695.00', '920.86', '50,696.83'), F('Dec 2026', '27,031.26', '18,223.41', '7,695.00', '1,112.85', '51,809.68'), F('Jan 2027', '28,209.74', '16,631.99', '7,695.00', '3,882.75', '55,692.43'), F('Feb 2027', '30,520.00', '19,216.14', '7,695.00', '3,608.86', '59,301.29'), F('Mar 2027', '83,656.00', '40,447.14', '6,695.00', '36,513.86', '95,815.15'), F('Apr 2027', '30,520.00', '19,216.14', '7,445.00', '3,858.86', '99,674.01'), F('May 2027', '30,520.00', '19,216.14', '7,445.00', '3,858.86', '103,532.87'), F('Jun 2027', '30,520.00', '19,216.14', '7,445.00', '3,858.86', '107,391.73'), F('Jul 2027', '30,520.00', '19,216.14', '7,445.00', '3,858.86', '111,250.59'), F('Aug 2027', '30,520.00', '19,216.14', '7,445.00', '3,858.86', '115,109.45'), F('Sep 2027', '30,520.00', '19,216.14', '22,195.00', '-10,891.14', '104,218.31')];
+    const fcRowsM = [fcRows[0], fcRows[1], fcRows[2], fcRows[5], fcRows[10], fcRows[11]].map(r => ({ ...r, n: (r.k ? '' : '+') + r.n }));
+    const sp = (seed, flat) => { let y = 13, pts = []; for (let i = 0; i < 20; i++) { const r = Math.sin(seed * 9.1 + i * 1.7) * Math.cos(seed + i * 0.6); y = flat ? 13 + r * 1.5 : Math.max(3, Math.min(23, y + r * 6)); pts.push((i * 100 / 19).toFixed(1) + ',' + y.toFixed(1)); } return pts.join(' '); };
+    const A = (n, t, b, tx, seed, ck, cl, o) => ({ n, t, b, tx, pts: sp(seed, o && o.flat), k: b.startsWith('−') ? 'neg' : '', ck, cl, cd: o && o.cc ? 'block' : 'none', cc: ck === 'ok' ? 'pos' : 'mut' });
+    const accs = [A('IKZE (mBank)', 'investment', '20,620.63', '1', 1, 'ok', 'today', { flat: 1 }), A('fundusz awaryjny', 'savings', '15,000.00', '8', 2, 'ok', '14 Oct'), A('fundusz konserwatywny', 'investment', '8,931.38', '5', 3, 'ok', '14 Oct'), A('osobiste (mBank)', 'bank', '4,731.08', '83', 4, 'wn', '14 days ago'), A('IKE (mBank)', 'investment', '3,555.12', '1', 5, 'ok', '14 Oct', { flat: 1 }), A('lokata 6,5% (mBank)', 'investment', '3,600.00', '0', 6, 'ok', '14 Oct', { flat: 1 }), A('gotówka', 'cash', '160.00', '11', 7, 'ok', '14 Oct'), A('firmowe PLN (mBank)', 'bank', '5.00', '24', 8, 'ok', '14 Oct'), A('revolut', 'bank', '0.00', '30', 9, 'ok', '3 Oct'), A('karta kredytowa (mBank)', 'credit card · liability', '−3,855.00', '456', 10, 'wn', '14 days ago', { cc: 1 })];
+    accs.forEach(a => { a.cl = a.cl; });
+    const accsM = accs.slice(0, 6).map(a => ({ ...a, cl: a.cl === 'today' ? 'checked today' : 'checked ' + a.cl }));
+    const pal = [{ h: 'Actions', items: [{ l: 'Promote księgowa', m: '356.70 PLN · due Nov 01', k: '↵', s: 'background:var(--accs);box-shadow:inset 2px 0 0 var(--acc)' }, { l: 'Promote prime', m: '15.50 PLN', k: '', s: '' }, { l: 'Promote all due', m: '', k: '⇧↵', s: '' }] }, { h: 'Go to', items: [{ l: 'Plan · Budget', m: '', k: 'g p', s: '' }, { l: 'Ledger · Planned', m: '', k: 'g l', s: '' }] }, { h: 'Create', items: [{ l: 'Add transaction', m: '', k: 'n', s: '' }, { l: 'Reconcile osobiste (mBank)', m: '', k: '', s: '' }] }];
+    const CG = (n, d, cn, act) => { const key = d === 'i' ? 'inc' : n === 'Transit' ? 'tr' : null; const map = { 'KOSZTY STAŁE': 'koszty', 'OPŁATY BANKOWE': 'bank', 'PODATKI': 'podatki', 'SUBSKRYPCJE': 'subs' }; const k = map[n] || key || 'base'; const sys = n.includes('system') || n === 'Transit'; return { n, cs: cs[k], dc: d === 'a' ? 'a' : d === 'i' ? 'i' : d === 't' ? 't' : 'e', dl: { e: '↓ Expense', i: '↑ Income', t: '⇄ Transit', a: '± Adjust' }[d], cn: cn || 'Direction default', sw: map[n] ? `oklch(0.6 0.16 ${H[map[n]]})` : 'oklch(0.8 0.01 80)', act: sys ? 'locked' : act || 'Edit · Archive' }; };
+    const catGroups = [
+      { h: 'Expense', note: '16', rows: ['INNE', 'KOSZTY STAŁE', 'OPŁATY BANKOWE', 'PODATKI', 'PREZENTY', 'ROZRYWKA', 'SAMOCHÓD', 'SPORT I HOBBY', 'SUBSKRYPCJE', 'TAKEAWAY', 'TRANSPORT', 'WAKACJE I WYJAZDY', 'WYJŚCIA', 'ZAKUPY CODZIENNE', 'ZAKUPY WIĘKSZE', 'ZDROWIE I URODA'].map(n => CG(n, 'e', ({ 'KOSZTY STAŁE': 'Override · magenta', 'OPŁATY BANKOWE': 'Override · cyan', 'PODATKI': 'Override · violet', 'SUBSKRYPCJE': 'Override · gold' })[n])) },
+      { h: 'Income', note: '6', rows: ['ODSETKI', 'PROFIT SHARE', 'Salary', 'WPŁYWY INNE', 'WYPŁATA', 'WYPŁATA VAT'].map(n => CG(n, 'i', n === 'WYPŁATA' ? 'Income anchor' : '')) },
+      { h: 'System', note: 'read-only', rows: [CG('Reconciliation (system)', 'a'), CG('Transit', 't')] }
+    ];
+    const AN = (cat, a, avg) => { const d = a - avg; return { cat, cs: c(cat), a: fmt2(a), avg: fmt2(avg), d: (d > 0 ? '+' : '−') + fmt2(Math.abs(d)), k: d > 0 ? 'neg' : 'pos', w: (a / 10833.34 * 100).toFixed(1) + '%' }; };
+    function fmt2(n) { return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    const an = [AN('PODATKI', 10833.34, 9670.44), AN('KOSZTY STAŁE', 7254.99, 7460.11), AN('WYJŚCIA', 1741.5, 1662.8), AN('TAKEAWAY', 726.74, 646.98), AN('SUBSKRYPCJE', 712.86, 461.48), AN('ZAKUPY CODZIENNE', 573.32, 945.3), AN('ZDROWIE I URODA', 414.44, 575.02), AN('ROZRYWKA', 332.09, 745.3), AN('INNE', 306.58, 559.85), AN('TRANSPORT', 275.28, 342.45)];
+    const ie = [['Jul', 32, 32.2], ['Aug', 33, 34.5], ['Sep', 33.5, 35.5], ['Oct', 39, 27.8]].map((g, i) => ({ m: g[0], x: 50 + i * 110, hi: g[1] * 4, yi: 170 - g[1] * 4, he: g[2] * 4, ye: 170 - g[2] * 4, x2: 50 + i * 110 + 40, tx: 50 + i * 110 + 38 }));
+    const swatches = [20, 55, 85, 130, 155, 190, 230, 265, 300, 340].map(h => ({ v: `oklch(0.6 0.15 ${h})`, ring: h === 300 ? 'box-shadow:0 0 0 2px var(--surf),0 0 0 4px var(--ink)' : '' }));
+    return { an, ie, swatches, cs, palette, iaMap, iaNotes, nav0: nav(0), nav1: nav(1), nav2: nav(2), nav3: nav(3), mt0: mt(0), mt1: mt(1), mt2: mt(2), mt3: mt(3), accTop, upA, upB, upM, ledDays, ledDaysM, recA, recB, recY, ovr, deriv, bud, budM, months, yr, vac, fc, fcm, fcRows, fcRowsM, accs, accsM, pal, catGroups, keys: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'] };
+  }
+}
+</script>
+</body>
+</html>

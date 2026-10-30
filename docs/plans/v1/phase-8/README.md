@@ -1,6 +1,6 @@
 # Phase 8 — Post-redesign UX fixes
 
-> Driven by hands-on report (2026-10-27) after Phase 6 landed. Ten observations, consolidated into five change groups. Scope is **UX bugfix + polish only**; no new features, no new data, no scope creep into Phase 9 (user preferences) or Phase 7/v2.
+> Driven by hands-on report (2026-10-27) after Phase 6 landed. Ten observations, consolidated into five change groups. Scope is **UX bugfix + polish only**; no new features, no new data, no scope creep into Phase 9 (user preferences) or Phase 7 / v3 (remote deployment — originally labelled v2 before the 2026-10-28 renumber).
 
 ## Observations (raw)
 

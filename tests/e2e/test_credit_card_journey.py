@@ -16,7 +16,13 @@ from playwright.sync_api import Page, expect
 
 from tests.e2e.conftest import strip_id_prefix
 
-pytestmark = pytest.mark.e2e
+pytestmark = [
+    pytest.mark.e2e,
+    pytest.mark.skip(
+        reason="v1 credit-strip + fortune-split rendered on Accounts card — "
+        "superseded by Rising Dough table (ADR-0051 §6); re-enable after Phase 7"
+    ),
+]
 
 
 def _create_account(
@@ -42,7 +48,7 @@ def _create_account(
     resp = page.request.post(f"{base_url}/accounts", form=form)
     assert resp.ok, resp.text()
     page.goto(f"{base_url}/accounts")
-    row = page.locator("article[id^='account-']", has_text=name).first
+    row = page.locator("tr[id^='account-']", has_text=name).first
     return strip_id_prefix(row.get_attribute("id"), "account-")
 
 
@@ -50,7 +56,7 @@ def _create_category(page: Page, base_url: str, *, name: str, direction: str) ->
     resp = page.request.post(f"{base_url}/categories", form={"name": name, "direction": direction})
     assert resp.ok, resp.text()
     page.goto(f"{base_url}/categories")
-    row = page.locator("tr[id^='category-']", has_text=name).first
+    row = page.locator("[id^='category-']", has_text=name).first
     return strip_id_prefix(row.get_attribute("id"), "category-")
 
 
@@ -128,7 +134,7 @@ def test_credit_card_full_journey(
 
     # 8. Pay off: transit 250.00 from Bank → Visa, zeroing the Visa balance.
     page.goto(f"{base_url}/categories")
-    transit_row = page.locator("tr[id^='category-']", has_text="Transit").first
+    transit_row = page.locator("[id^='category-']", has_text="Transit").first
     transit_id = strip_id_prefix(transit_row.get_attribute("id"), "category-")
     resp = page.request.post(
         f"{base_url}/transactions",

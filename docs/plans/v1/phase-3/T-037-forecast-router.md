@@ -156,5 +156,5 @@ A **single hero chart with editorial restraint**, not a dashboard:
 ## Handoff notes
 
 - T-031 / T-032 / T-034 / T-035 emit `balance-stale` and / or `forecast-stale` on their mutations; this router consumes both. No new coordination required.
-- Any future router that invalidates forecast (e.g. a v2 trend overlay) must emit `forecast-stale`. Document in T-030 HTMX event table before implementation.
+- Any future router that invalidates forecast (e.g. a trend overlay) must emit `forecast-stale`. Document in T-030 HTMX event table before implementation.
 - The `ForecastSeries.to_plotly_figure()` conversion lives in the **router module** (presentation concern) or a tiny `src/budget_planner/web/plot.py` helper — not in `services.forecast`. The service returns raw numeric arrays; the router transforms to Plotly JSON. Keeps services UI-free.

@@ -1,12 +1,14 @@
-{# T-110 / ADR-0030 §4 — reconcile dialog migrates to the shared slide-over
-   wrapper so it inherits the visible close affordance, Esc dismissal, and
-   backdrop-click dismissal from `_partials/slide_over_header.html`.
+{# T-R39 — Reconcile slide-over reskinned to Rising Dough chrome.
 
-   Called by `/accounts/{id}/reconcile` (GET) with:
-     - account:   Account | None (None → 404 branch).
-     - derived:   int (minor units, 0 when account missing).
-     - errors:    dict[str, str] (inline form errors). #}
-{% from "_partials/slide_over_header.html" import slide_over_header %}
+   Mockup `docs/application_redesign_handoff/mockups/screenshots/overlay-1k-reconcile.png`.
+   ADR-0030 §4 (shared slide-over header + close), ADR-0011 (reconcile adjustment),
+   ADR-0051 §6. Server contract unchanged.
+
+   Context:
+     - account:    Account | None
+     - derived:    int minor units (Rising Dough's current balance)
+     - snapshots:  list[AccountSnapshot] (previous checks, up to 5)
+     - errors:     dict[str, str] #}
 <div class="slide-over-root"
      role="dialog"
      aria-modal="true"
@@ -14,27 +16,163 @@
      data-slideover
      onclick="if(event.target===this){this.parentElement.innerHTML='';}">
   <aside class="slide-over" tabindex="-1">
-    {{ slide_over_header(title="Reconcile", heading_id="rec-title") }}
+    <header class="slide-over__header rd-reconcile-header">
+      <div>
+        <div class="rd-eyebrow">Reconcile</div>
+        <h2 id="rec-title" class="slide-over__title">{{ account.name if account else "Reconcile" }}</h2>
+      </div>
+      <button type="button"
+              class="slide-over__close"
+              aria-label="Close"
+              onclick="this.closest('#modal-root').innerHTML='';">
+        <span aria-hidden="true">×</span>
+      </button>
+    </header>
     <div class="slide-over__body">
-      <form hx-post="/accounts/{{ account.id if account else 0 }}/reconcile"
-            hx-target="#account-{{ account.id if account else 0 }}"
-            hx-swap="outerHTML"
-            class="form-stack reconcile-form"
-            data-reset-on-submit>
-        {% if account %}
-          <p class="text-muted text-sm">
-            Derived: <span class="tabular-nums">{{ derived|money(account.currency) }}</span>
+      {% if account %}
+        <form hx-post="/accounts/{{ account.id }}/reconcile"
+              hx-target="#account-{{ account.id }}"
+              hx-swap="outerHTML"
+              hx-on::after-request="if(event.detail.successful){var r=document.querySelector('.slide-over-root');if(r&&r.parentElement){r.parentElement.innerHTML='';}}"
+              class="rd-form reconcile-form"
+              data-reconcile-form
+              data-currency="{{ account.currency }}"
+              data-derived="{{ derived }}"
+              data-reset-on-submit>
+          <ol class="rd-reconcile-steps" aria-label="Reconcile steps">
+            <li class="rd-reconcile-steps__item rd-reconcile-steps__item--active">
+              <span>①</span> Open your bank
+            </li>
+            <li class="rd-reconcile-steps__item">
+              <span>②</span> Enter its balance
+            </li>
+            <li class="rd-reconcile-steps__item">
+              <span>③</span> Review
+            </li>
+          </ol>
+          <p class="rd-field__help">
+            Compare this account with your bank. If the numbers differ, the app records the gap as a separate correction. Nothing you entered is changed or deleted.
           </p>
-          <label>
-            Actual balance
-            <input type="text" name="actual_balance" data-numeric required>
+          <div class="rd-form-row rd-form-row--2col rd-reconcile-grid">
+            <div class="rd-field">
+              <span class="rd-field__label">Rising Dough says</span>
+              <strong class="rd-reconcile-figure numeric">
+                {{ "{:,.2f}".format(derived / 100.0) }}
+                <small>{{ account.currency }}</small>
+              </strong>
+            </div>
+            <label class="rd-field">
+              <span class="rd-field__label">Your bank says</span>
+              <span class="rd-field__suffix" data-suffix="{{ account.currency }}">
+                <input type="text"
+                       name="actual_balance"
+                       inputmode="decimal"
+                       data-numeric
+                       data-reconcile-actual
+                       autocomplete="off"
+                       autofocus
+                       placeholder="0.00"
+                       required>
+              </span>
+            </label>
+          </div>
+          <aside class="rd-reconcile-delta"
+                 data-reconcile-delta
+                 hidden
+                 aria-live="polite">
+            <div class="rd-reconcile-delta__head">
+              <strong>Difference</strong>
+              <span class="numeric" data-reconcile-delta-amount></span>
+            </div>
+            <p class="rd-reconcile-delta__hint">Will be saved as an adjustment. It appears in the ledger and can be undone.</p>
+          </aside>
+          {# F-03 — Record-as category selector + Also-save-snapshot checkbox. #}
+          <label class="rd-field">
+            <span class="rd-field__label">Record as</span>
+            <select name="category_id">
+              <option value="">±ADJUST · Reconciliation (system)</option>
+              {% for c in (categories or []) %}
+                <option value="{{ c.id }}">{{ c.direction.value|upper }} · {{ c.name }}</option>
+              {% endfor %}
+            </select>
           </label>
-        {% endif %}
-        {% include "partials/_form_errors.html" %}
-        <div class="form-stack__actions">
-          <button type="submit" class="btn-accent">Reconcile</button>
-        </div>
-      </form>
+          <label class="form-stack__inline" style="margin-top: 0.25rem;">
+            <input type="checkbox" name="save_snapshot" value="1">
+            Also save a balance snapshot
+          </label>
+          {% include "partials/_form_errors.html" %}
+          {% if snapshots is defined and snapshots %}
+            <section class="rd-reconcile-prev">
+              <span class="rd-eyebrow">Previous checks</span>
+              <ul>
+                {% for snap in snapshots %}
+                  <li>
+                    <span>{{ snap.taken_at.strftime("%d %b") if snap.taken_at else "—" }}</span>
+                    <span class="numeric">{{ "{:,.2f}".format(snap.balance / 100.0) }}</span>
+                  </li>
+                {% endfor %}
+              </ul>
+            </section>
+          {% endif %}
+          <footer class="rd-slideover-footer">
+            <button type="button"
+                    class="rd-btn rd-btn--ghost"
+                    onclick="var r=this.closest('.slide-over-root');if(r&&r.parentElement){r.parentElement.innerHTML='';}">
+              Cancel
+            </button>
+            <button type="submit" class="rd-btn rd-btn--primary" data-reconcile-submit>Record ↩</button>
+          </footer>
+        </form>
+      {% else %}
+        <p class="rd-field__help">Account not found.</p>
+      {% endif %}
     </div>
   </aside>
 </div>
+<script>
+  // T-R39 — live Difference callout + Record button amount.
+  (function () {
+    function wire(form) {
+      if (!form || form.dataset.recWired === "1") return;
+      form.dataset.recWired = "1";
+      var ccy = form.dataset.currency || "";
+      var derivedMinor = parseInt(form.dataset.derived || "0", 10);
+      var input = form.querySelector("[data-reconcile-actual]");
+      var delta = form.querySelector("[data-reconcile-delta]");
+      var amountEl = form.querySelector("[data-reconcile-delta-amount]");
+      var submitBtn = form.querySelector("[data-reconcile-submit]");
+      function parseMajor(v) {
+        if (!v) return null;
+        var s = v.toString().replace(",", ".").trim();
+        var n = parseFloat(s);
+        return Number.isFinite(n) ? n : null;
+      }
+      function fmt(n) {
+        return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+      function sync() {
+        var val = parseMajor(input.value);
+        if (val === null) {
+          if (delta) delta.setAttribute("hidden", "");
+          if (submitBtn) submitBtn.textContent = "Record ↩";
+          return;
+        }
+        var deltaMajor = val - (derivedMinor / 100);
+        var sign = deltaMajor > 0 ? "+" : (deltaMajor < 0 ? "−" : "");
+        var absAmount = fmt(Math.abs(deltaMajor));
+        if (amountEl) amountEl.textContent = sign + absAmount + " " + ccy;
+        if (delta) delta.removeAttribute("hidden");
+        if (submitBtn) submitBtn.textContent = "Record " + (deltaMajor === 0 ? "0.00" : sign + absAmount) + " ↩";
+      }
+      input.addEventListener("input", sync);
+      sync();
+    }
+    document.querySelectorAll("[data-reconcile-form]").forEach(wire);
+    document.addEventListener("htmx:afterSwap", function (evt) {
+      var root = evt.target;
+      if (!root) return;
+      if (root.matches && root.matches("[data-reconcile-form]")) { wire(root); return; }
+      if (root.querySelectorAll) root.querySelectorAll("[data-reconcile-form]").forEach(wire);
+    });
+  })();
+</script>

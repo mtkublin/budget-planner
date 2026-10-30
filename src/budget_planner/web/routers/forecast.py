@@ -1,13 +1,15 @@
-"""Forecast router (T-037, ADR-0043).
+"""Forecast router (T-037, ADR-0043; T-R50 removes Plotly per ADR-0054).
 
 The user-facing horizon is specified in **months** (ADR-0043) and expanded
 to days at the router boundary so the pure daily projection service stays
 unchanged. Chart granularity is monthly: one point per month at EOM.
+
+Charts are now server-rendered SVG via :mod:`budget_planner.web.charts`
+(ADR-0054); Plotly has been removed.
 """
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from datetime import date
 
@@ -17,6 +19,7 @@ from fastapi.responses import HTMLResponse
 
 from budget_planner.config import Settings
 from budget_planner.services import forecast as forecast_service
+from budget_planner.web import charts
 from budget_planner.web.deps import get_db, get_settings_dep
 from budget_planner.web.rendering import render
 
@@ -25,6 +28,7 @@ router = APIRouter(prefix="/forecast", tags=["forecast"])
 _DEFAULT_HORIZON_MONTHS = 12
 _MIN_HORIZON_MONTHS = 1
 _MAX_HORIZON_MONTHS = 60
+_MINOR_UNITS_PER_MAJOR = 100.0
 
 
 def _parse_horizon_months(request: Request) -> int:
@@ -33,28 +37,6 @@ def _parse_horizon_months(request: Request) -> int:
     except (TypeError, ValueError):
         return _DEFAULT_HORIZON_MONTHS
     return max(_MIN_HORIZON_MONTHS, min(val, _MAX_HORIZON_MONTHS))
-
-
-def _monthly_to_plotly(monthly: forecast_service.MonthlySeries) -> dict[str, object]:
-    xs = [m.month.isoformat() for m in monthly.months]
-    totals = [m.end_balance_base_minor / 100 for m in monthly.months]
-    return {
-        "data": [
-            {
-                "x": xs,
-                "y": totals,
-                "type": "scatter",
-                "mode": "lines+markers",
-                "name": "Projected fortune (EOM)",
-            }
-        ],
-        "layout": {
-            "title": f"Forecast · {monthly.start_month} → {monthly.end_month}",
-            "yaxis": {"title": f"{monthly.base_currency} (major)"},
-            "xaxis": {"tickformat": "%b %Y"},
-            "margin": {"t": 40, "r": 20, "b": 40, "l": 60},
-        },
-    }
 
 
 def _compute(
@@ -69,6 +51,15 @@ def _compute(
         )
 
 
+def _series_to_chart(monthly: forecast_service.MonthlySeries) -> charts.LineAreaChart:
+    points = tuple(
+        (float(i), m.end_balance_base_minor / _MINOR_UNITS_PER_MAJOR)
+        for i, m in enumerate(monthly.months)
+    )
+    labels = tuple(m.month.strftime("%b %Y") for m in monthly.months)
+    return charts.line_area(points, x_labels=labels)
+
+
 @router.get("", response_class=HTMLResponse)
 def index(
     request: Request,
@@ -77,13 +68,13 @@ def index(
 ) -> HTMLResponse:
     horizon_months = _parse_horizon_months(request)
     monthly = _compute(conn, settings, horizon_months)
-    plotly_json = json.dumps(_monthly_to_plotly(monthly))
+    chart = _series_to_chart(monthly)
     return render(
         request,
         "forecast/index.html",
         horizon_months=horizon_months,
         monthly=monthly,
-        plotly_json=plotly_json,
+        chart=chart,
     )
 
 
@@ -95,11 +86,11 @@ def view_fragment(
 ) -> HTMLResponse:
     horizon_months = _parse_horizon_months(request)
     monthly = _compute(conn, settings, horizon_months)
-    plotly_json = json.dumps(_monthly_to_plotly(monthly))
+    chart = _series_to_chart(monthly)
     return render(
         request,
         "partials/forecast/_view.html",
-        plotly_json=plotly_json,
+        chart=chart,
         monthly=monthly,
         horizon_months=horizon_months,
     )

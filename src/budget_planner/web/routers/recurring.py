@@ -377,6 +377,181 @@ def _formula_prefill(rule: Any) -> tuple[str, list[dict[str, Any]]]:
     return "formula", rows
 
 
+# ---------------------------------------------------------------------------
+# T-R45 — Batch promote-due (ADR-0056 §6, ADR-0038). Registered BEFORE
+# `/{rule_id}` for the same reason as formula/preview.
+# ---------------------------------------------------------------------------
+def _hx_trigger_payload(payload: dict[str, Any]) -> str:
+    """JSON-serialise an HX-Trigger payload mapping event names → data."""
+    import json  # noqa: PLC0415
+
+    return json.dumps(payload)
+
+
+@router.post("/batch/promote-due", response_class=HTMLResponse)
+def recurring_batch_promote_due(
+    conn: sqlite3.Connection = Depends(get_db),
+) -> Response:
+    """Promote every active rule with ``next_due <= today`` in one transaction.
+
+    Returns a 204 with an HX-Trigger carrying the toast + the lists of
+    created transaction ids + advanced rule ids so the frontend can wire
+    the Undo button to :func:`recurring_batch_undo`.
+    """
+    today = dt.date.today()  # noqa: DTZ011
+    try:
+        result = recurring_svc.batch_promote_due(conn, today)
+    except (
+        recurring_svc.CannotPromoteSkippedError,
+        recurring_svc.InactiveRecurringError,
+        UnsupportedDirectionError,
+        ValidationError,
+    ) as exc:
+        return Response(status_code=422, content=str(exc))
+    resp = Response(status_code=204)
+    resp.headers["HX-Trigger"] = _hx_trigger_payload(
+        {
+            "toast": {
+                "variant": "success",
+                "message": (
+                    f"Promoted {len(result.promoted_txn_ids)} recurring row(s)"
+                    f" (skipped {len(result.skipped_rule_ids)})"
+                ),
+                "undo_url": "/recurring/batch/undo",
+                "undo_payload": {
+                    "promoted_txn_ids": list(result.promoted_txn_ids),
+                    "advanced_rule_ids": list(result.advanced_rule_ids),
+                },
+            },
+            "ledger-stale": True,
+            "forecast-stale": True,
+            "budget-stale": True,
+            "today-stale": True,
+        }
+    )
+    return resp
+
+
+@router.post("/batch/undo", response_class=HTMLResponse)
+async def recurring_batch_undo(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+) -> Response:
+    """Reverse a prior batch recurring promote.
+
+    Expects form fields ``promoted_txn_ids`` (CSV of ints) and
+    ``advanced_rule_ids`` (CSV of ints). Soft-deletes the promoted txns
+    + reverts each rule's ``next_due`` from its most recent
+    audit_log entry.
+    """
+    from budget_planner.repositories import (  # noqa: PLC0415
+        recurring as recurring_repo_mod,
+        transactions as transactions_repo,
+    )
+    from budget_planner.repositories._shared import transaction as db_transaction  # noqa: PLC0415
+
+    form = await request.form()
+    try:
+        txn_ids = [int(v) for v in str(form.get("promoted_txn_ids", "")).split(",") if v]
+        rule_ids = [int(v) for v in str(form.get("advanced_rule_ids", "")).split(",") if v]
+    except ValueError:
+        return Response(status_code=422, content="invalid id list")
+
+    with db_transaction(conn):
+        for txn_id in txn_ids:
+            transactions_repo.soft_delete(conn, txn_id)
+        for rule_id in rule_ids:
+            # Replay audit: the batch wrote a `recurring_rule` update row
+            # for each advancement with the prior rule state in ``prev_json``.
+            row = conn.execute(
+                """
+                SELECT prev_json FROM audit_log
+                WHERE entity_type = 'recurring_rule' AND entity_id = ?
+                ORDER BY id DESC LIMIT 1
+                """,
+                (rule_id,),
+            ).fetchone()
+            if row is None or row["prev_json"] is None:
+                continue
+            import json  # noqa: PLC0415
+
+            prev = json.loads(row["prev_json"])
+            prev_next_due_raw = prev.get("next_due")
+            prev_last_promoted = prev.get("last_promoted_date")
+            if not prev_next_due_raw:
+                continue
+            prev_next_due = date.fromisoformat(prev_next_due_raw)
+            prev_last_promoted_date = (
+                date.fromisoformat(prev_last_promoted) if prev_last_promoted else None
+            )
+            recurring_repo_mod.set_next_due(
+                conn,
+                rule_id,
+                next_due=prev_next_due,
+                last_promoted_date=prev_last_promoted_date,
+            )
+    resp = Response(status_code=204)
+    resp.headers["HX-Trigger"] = _hx_trigger_payload(
+        {
+            "toast": {"variant": "info", "message": "Undone"},
+            "ledger-stale": True,
+            "forecast-stale": True,
+            "budget-stale": True,
+            "today-stale": True,
+        }
+    )
+    return resp
+
+
+# ---------------------------------------------------------------------------
+# T-R41 — Formula preview (ADR-0056 §4). Registered BEFORE `/{rule_id}` so
+# FastAPI's int-path validator does not swallow the literal `formula` segment.
+# ---------------------------------------------------------------------------
+@router.post("/formula/preview", response_class=HTMLResponse)
+async def formula_preview(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+) -> Response:
+    """Return the live-preview chip or inline error for a draft formula.
+
+    No DB write; shares the save-path primitives via
+    ``services.recurring_formula.preview``. Accepts the same
+    ``terms[i][field]`` form shape as the create / update routes.
+    """
+    form = await request.form()
+    draft_rule_id_raw = str(form.get("draft_rule_id", ""))
+    draft_rule_id: int | None = None
+    if draft_rule_id_raw:
+        parsed = _parse_int(draft_rule_id_raw)
+        if parsed is None:
+            return Response(status_code=422, content="invalid draft_rule_id")
+        draft_rule_id = parsed
+    term_inputs = _parse_terms_from_form(form)
+    drafts: list[formula_svc.DraftTerm] = []
+    for row in term_inputs:
+        try:
+            cat_ids = tuple(int(v) for v in row.get("source_category_ids", ()))
+        except (TypeError, ValueError):
+            return Response(status_code=422, content="invalid source_category_ids")
+        drafts.append(
+            formula_svc.DraftTerm(
+                sign=str(row.get("sign", "+")),
+                coefficient_percent=str(row.get("coefficient_percent", "")),
+                source_category_ids=cat_ids,
+            )
+        )
+    today = dt.date.today()  # noqa: DTZ011 — date-only anchor
+    result = formula_svc.preview(conn, today, draft_rule_id, drafts)
+    status = 200 if isinstance(result, formula_svc.PreviewOk) else 422
+    return render(
+        request,
+        "partials/recurring/_formula_preview.html",
+        result=result,
+        is_ok=isinstance(result, formula_svc.PreviewOk),
+        status_code=status,
+    )
+
+
 @router.get("/{rule_id}/edit", response_class=HTMLResponse)
 def edit_form(
     rule_id: int, request: Request, conn: sqlite3.Connection = Depends(get_db)
@@ -726,6 +901,44 @@ def promote_form(
     conn: sqlite3.Connection = Depends(get_db),
 ) -> Response:
     return _render_promote_modal(request, conn, rule_id)
+
+
+@router.get("/{rule_id}/promote/inline", response_class=HTMLResponse)
+def promote_inline(
+    rule_id: int,
+    request: Request,
+    date: str = "",
+    conn: sqlite3.Connection = Depends(get_db),
+) -> Response:
+    """F-02 — Row-expand inline form for Today Upcoming Promote action.
+
+    Returns a <tr> fragment that replaces the current upcoming row, letting
+    the user edit `date` + `amount` and Confirm without leaving the page.
+    """
+    rule = recurring_repo.find_rule(conn, rule_id)
+    if rule is None:
+        return Response(status_code=404, content="not found")
+    account = accounts_repo.find_by_id(conn, rule.account_id, include_deleted=True)
+    occurrence = _parse_date(date) or rule.next_due
+    override = _override_on_next_due(conn, rule_id, occurrence)
+    prefill_amount = formula_svc.resolve_rule_amount(conn, rule, occurrence)
+    prefill_description = rule.default_description
+    if override is not None:
+        if override.amount_override is not None:
+            prefill_amount = override.amount_override
+        if override.description_override is not None:
+            prefill_description = override.description_override
+    categories_by_id = {c.id: c for c in categories_repo.list_all(conn)}
+    return render(
+        request,
+        "partials/recurring/_promote_inline_row.html",
+        rule=rule,
+        account=account,
+        occurrence_date=occurrence,
+        prefill_amount_minor=prefill_amount,
+        prefill_description=prefill_description,
+        categories_by_id=categories_by_id,
+    )
 
 
 @router.post("/{rule_id}/promote")

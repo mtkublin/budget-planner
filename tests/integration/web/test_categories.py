@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -9,6 +11,7 @@ from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.system_categories import RECONCILIATION_CATEGORY_NAME
 from budget_planner.repositories import categories as categories_repo
 
 
@@ -162,3 +165,54 @@ def test_update_set_color_then_clear(client: TestClient, cat_id: int) -> None:
         data={"name": "Groceries", "clear_color": "1"},
     )
     assert clear_resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# T-R44 — Archive + Restore (ADR-0056 §6)
+# ---------------------------------------------------------------------------
+def test_archive_category_204_with_undo_toast(client: TestClient, cat_id: int) -> None:
+    r = client.post(f"/categories/{cat_id}/archive")
+    assert r.status_code == 204
+    trigger = r.headers.get("HX-Trigger")
+    assert trigger is not None
+    payload = json.loads(trigger)
+    assert "toast" in payload
+    assert payload["toast"]["variant"] == "success"
+    assert payload["toast"]["undo_url"] == f"/categories/{cat_id}/restore"
+    assert payload.get("settings-categories-stale") is True
+
+
+def test_archive_missing_404(client: TestClient) -> None:
+    r = client.post("/categories/99999/archive")
+    assert r.status_code == 404
+
+
+def test_archive_system_403(client: TestClient, _migrated: Settings) -> None:
+    conn = get_connection(_migrated)
+    try:
+        recon = categories_repo.find_by_name(conn, RECONCILIATION_CATEGORY_NAME)
+    finally:
+        conn.close()
+    assert recon is not None
+    r = client.post(f"/categories/{recon.id}/archive")
+    assert r.status_code == 403
+
+
+def test_archive_double_post_404(client: TestClient, cat_id: int) -> None:
+    r1 = client.post(f"/categories/{cat_id}/archive")
+    assert r1.status_code == 204
+    r2 = client.post(f"/categories/{cat_id}/archive")
+    assert r2.status_code == 404
+
+
+def test_restore_after_archive(client: TestClient, cat_id: int) -> None:
+    client.post(f"/categories/{cat_id}/archive")
+    r = client.post(f"/categories/{cat_id}/restore")
+    assert r.status_code == 204
+    trigger = r.headers.get("HX-Trigger")
+    assert trigger is not None
+
+
+def test_restore_without_archive_404(client: TestClient, cat_id: int) -> None:
+    r = client.post(f"/categories/{cat_id}/restore")
+    assert r.status_code == 404

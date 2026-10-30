@@ -62,7 +62,7 @@ New tests:
 - **`ON CONFLICT ... DO UPDATE` requires SQLite 3.24+.** Shipping Python 3.12 brings sqlite3 ≥ 3.31. Safe.
 - **`created_at` on update.** `ON CONFLICT ... DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP` leaves `created_at` untouched. If you accidentally include `created_at = excluded.created_at`, the test `test_upsert_update_preserves_created_at_and_bumps_updated_at` will fail — do not add it.
 - **Transaction nesting.** Service layer wrappers (T-098) call these repository functions inside their own transactions. `_shared.transaction()` already supports SAVEPOINT nesting (see T-023 upgrade). Reuse — do not reinvent.
-- **No soft-delete.** Deleting a preference literally removes the row. If a historical audit of preference changes is ever requested, this is a v2 enhancement (bump to `user_preferences_v2` with a tombstone column).
+- **No soft-delete.** Deleting a preference literally removes the row. If a historical audit of preference changes is ever requested, this is a future enhancement (bump to `user_preferences_v2` with a tombstone column — `_v2` is a schema version, not the app version).
 
 ## Handoff notes
 

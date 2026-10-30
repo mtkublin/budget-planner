@@ -70,7 +70,7 @@ Three shapes were on the table:
 
 3. **Scope keyed on `users.id = 1` in v1.** [ADR-0005](0005-single-user-no-auth-user-id-scaffold.md)
    established the single-user scaffolding; this table extends it in the
-   same shape (`user_id` FK, singleton row in v1). Multi-user v2 reuses
+   same shape (`user_id` FK, singleton row in v1). Future multi-user reuses
    the table verbatim.
 
 4. **No new domain direction, enum, or arithmetic.** The anchor is a
@@ -122,7 +122,7 @@ Explicit non-goals:
 - **No audit log entries for preferences.** See point 1 and the ADR-0022
   scope note.
 - **No multi-user support in v1.** The `user_id` column is scaffolding
-  for v2; v1 writes `user_id = 1` everywhere.
+  for a future multi-user milestone (not v2 or v3); v1 writes `user_id = 1` everywhere.
 
 **Alternatives Considered**
 

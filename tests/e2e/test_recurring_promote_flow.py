@@ -37,11 +37,11 @@ def test_recurring_rule_and_planned_promote_cycle(
 
     page.goto(f"{base_url}/accounts")
     account_id = strip_id_prefix(
-        page.locator("article[id^='account-']").first.get_attribute("id"),
+        page.locator("tr[id^='account-']").first.get_attribute("id"),
         "account-",
     )
     page.goto(f"{base_url}/categories")
-    rent_row = page.locator("tr[id^='category-']", has_text="Rent").first
+    rent_row = page.locator("[id^='category-']", has_text="Rent").first
     category_id = strip_id_prefix(rent_row.get_attribute("id"), "category-")
 
     # Create a monthly recurring rule starting 2026-01-15 for 50.00. The rule

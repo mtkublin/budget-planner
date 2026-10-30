@@ -4,7 +4,7 @@
 
 ## Purpose
 
-Introduce a right-side slide-over Settings drawer with three internal tabs (Categories, FX, Preferences). Categories CRUD is lifted from the current `/categories` page verbatim. FX is a read-only list of cached rates. Preferences is a read-only view of base currency + display timezone (per ADR-0006 and ADR-0007; editing is a v2 concern). The drawer is a persistent `#drawer-root` consumer — HTMX injects the fragment HTML, no new URL in the browser bar.
+Introduce a right-side slide-over Settings drawer with three internal tabs (Categories, FX, Preferences). Categories CRUD is lifted from the current `/categories` page verbatim. FX is a read-only list of cached rates. Preferences is a read-only view of base currency + display timezone (per ADR-0006 and ADR-0007; editing is a deferred concern — picked up partially by Phase 9 income anchor). The drawer is a persistent `#drawer-root` consumer — HTMX injects the fragment HTML, no new URL in the browser bar.
 
 ## Inputs / prerequisites
 
@@ -46,7 +46,7 @@ Not deliverables:
 
 - No new category model, repository, or validation changes.
 - No FX ingestion changes.
-- No preference editing (v2).
+- No preference editing (deferred; income-anchor editing lands later in Phase 9).
 
 ## Step-by-step
 

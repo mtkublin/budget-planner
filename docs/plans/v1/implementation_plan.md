@@ -155,7 +155,7 @@ For each task:
 | HTMX swap bugs hard to catch in unit tests | Structural assertions on returned HTML fragments (`BeautifulSoup`), not full snapshots. |
 | FX API downtime | Fallback to last-known rate implemented in `fx.get_rate`. CI tests both paths with mocks. |
 | Forecast perf as data grows | Pure fn, measured with pytest-benchmark on a 10-year seed. If slow, add caching keyed on last `audit_log.id`. |
-| Scope creep into v2 features | Phase 6 is a hard "no" for v1. Any ask in that list requires a new ADR. |
+| Scope creep into post-v1 features | Phase 6 is a hard "no" for v1. Any ask in that list requires a new ADR. (That bucket moved to v3 after the v2 slot was reassigned to the Rising Dough redesign — see §5 / §6 of `docs/requirements.md`.) |
 
 ---
 

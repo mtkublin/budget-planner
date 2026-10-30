@@ -1,26 +1,25 @@
-"""Budget router (T-036 / T-066).
+"""Budget router (T-036 / T-066; T-R50 removes Plotly per ADR-0054).
 
-T-066 consolidates `/budget` into three stacked sections:
+The ``/budget`` page stacks:
 
 1. Monthly summary — current month default, month selector top-right.
 2. Rules editor — per-category default / recurring(month) / one-off(year, month).
-3. Breakdown — three Plotly figures lifted from ``/analytics``.
+3. Yearly grid — one row per category, 12 months per row.
+
+The historical "Breakdown" section used three Plotly figures; it has been
+removed in favour of the Rising Dough v2 Plan hub (``/plan?tab=analytics``)
+which renders the same aggregates as pure SVG.
 
 Thin router per ADR-0021: services do the aggregation, the router only shapes
-the response. The three breakdown aggregates intentionally re-use the same
-pure helpers that back ``/analytics`` so both pages stay in lock-step until
-T-070 redirects ``/analytics`` here.
+the response.
 """
 
 from __future__ import annotations
 
-import json
 import sqlite3
-from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -34,12 +33,9 @@ from budget_planner.domain.budgets import (
 )
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import to_minor_units
-from budget_planner.domain.transactions import TransactionFilter
 from budget_planner.repositories import (
-    accounts as accounts_repo,
     budgets as budgets_repo,
     categories as categories_repo,
-    transactions as transactions_repo,
 )
 from budget_planner.services import budget as budget_service, preferences as preferences_svc
 from budget_planner.services.preferences import InvalidAnchorCategoryError
@@ -50,7 +46,6 @@ from budget_planner.web.rendering import render
 router = APIRouter(prefix="/budget", tags=["budget"])
 
 _MONTHS_IN_YEAR = 12
-_MINOR_UNITS_PER_MAJOR = 100
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,100 +110,6 @@ def _rules_rows(conn: sqlite3.Connection) -> tuple[RulesRow, ...]:
 
 
 # ---------------------------------------------------------------------------
-# Breakdown aggregates (duplicated with routers.analytics for one release; T-070
-# will redirect /analytics → /budget#breakdown and this becomes the sole owner).
-# ---------------------------------------------------------------------------
-
-
-def _spend_by_category(conn: sqlite3.Connection) -> dict[str, int]:
-    cats = {c.id: c for c in categories_repo.list_all(conn, include_deleted=True)}
-    txns = transactions_repo.list_filtered(conn, TransactionFilter(directions=(Direction.EXPENSE,)))
-    totals: dict[str, int] = defaultdict(int)
-    for t in txns:
-        name = cats[t.category_id].name if t.category_id in cats else "?"
-        totals[name] += t.amount
-    return dict(totals)
-
-
-def _cashflow_by_account(conn: sqlite3.Connection) -> dict[str, int]:
-    accs = {a.id: a for a in accounts_repo.list_all(conn, include_deleted=True)}
-    txns = transactions_repo.list_filtered(conn, TransactionFilter())
-    cats = {c.id: c for c in categories_repo.list_all(conn, include_deleted=True)}
-    totals: dict[str, int] = defaultdict(int)
-    for t in txns:
-        acc = accs.get(t.account_id)
-        if acc is None:
-            continue
-        cat = cats.get(t.category_id)
-        if cat is None:
-            continue
-        if cat.direction == Direction.INCOME:
-            totals[acc.name] += t.amount
-        elif cat.direction == Direction.EXPENSE:
-            totals[acc.name] -= t.amount
-    return dict(totals)
-
-
-def _income_vs_expense_by_month(conn: sqlite3.Connection) -> dict[str, dict[str, int]]:
-    cats = {c.id: c for c in categories_repo.list_all(conn, include_deleted=True)}
-    txns = transactions_repo.list_filtered(conn, TransactionFilter())
-    monthly: dict[str, dict[str, int]] = defaultdict(lambda: {"income": 0, "expense": 0})
-    for t in txns:
-        cat = cats.get(t.category_id)
-        if cat is None:
-            continue
-        key = t.operation_date.strftime("%Y-%m")
-        if cat.direction == Direction.INCOME:
-            monthly[key]["income"] += t.amount
-        elif cat.direction == Direction.EXPENSE:
-            monthly[key]["expense"] += t.amount
-    return dict(monthly)
-
-
-def _bar(data: dict[str, int], title: str, currency: str) -> dict[str, Any]:
-    xs = list(data.keys())
-    ys = [v / _MINOR_UNITS_PER_MAJOR for v in data.values()]
-    return {
-        "data": [{"x": xs, "y": ys, "type": "bar", "name": title}],
-        "layout": {
-            "title": title,
-            "yaxis": {"title": currency},
-            "margin": {"t": 40, "r": 20, "b": 60, "l": 60},
-        },
-    }
-
-
-def _income_expense_lines(data: dict[str, dict[str, int]], currency: str) -> dict[str, Any]:
-    months = sorted(data.keys())
-    income = [data[m]["income"] / _MINOR_UNITS_PER_MAJOR for m in months]
-    expense = [data[m]["expense"] / _MINOR_UNITS_PER_MAJOR for m in months]
-    return {
-        "data": [
-            {"x": months, "y": income, "name": "income", "type": "bar"},
-            {"x": months, "y": expense, "name": "expense", "type": "bar"},
-        ],
-        "layout": {
-            "title": "Income vs expense (monthly)",
-            "barmode": "group",
-            "yaxis": {"title": currency},
-            "margin": {"t": 40, "r": 20, "b": 60, "l": 60},
-        },
-    }
-
-
-def _breakdown_payloads(conn: sqlite3.Connection, base_ccy: str) -> dict[str, str]:
-    """Build the three JSON payloads for the Breakdown section."""
-    spend = _spend_by_category(conn)
-    cashflow = _cashflow_by_account(conn)
-    monthly = _income_vs_expense_by_month(conn)
-    return {
-        "spend_json": json.dumps(_bar(spend, "Spend by category", base_ccy)),
-        "cashflow_json": json.dumps(_bar(cashflow, "Cashflow by account", base_ccy)),
-        "monthly_json": json.dumps(_income_expense_lines(monthly, base_ccy)),
-    }
-
-
-# ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
 
@@ -223,7 +124,6 @@ def _render_index(
     summary = budget_service.month_summary(conn, year, month, today=today)
     rules = _rules_rows(conn)
     yearly = budget_service.yearly_grid(conn, year)
-    breakdown = _breakdown_payloads(conn, settings.base_currency)
     return render(
         request,
         "budget/index.html",
@@ -234,9 +134,6 @@ def _render_index(
         yearly=yearly,
         month_labels=_MONTH_LABELS,
         base_ccy=settings.base_currency,
-        spend_json=breakdown["spend_json"],
-        cashflow_json=breakdown["cashflow_json"],
-        monthly_json=breakdown["monthly_json"],
     )
 
 
@@ -272,16 +169,47 @@ def new_override_form(
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
 ) -> HTMLResponse:
-    """Slide-over form for creating a recurring / one-off override (ADR-0031 §2)."""
+    """Slide-over form for creating a recurring / one-off override (ADR-0031 §2).
+
+    Optional ``month`` / ``year`` query params prefill the fields when the
+    form is opened from the Year heatmap (ADR-0051 §5.3).
+    """
     cat = categories_repo.find_by_id(conn, category_id)
+    tz_year = datetime.now(ZoneInfo(settings.display_timezone)).year
+    q = request.query_params
+    try:
+        preset_month = int(q["month"]) if "month" in q else None
+    except ValueError:
+        preset_month = None
+    if preset_month is not None and (preset_month < 1 or preset_month > _MONTHS_IN_YEAR):
+        preset_month = None
+    try:
+        preset_year = int(q["year"]) if "year" in q else None
+    except ValueError:
+        preset_year = None
     if cat is None:
         return render(
             request,
             "partials/budget/_override_form.html",
             category=None,
             errors={"category": "not found"},
-            today_year=datetime.now(ZoneInfo(settings.display_timezone)).year,
+            today_year=tz_year,
+            preset_month=preset_month,
+            preset_year=preset_year,
             status_code=404,
+        )
+    default_row = budgets_repo.get_default(conn, category_id)
+    inline = q.get("inline") == "1"
+    if inline:
+        return render(
+            request,
+            "partials/budget/_override_form.html",
+            category=cat,
+            errors={},
+            today_year=tz_year,
+            preset_month=preset_month,
+            preset_year=preset_year,
+            default_amount_minor=default_row.amount if default_row else None,
         )
     return render(
         request,
@@ -290,7 +218,10 @@ def new_override_form(
         form_include="partials/budget/_override_form.html",
         category=cat,
         errors={},
-        today_year=datetime.now(ZoneInfo(settings.display_timezone)).year,
+        today_year=tz_year,
+        preset_month=preset_month,
+        preset_year=preset_year,
+        default_amount_minor=default_row.amount if default_row else None,
     )
 
 
@@ -308,18 +239,26 @@ def create_override(  # noqa: PLR0911, PLR0917
     cat = categories_repo.find_by_id(conn, category_id)
     if cat is None:
         return Response(status_code=404, content="not found")
-    if tier not in {"recurring", "one-off"}:
+    if tier not in {"recurring", "one-off", "default"}:
         return Response(status_code=422, content="invalid tier")
+    dec = _parse_decimal(amount) if amount.strip() else Decimal(0)
+    if dec is None or dec < 0:
+        return Response(status_code=422, content="invalid amount")
+    minor = to_minor_units(dec, settings.base_currency)
+    if tier == "default":
+        budgets_repo.set_default(
+            conn,
+            NewBudgetDefault(category_id=category_id, amount=minor),
+        )
+        resp = Response(content="ok", media_type="text/html")
+        trigger(resp, "budget-stale")
+        return resp
     try:
         parsed_month = int(month)
     except ValueError:
         return Response(status_code=422, content="invalid month")
     if parsed_month < 1 or parsed_month > _MONTHS_IN_YEAR:
         return Response(status_code=422, content="invalid month")
-    dec = _parse_decimal(amount) if amount.strip() else Decimal(0)
-    if dec is None or dec < 0:
-        return Response(status_code=422, content="invalid amount")
-    minor = to_minor_units(dec, settings.base_currency)
     if tier == "recurring":
         budgets_repo.set_recurring(
             conn,

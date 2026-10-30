@@ -1,0 +1,99 @@
+{# Rising Dough v2 — Plan · Forecast tab (T-R48, ADR-0054, ADR-0056 §5;
+   reworked for manual-audit #42-#45). Horizon selector lives in the
+   shared Plan header slot (plan/index.html). The tab body renders the
+   Now / End / Peak summary row, the SVG line + area chart with monthly
+   dots, and the monthly table. #}
+{% set chart = forecast_chart %}
+{% set points = forecast_points %}
+{% set horizon = forecast_horizon or 12 %}
+{% set summary = forecast_summary %}
+<section class="rd-forecast">
+  {% if summary %}
+    <aside class="rd-forecast__summary" aria-label="Projection summary">
+      <div class="rd-forecast__sum-item">
+        <span class="rd-eyebrow">Now</span>
+        <strong class="num rd-forecast__sum-value">{{ "{:,.0f}".format(summary.now_value) }}</strong>
+        <span class="cur num">{{ base_ccy }}</span>
+      </div>
+      <div class="rd-forecast__sum-item">
+        <span class="rd-eyebrow">End · {{ summary.end_point.label }}</span>
+        <strong class="num rd-forecast__sum-value">{{ "{:,.0f}".format(summary.end_point.value_major) }}</strong>
+        <span class="cur num">{{ base_ccy }}</span>
+      </div>
+      <div class="rd-forecast__sum-item">
+        <span class="rd-eyebrow">Peak · {{ summary.peak_point.label }}</span>
+        <strong class="num rd-forecast__sum-value">{{ "{:,.0f}".format(summary.peak_point.value_major) }}</strong>
+        <span class="cur num">{{ base_ccy }}</span>
+      </div>
+    </aside>
+  {% endif %}
+  <figure class="rd-chart rd-chart--line"
+          role="img"
+          aria-labelledby="forecast-caption">
+    <figcaption id="forecast-caption" class="rd-chart__caption">
+      Projected balance,
+      {% if points %}
+        {{ points[0].label }} — {{ points[-1].label }}
+      {% else %}
+        no data available
+      {% endif %}
+      · {{ base_ccy }}
+    </figcaption>
+    <svg class="rd-chart__svg rd-chart__svg--line"
+         viewBox="{{ chart.view_box }}"
+         preserveAspectRatio="xMidYMid meet"
+         role="presentation">
+      {% for tick in chart.y_axis %}
+        <line class="rd-chart__gridline" x1="48" x2="{{ chart.width - 16 }}" y1="{{ tick.position }}" y2="{{ tick.position }}" />
+        <text class="rd-chart__y-label" x="42" y="{{ tick.position }}" text-anchor="end" dominant-baseline="middle">{{ tick.label }}</text>
+      {% endfor %}
+      {% if chart.area_d %}
+        <path class="rd-chart__area" d="{{ chart.area_d }}" />
+      {% endif %}
+      {% if chart.line_d %}
+        <path class="rd-chart__line" d="{{ chart.line_d }}" fill="none" />
+      {% endif %}
+      {% if chart.points %}
+        {% for pt in chart.points %}
+          <circle class="rd-chart__dot" cx="{{ pt.x }}" cy="{{ pt.y }}" r="3.5" />
+        {% endfor %}
+      {% endif %}
+      {% for tick in chart.x_axis %}
+        <text class="rd-chart__x-label" x="{{ tick.position }}" y="{{ chart.height - 10 }}" text-anchor="middle">{{ tick.label }}</text>
+      {% endfor %}
+    </svg>
+  </figure>
+  <h3 class="rd-forecast__table-title">Monthly table</h3>
+  <div class="rd-table-scroll">
+    <table class="rd-table rd-forecast__table">
+      <caption class="sr-only">Monthly projection table</caption>
+      <thead>
+        <tr>
+          <th scope="col">Month</th>
+          <th scope="col" class="num">Income</th>
+          <th scope="col" class="num">Expenses</th>
+          <th scope="col" class="num">Planned budget</th>
+          <th scope="col" class="num">Net</th>
+          <th scope="col" class="num">EOM</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in points %}
+          {% set net = p.net_minor|int %}
+          <tr data-month="{{ p.month.isoformat() }}">
+            <td>{{ p.label }}</td>
+            <td class="num">{{ "{:,.0f}".format((p.income_minor or 0) / 100.0) }}</td>
+            <td class="num">{{ "{:,.0f}".format((p.expense_minor or 0) / 100.0) }}</td>
+            <td class="num">{{ "{:,.0f}".format((p.planned_budget_minor or 0) / 100.0) }}</td>
+            <td class="num {% if net < 0 %}rd-forecast__net--neg{% endif %}">{{ "{:,.0f}".format(net / 100.0) }}</td>
+            <td class="num rd-forecast__eom"><strong>{{ "{:,.2f}".format(p.value_major) }}</strong></td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="6" class="text-muted">No projection data available.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>

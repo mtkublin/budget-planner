@@ -402,13 +402,167 @@ def validate_formula_sources(
                     stack.append(child.id)
 
 
+# ---------------------------------------------------------------------------
+# Preview — unsaved formula evaluation for the Add-entry builder (ADR-0056 §4).
+# ---------------------------------------------------------------------------
+from dataclasses import dataclass  # noqa: E402
+from typing import Literal  # noqa: E402
+
+PreviewErrorCode = Literal["cycle", "non_positive", "invalid_source", "empty"]
+
+
+@dataclass(frozen=True, slots=True)
+class DraftTerm:
+    """Shape mirroring the Jinja form rows the Add-entry builder posts.
+
+    ``source_category_ids`` carries integers; ``sign`` and
+    ``coefficient_percent`` stay as strings so :func:`build_term` is still
+    the single validation boundary.
+    """
+
+    sign: str
+    coefficient_percent: str
+    source_category_ids: tuple[int, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class PreviewOk:
+    amount_minor: int
+
+
+@dataclass(frozen=True, slots=True)
+class PreviewError:
+    code: PreviewErrorCode
+    message: str
+    offending_term_index: int | None
+
+
+PreviewResult = PreviewOk | PreviewError
+
+
+def _invalid_source_ids(
+    conn: sqlite3.Connection,
+    terms: Sequence[DraftTerm],
+) -> tuple[int, int] | None:
+    """Return (term_index, bad_category_id) when a term points at an
+    unknown or soft-deleted category; ``None`` on all-valid input.
+    """
+    from budget_planner.repositories import categories as categories_repo  # noqa: PLC0415
+
+    live_ids = {c.id for c in categories_repo.list_all(conn)}
+    for idx, term in enumerate(terms):
+        for cid in term.source_category_ids:
+            if cid not in live_ids:
+                return idx, cid
+    return None
+
+
+def preview(  # noqa: PLR0911 — flat error-code dispatch, splitting hides shape
+    conn: sqlite3.Connection,
+    when: dt.date,
+    draft_rule_id: int | None,
+    terms: Sequence[DraftTerm],
+) -> PreviewResult:
+    """Return the computed value for a draft term list, or an inline error.
+
+    Idempotent; no DB write. Reuses :func:`build_term`, :func:`build_formula`,
+    :func:`validate_formula_sources`, and :func:`compute_formula_amount` so
+    the preview path and save path cannot drift. Error codes map to the
+    four classes the UI needs to react to:
+
+    - ``empty`` — zero terms.
+    - ``invalid_source`` — a term references a non-live category id.
+    - ``cycle`` — the formula creates a dependency cycle.
+    - ``non_positive`` — the computed value is <= 0 for the preview month.
+    """
+    if not terms:
+        return PreviewError(
+            code="empty",
+            message="formula needs at least one term",
+            offending_term_index=None,
+        )
+
+    bad = _invalid_source_ids(conn, terms)
+    if bad is not None:
+        term_idx, bad_id = bad
+        return PreviewError(
+            code="invalid_source",
+            message=f"unknown or archived source category: {bad_id}",
+            offending_term_index=term_idx,
+        )
+
+    built: list[FormulaTerm] = []
+    for idx, draft in enumerate(terms):
+        try:
+            built.append(
+                build_term(
+                    sign=draft.sign,
+                    coefficient_percent=draft.coefficient_percent,
+                    source_category_ids=draft.source_category_ids,
+                )
+            )
+        except FormulaError as exc:
+            return PreviewError(
+                code="invalid_source",
+                message=str(exc),
+                offending_term_index=idx,
+            )
+
+    try:
+        formula = build_formula(built)
+    except FormulaError as exc:
+        return PreviewError(
+            code="empty",
+            message=str(exc),
+            offending_term_index=None,
+        )
+
+    try:
+        validate_formula_sources(conn, formula, exclude_rule_id=draft_rule_id)
+    except FormulaCycleError as exc:
+        return PreviewError(
+            code="cycle",
+            message=str(exc),
+            offending_term_index=None,
+        )
+
+    try:
+        amount_minor = compute_formula_amount(
+            conn,
+            formula,
+            when.year,
+            when.month,
+            exclude_rule_id=draft_rule_id,
+        )
+    except FormulaCycleError as exc:
+        return PreviewError(
+            code="cycle",
+            message=str(exc),
+            offending_term_index=None,
+        )
+
+    if amount_minor <= 0:
+        return PreviewError(
+            code="non_positive",
+            message="formula resolved to a non-positive amount",
+            offending_term_index=None,
+        )
+    return PreviewOk(amount_minor=amount_minor)
+
+
 __all__ = [
+    "DraftTerm",
     "FormulaCycleError",
     "FormulaError",
+    "PreviewError",
+    "PreviewErrorCode",
+    "PreviewOk",
+    "PreviewResult",
     "build_formula",
     "build_term",
     "compute_formula_amount",
     "parse_percent_to_bps",
+    "preview",
     "resolve_rule_amount",
     "rt_expand",
     "validate_formula_sources",

@@ -55,14 +55,14 @@ def test_tab_reaches_primary_nav(page: Page, live_server: tuple[str, object]) ->
         )
         if href is not None:
             seen.append(href)
-    # Phase 6 IA: 4 primary nav items + Settings drawer link. Legacy routes
-    # (/transactions, /planned, /recurring, /categories, /analytics) are 302
-    # redirects and intentionally dropped from the rail.
+    # Rising Dough v2 IA (ADR-0051 §1): /today + /ledger + /plan + /accounts
+    # primary; /settings in footer. Legacy /budget, /forecast, /analytics
+    # collapsed under /plan tabs.
     expected_order = [
-        "/",
+        "/today",
         "/ledger",
+        "/plan",
         "/accounts",
-        "/budget",
         "/settings",
     ]
     for href in expected_order:

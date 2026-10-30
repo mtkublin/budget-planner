@@ -31,11 +31,11 @@ def test_set_budget_shows_remaining_after_spend(
     # Discover ids by scraping /accounts and /categories.
     page.goto(f"{base_url}/accounts")
     account_id = strip_id_prefix(
-        page.locator("article[id^='account-']").first.get_attribute("id"),
+        page.locator("tr[id^='account-']").first.get_attribute("id"),
         "account-",
     )
     page.goto(f"{base_url}/categories")
-    groceries_row = page.locator("tr[id^='category-']", has_text="Groceries").first
+    groceries_row = page.locator("[id^='category-']", has_text="Groceries").first
     category_id = strip_id_prefix(groceries_row.get_attribute("id"), "category-")
 
     # Set a default budget of 500.00 for Groceries.

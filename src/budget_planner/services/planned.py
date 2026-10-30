@@ -196,8 +196,52 @@ def promote_to_actual(
     return txn
 
 
+# ---------------------------------------------------------------------------
+# T-R45 — Batch promote-due (ADR-0056 §6, ADR-0012)
+# ---------------------------------------------------------------------------
+@dataclass(frozen=True, slots=True)
+class BatchPromoteResult:
+    """Summary of a batch planned promote-due pass.
+
+    ``promoted_txn_ids`` carries the id of every transaction created.
+    ``promoted_planned_ids`` carries the id of every planned row that was
+    stamped with the matching ``promoted_to_txn_id``.
+    """
+
+    promoted_txn_ids: tuple[int, ...]
+    promoted_planned_ids: tuple[int, ...]
+
+
+def batch_promote_due(
+    conn: sqlite3.Connection,
+    today: dt.date,
+) -> BatchPromoteResult:
+    """Promote every unpromoted planned row with ``operation_date <= today``.
+
+    Runs inside a single DB transaction; any inner failure rolls everything
+    back. Soft-deleted rows are excluded by the repo filter.
+    """
+    filters = PlannedFilter(
+        date_to=today,
+        promoted=False,
+    )
+    due_rows = planned_repo.list_filtered(conn, filters)
+    promoted_txns: list[int] = []
+    promoted_planned: list[int] = []
+    with db_transaction(conn):
+        for row in due_rows:
+            txn = promote_to_actual(conn, row.id, PromotionEdits())
+            promoted_txns.append(txn.id)
+            promoted_planned.append(row.id)
+    return BatchPromoteResult(
+        promoted_txn_ids=tuple(promoted_txns),
+        promoted_planned_ids=tuple(promoted_planned),
+    )
+
+
 __all__ = [
     "AlreadyPromotedError",
+    "BatchPromoteResult",
     "CannotPromoteDeletedError",
     "PlannedKind",
     "PlannedNotFoundError",
@@ -205,6 +249,7 @@ __all__ = [
     "PromotionEdits",
     "UnsupportedDirectionError",
     "ValidationError",
+    "batch_promote_due",
     "list_planned",
     "promote_to_actual",
 ]

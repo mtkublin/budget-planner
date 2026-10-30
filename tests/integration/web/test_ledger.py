@@ -78,21 +78,19 @@ def seeded(_migrated: Settings) -> dict[str, int]:
 
 
 def test_ledger_index_renders(client: TestClient, seeded: dict[str, int]) -> None:
+    """Rising Dough v2 renders the segmented tabs via the shared rd-segmented macro
+    (anchor-based full-page nav). The view keys appear in the href query string."""
     r = client.get("/ledger")
     assert r.status_code == 200
     soup = BeautifulSoup(r.text, "html.parser")
-    seg = soup.select_one("[data-ledger-views]")
+    seg = soup.select_one(".rd-segmented")
     assert seg is not None and isinstance(seg, Tag)
-    # ADR-0028 — segmented is anchor-based full-page nav, not htmx buttons.
-    items = seg.select("a[data-view]")
+    items = seg.select("a.rd-segmented__item")
     assert len(items) == _SEG_COUNT
-    views = [a.get("data-view") for a in items]
-    assert views == ["actual", "planned", "recurring"]
-    # Default active view is actual; active tab carries aria-current="page".
-    actual_a = seg.select_one('a[data-view="actual"]')
-    assert actual_a is not None and isinstance(actual_a, Tag)
-    assert actual_a.get("aria-current") == "page"
-    assert actual_a.get("href") == "/ledger?view=actual"
+    hrefs = [a.get("href") for a in items]
+    assert hrefs == ["/ledger?view=actual", "/ledger?view=planned", "/ledger?view=recurring"]
+    actual_a = items[0]
+    assert actual_a.get("aria-selected") == "true"
 
 
 def test_ledger_view_actual(client: TestClient, seeded: dict[str, int]) -> None:
@@ -112,9 +110,9 @@ def test_ledger_view_planned(client: TestClient, seeded: dict[str, int]) -> None
     container = soup.select_one("[data-ledger-table]")
     assert container is not None and isinstance(container, Tag)
     assert container.get("data-view") == "planned"
-    # Promoted? column header present.
+    # Status column header present (manual-audit #25 renamed Promoted? → Status).
     headers = {th.get_text(strip=True) for th in soup.select("table.ledger thead th")}
-    assert "Promoted?" in headers
+    assert "Status" in headers
     # Promote button targets the modal root.
     btn = soup.find("button", string=lambda s: s is not None and "Promote" in s)
     assert btn is not None and isinstance(btn, Tag)
@@ -129,11 +127,12 @@ def test_ledger_view_recurring(client: TestClient, seeded: dict[str, int]) -> No
     assert container is not None and isinstance(container, Tag)
     assert container.get("data-view") == "recurring"
     headers = {th.get_text(strip=True) for th in soup.select("table.ledger thead th")}
-    assert "Cadence" in headers
+    # Manual-audit #25 — Cadence folded into group header, Next due stays.
     assert "Next due" in headers
-    # Overrides disclosure present per row.
-    details = soup.find_all("details")
-    assert any("override" in d.get_text().lower() for d in details)
+    assert "Overrides" in headers
+    # V.33 — expand reveal is now a sibling <tr>, not a <details>; the
+    # Overrides column still surfaces the per-rule override count.
+    assert "override" in r.text.lower()
 
 
 def test_ledger_recurring_lists_each_override_with_remove_button(
@@ -156,7 +155,9 @@ def test_ledger_recurring_lists_each_override_with_remove_button(
     r = client.get("/ledger?view=recurring")
     assert r.status_code == 200
     soup = BeautifulSoup(r.text, "html.parser")
-    remove_btns = soup.select("button.overrides-list__remove")
+    # V.33 — expand reveal is a sibling <tr>; Remove buttons live inside
+    # .rd-rec-over-item rows now.
+    remove_btns = soup.select(".rd-rec-over-item button")
     assert len(remove_btns) >= 2
     endpoints = {btn.get("hx-post") for btn in remove_btns}
     assert f"/recurring/{seeded['rule']}/overrides/2026-02-01/delete" in endpoints

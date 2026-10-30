@@ -212,6 +212,21 @@ def soft_delete(conn: sqlite3.Connection, planned_id: int) -> None:
     )
 
 
+def list_recently_deleted(
+    conn: sqlite3.Connection, *, days: int = 90, limit: int = 500
+) -> list[PlannedTransaction]:
+    """T-R70 — soft-deleted planned items within the last `days` days."""
+    sql = (
+        f"SELECT {_COLUMNS} FROM planned_transactions "
+        "WHERE deleted_at IS NOT NULL "
+        "AND deleted_at > datetime('now', ?) "
+        "ORDER BY deleted_at DESC "
+        "LIMIT ?"
+    )
+    rows = conn.execute(sql, (f"-{days} days", limit)).fetchall()
+    return [_row_to_planned(r) for r in rows]
+
+
 def undelete(conn: sqlite3.Connection, planned_id: int) -> PlannedTransaction:
     prev = find_by_id(conn, planned_id, include_deleted=True)
     if prev is None:
@@ -266,6 +281,7 @@ __all__ = [
     "create",
     "find_by_id",
     "list_filtered",
+    "list_recently_deleted",
     "soft_delete",
     "stamp_promotion",
     "undelete",

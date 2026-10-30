@@ -110,7 +110,7 @@ Draft section-by-section. Each heading below is a literal top-level `##` section
 
 - Quick-start drift: `just install` is a composite that must call `uv sync` **and** install pre-commit hooks. If T-002's recipe diverges, the README's instructions will silently stop working. Re-read `justfile` before committing.
 - Platform-specific `uv python install` output can confuse first-time users on Linux without `curl`. Call out `uv --version` sanity check in the troubleshooting section if needed.
-- Do **not** add deploy / Docker / Fly.io sections — explicitly deferred to v2 (`docs/tasks.md` Phase 6). Note this in a one-line "Deployment" subsection pointing at Phase 6 so a reader does not file an issue asking for it.
+- Do **not** add deploy / Docker / Fly.io sections — explicitly deferred to v3 (originally labelled v2; see `docs/plans/v1/tasks.md` Phase 7 and `docs/plans/v3/`). Note this in a one-line "Deployment" subsection pointing at Phase 7 so a reader does not file an issue asking for it.
 - Avoid duplicating content from `docs/requirements.md`. The README is a map, not a mirror.
 
 ## Handoff notes

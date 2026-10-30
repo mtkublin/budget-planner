@@ -1,113 +1,171 @@
+{# T-R65 — Create / edit account overlay reskinned to Rising Dough chrome.
+
+   Server contract unchanged. ADR-0051 §6, ADR-0030 §6 (conditional
+   credit-limit lockstep), ADR-0024 (liability vocabulary). Mockup
+   `docs/application_redesign_handoff/mockups/screenshots/overlay-2c-create-account.png`.
+
+   `account` present → edit; absent → create. Edit renders currency as
+   immutable per ADR-0006. #}
 {% from "_partials/combobox.html" import combobox %}
 <form hx-post="{{ action }}"
       hx-target="{% if account %}#account-{{ account.id }}{% else %}#accounts-grid{% endif %}"
       hx-swap="{% if account %}outerHTML{% else %}beforeend{% endif %}"
-      class="form-stack account-form"
+      class="rd-form account-form"
       data-account-form
       {% if not account %}data-reset-on-submit{% endif %}>
-  <label>
-    Name
+  <label class="rd-field">
+    <span class="rd-field__label">Name</span>
     <input type="text"
            name="name"
            value="{{ account.name if account else '' }}"
+           placeholder="e.g. revolut EUR"
            required>
   </label>
-  <label>
-    Type
-    <input type="text" name="type" value="{{ account.type if account else '' }}">
-  </label>
-  {% if not account %}
-    <label>
-      <span>Currency</span>
-      {{ combobox(name="currency", items=iso_4217_currencies,
-        placeholder="Type to filter ISO code…",
-        required=True) }}
+  <div class="rd-form-row rd-form-row--2col">
+    <label class="rd-field">
+      <span class="rd-field__label">Currency</span>
+      {% if account %}
+        <input type="text"
+               value="{{ account.currency }}"
+               disabled
+               aria-describedby="rd-currency-help">
+      {% else %}
+        {{ combobox(name="currency", items=iso_4217_currencies,
+          placeholder="Type to filter ISO code…",
+          required=True) }}
+      {% endif %}
     </label>
-    <label>
-      Opening
+    <label class="rd-field">
+      <span class="rd-field__label">Type</span>
       <input type="text"
-             name="opening_balance"
-             value="0"
-             data-numeric
-             inputmode="decimal">
+             name="type"
+             value="{{ account.type if account else '' }}"
+             placeholder="bank">
     </label>
-  {% else %}
-    <label>
-      Currency
-      <input type="text" value="{{ account.currency }}" disabled>
-    </label>
+  </div>
+  <p class="rd-field__help" id="rd-currency-help">
+    Currency can't be changed after creation. Type is free text: bank, cash, brokerage, savings…
+  </p>
+  {% if not account %}
+    <div class="rd-form-row rd-form-row--2col">
+      <label class="rd-field">
+        <span class="rd-field__label">Opening balance</span>
+        <span class="rd-field__suffix" data-currency-suffix data-suffix="">
+          <input type="text"
+                 name="opening_balance"
+                 value="0"
+                 data-numeric
+                 inputmode="decimal">
+        </span>
+      </label>
+      <label class="rd-field">
+        <span class="rd-field__label">As of</span>
+        <input type="date"
+               value="{{ today_local() }}"
+               disabled
+               aria-label="As of (uses today, informational only)"
+               title="Opening balance is recorded at account creation; as-of date is informational.">
+      </label>
+    </div>
   {% endif %}
-  <label class="form-stack__inline">
-    <input type="checkbox"
-           name="is_liability"
-           data-toggle-limit
-           {% if account and account.is_liability %}checked{% endif %}>
-    Credit (liability)
-  </label>
-  <label class="account-form__limit"
+  <div class="rd-toggle-card">
+    <label class="rd-toggle">
+      <input type="checkbox"
+             name="is_liability"
+             data-toggle-limit
+             {% if account and account.is_liability %}checked{% endif %}>
+      <span class="rd-toggle__switch" aria-hidden="true"></span>
+      <span>
+        <span class="rd-toggle__title">This is a liability</span>
+        <small class="rd-toggle__hint">Counts against net worth (credit card, loan).</small>
+      </span>
+    </label>
+  </div>
+  <label class="rd-field"
          data-limit-field
          {% if account is none or not account.is_liability %}hidden aria-hidden="true" style="display:none"{% endif %}>
-    Credit limit
-    <input type="text"
-           name="credit_limit"
-           inputmode="decimal"
-           data-numeric
-           {% if account is none or not account.is_liability %}disabled{% endif %}
-           value="{% if account and account.credit_limit_minor %}{{ account.credit_limit_minor|money_major(account.currency) }}{% endif %}">
+    <span class="rd-field__label">Credit limit · <em>optional</em></span>
+    <span class="rd-field__suffix"
+          data-currency-suffix
+          data-suffix="{{ account.currency if account else '' }}">
+      <input type="text"
+             name="credit_limit"
+             inputmode="decimal"
+             data-numeric
+             {% if account is none or not account.is_liability %}disabled{% endif %}
+             value="{% if account and account.credit_limit_minor %}{{ account.credit_limit_minor|money_major(account.currency) }}{% endif %}">
+    </span>
   </label>
   {% include "partials/_form_errors.html" %}
-  <div class="form-stack__actions">
-    <button type="submit" class="btn-accent">Save</button>
-  </div>
+  <footer class="rd-slideover-footer">
+    <button type="button"
+            class="rd-btn rd-btn--ghost"
+            data-slideover-cancel
+            onclick="var r=this.closest('.slide-over-root');if(r&&r.parentElement){r.parentElement.innerHTML='';}">
+      Cancel
+    </button>
+    <button type="submit"
+            class="rd-btn rd-btn--primary">{% if account %}Save ↩{% else %}Create account ↩{% endif %}</button>
+  </footer>
 </form>
 <script>
-  // T-123 — Credit-limit field lockstep. Finds the form via `[data-account-form]`
-  // (position-independent so nesting inside `partials/_slideover.html` still works).
-  // Idempotent: re-running after HTMX swaps does not double-wire the change
-  // listener. Fires on initial run + scoped `htmx:afterSwap`.
+  // T-123 — Credit-limit field lockstep + T-R65 currency-suffix sync.
+  // Idempotent: `[data-account-form]` scoped; wires once per form.
   (function () {
+    function syncLimit(cb, field, limitInput) {
+      if (cb.checked) {
+        field.removeAttribute("hidden");
+        field.removeAttribute("aria-hidden");
+        field.style.display = "";
+        if (limitInput) limitInput.disabled = false;
+      } else {
+        field.setAttribute("hidden", "");
+        field.setAttribute("aria-hidden", "true");
+        field.style.display = "none";
+        if (limitInput) limitInput.disabled = true;
+      }
+    }
+    function syncSuffixes(form) {
+      // Currency source: hidden combobox value (create) or disabled input (edit).
+      var hidden = form.querySelector("input[type='hidden'][name='currency']");
+      var disabledInput = form.querySelector("input[name='currency']:disabled, input[type='text'][disabled][aria-describedby='rd-currency-help']");
+      var ccy = (hidden && hidden.value) || (disabledInput && disabledInput.value) || "";
+      form.querySelectorAll("[data-currency-suffix]").forEach(function (el) {
+        el.setAttribute("data-suffix", ccy);
+      });
+    }
     function wire(form) {
       if (!form || form.dataset.limitWired === "1") return;
       var cb = form.querySelector("[data-toggle-limit]");
       var field = form.querySelector("[data-limit-field]");
-      if (!cb || !field) return;
-      var limitInput = field.querySelector("input[name='credit_limit']");
-      function sync() {
-        if (cb.checked) {
-          field.removeAttribute("hidden");
-          field.removeAttribute("aria-hidden");
-          // `.form-stack label { display: flex }` outweighs UA `[hidden]{display:none}`
-          // — clear the inline guard the server renders in the hidden branch.
-          field.style.display = "";
-          if (limitInput) limitInput.disabled = false;
-        } else {
-          field.setAttribute("hidden", "");
-          field.setAttribute("aria-hidden", "true");
-          field.style.display = "none";
-          if (limitInput) limitInput.disabled = true;
+      var limitInput = field && field.querySelector("input[name='credit_limit']");
+      if (cb && field) {
+        cb.addEventListener("change", function () { syncLimit(cb, field, limitInput); });
+        syncLimit(cb, field, limitInput);
+      }
+      // Suffix sync on combobox pick (hidden input changes).
+      var hidden = form.querySelector("input[type='hidden'][name='currency']");
+      if (hidden) {
+        // Combobox mutates .value directly, so poll on visible-input input.
+        var visible = form.querySelector("input[role='combobox']");
+        if (visible) {
+          visible.addEventListener("input", function () { syncSuffixes(form); });
+          visible.addEventListener("change", function () { syncSuffixes(form); });
+          visible.addEventListener("blur", function () { syncSuffixes(form); });
         }
       }
-      cb.addEventListener("change", sync);
+      syncSuffixes(form);
       form.dataset.limitWired = "1";
-      sync();
     }
     function wireAll() {
-      var forms = document.querySelectorAll("[data-account-form]");
-      for (var i = 0; i < forms.length; i++) wire(forms[i]);
+      document.querySelectorAll("[data-account-form]").forEach(wire);
     }
     wireAll();
     document.addEventListener("htmx:afterSwap", function (evt) {
-      // Scope to swaps that landed account-form markup.
       var root = evt.target;
       if (!root) return;
-      if (root.matches && root.matches("[data-account-form]")) {
-        wire(root);
-        return;
-      }
-      if (root.querySelectorAll) {
-        var forms = root.querySelectorAll("[data-account-form]");
-        for (var i = 0; i < forms.length; i++) wire(forms[i]);
-      }
+      if (root.matches && root.matches("[data-account-form]")) { wire(root); return; }
+      if (root.querySelectorAll) root.querySelectorAll("[data-account-form]").forEach(wire);
     });
   })();
 </script>

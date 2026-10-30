@@ -64,5 +64,5 @@ discipline is enforced in Python.
   mocking.
 - Future enforcement option: a static-analysis rule (`ast` grep) that
   rejects raw `UPDATE` / `INSERT` strings outside `_shared.mutate`.
-- v2 multi-user auth will need to extend `mutate(...)` with a
+- Future multi-user auth (not planned for v2 or v3) will need to extend `mutate(...)` with a
   `user_id`-aware audit author field; we accept this debt knowingly.

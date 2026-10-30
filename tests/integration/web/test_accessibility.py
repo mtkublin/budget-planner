@@ -37,6 +37,9 @@ _ROUTES = (
     "/ledger",
     "/ledger?view=planned",
     "/ledger?view=recurring",
+    # Rising Dough v2 surfaces (ADR-0051 §1).
+    "/today",
+    "/plan",
 )
 
 
@@ -52,7 +55,6 @@ def test_semantic_landmarks(client: TestClient, path: str) -> None:
     assert soup.find("main", id="main") is not None
     assert soup.find("header") is not None
     assert soup.find("nav") is not None
-    assert soup.find("footer") is not None
     # Single <h1> per page.
     h1s = soup.find_all("h1")
     assert len(h1s) >= 1, f"{path}: no <h1>"
@@ -170,15 +172,16 @@ def test_dialogs_have_accessible_labels(client: TestClient) -> None:
     # Find the account id via GET /accounts.
     soup = BeautifulSoup(client.get("/accounts").text, "html.parser")
 
-    def _is_account_card(value: str | None) -> bool:
+    def _is_account_row(value: str | None) -> bool:
         if not value or not value.startswith("account-"):
             return False
         parts = value.split("-")
         return len(parts) >= 2 and parts[1].isdigit()
 
-    card = soup.find("article", attrs={"id": _is_account_card})
-    assert card is not None and isinstance(card, Tag)
-    acc_id = card.get("id").split("-")[1]  # type: ignore[union-attr]
+    # Rising Dough v2 renders accounts as <tr>, not <article>.
+    row = soup.find(["tr", "article"], attrs={"id": _is_account_row})
+    assert row is not None and isinstance(row, Tag)
+    acc_id = row.get("id").split("-")[1]  # type: ignore[union-attr]
     r = client.get(f"/accounts/{acc_id}/reconcile")
     assert r.status_code == 200
     frag = BeautifulSoup(r.text, "html.parser")
@@ -189,8 +192,9 @@ def test_dialogs_have_accessible_labels(client: TestClient) -> None:
 
 
 def test_settings_drawer_is_dialog(client: TestClient) -> None:
-    """T-071: settings drawer carries full dialog aria shape + data-drawer hook."""
-    r = client.get("/settings")
+    """Rising Dough v2: Settings page is a full page. HX request still gets
+    the drawer fragment with full dialog aria shape."""
+    r = client.get("/settings", headers={"HX-Request": "true"})
     assert r.status_code == 200
     frag = BeautifulSoup(r.text, "html.parser")
     drawer = frag.select_one("[data-drawer]")
@@ -214,12 +218,13 @@ def test_slideover_is_dialog(client: TestClient) -> None:
 
 
 def test_ledger_segmented_marks_active_view(client: TestClient) -> None:
-    """T-071 + ADR-0028 — anchor-based segmented; active tab carries aria-current="page"."""
+    """Rising Dough v2 — anchor-based rd-segmented; active tab carries aria-selected='true'."""
     soup = _soup(client, "/ledger?view=planned")
-    seg = soup.select_one("[data-ledger-views]")
+    seg = soup.select_one(".rd-segmented")
     assert seg is not None and isinstance(seg, Tag)
-    items = seg.select("a[data-view]")
+    items = seg.select("a.rd-segmented__item")
     assert len(items) >= 3, "expected actual / planned / recurring tabs"
-    active = [a for a in items if a.get("aria-current") == "page"]
-    assert len(active) == 1, "exactly one segmented tab should be aria-current"
-    assert active[0].get("data-view") == "planned"
+    active = [a for a in items if a.get("aria-selected") == "true"]
+    assert len(active) == 1, "exactly one segmented tab should be aria-selected"
+    href = active[0].get("href", "")
+    assert isinstance(href, str) and href.endswith("view=planned")

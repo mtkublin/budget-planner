@@ -4,7 +4,7 @@
 
 ## Purpose
 
-CRUD for the flat category list that drives transaction direction. Direction (`income` | `expense` | `transit` | `adjustment`) is chosen at creation and **locked once the category has been used by any transaction, planned transaction, or recurring rule**. System categories (`Transit`, `Reconciliation`) seeded by T-012 are undeletable. No currency, no hierarchy (ADR-0014 — hierarchy is a v2 concern).
+CRUD for the flat category list that drives transaction direction. Direction (`income` | `expense` | `transit` | `adjustment`) is chosen at creation and **locked once the category has been used by any transaction, planned transaction, or recurring rule**. System categories (`Transit`, `Reconciliation`) seeded by T-012 are undeletable. No currency, no hierarchy (ADR-0014 — hierarchy is a deferred concern; not planned for v2 or v3).
 
 ## Inputs / prerequisites
 

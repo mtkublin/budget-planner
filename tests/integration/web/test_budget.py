@@ -164,15 +164,16 @@ def test_budget_month_selector_swaps(client: TestClient, _migrated: Settings) ->
 
 
 def test_budget_breakdown_has_three_charts(client: TestClient, cat_id: int) -> None:
-    """The Breakdown section renders three Plotly placeholders."""
+    """T-R50 (ADR-0054) — Breakdown moved to /plan?tab=analytics; /budget keeps a
+    pointer section so bookmarks still land somewhere, but no Plotly charts render."""
     r = client.get("/budget")
     assert r.status_code == 200
     soup = BeautifulSoup(r.text, "html.parser")
     breakdown = soup.find(id="budget-breakdown")
     assert isinstance(breakdown, Tag)
-    charts = breakdown.select("[data-plotly]")
-    ids = {c.get("id") for c in charts if isinstance(c, Tag)}
-    assert ids == {"chart-spend", "chart-cashflow", "chart-monthly"}
+    # No more Plotly placeholders; link to the Plan hub instead.
+    assert not breakdown.select("[data-plotly]")
+    assert breakdown.find("a", href="/plan?tab=analytics") is not None
 
 
 def test_budget_manage_lands_on_rules_section(client: TestClient, cat_id: int) -> None:

@@ -221,52 +221,20 @@
   {# Section 3 — Yearly grid (ADR-0031 §3)                              #}
   {# ------------------------------------------------------------------ #}
   {% include "budget/_yearly.html" %}
-  {# ------------------------------------------------------------------ #}
-  {# Section 4 — Breakdown                                              #}
-  {# ------------------------------------------------------------------ #}
+  {# T-R50 — Breakdown charts moved to /plan?tab=analytics (ADR-0054). #}
   <section id="budget-breakdown"
            class="budget-section"
            aria-labelledby="budget-breakdown-heading">
     <header class="budget-section__header">
       <div>
-        <p class="eyebrow">Section 4</p>
-        <h2 id="budget-breakdown-heading">Breakdown</h2>
+        <p class="eyebrow">Breakdown</p>
+        <h2 id="budget-breakdown-heading">Spend analysis moved</h2>
       </div>
-      <p class="text-muted text-sm">Minor-unit sums divided by 100 for display.</p>
+      <p class="text-muted text-sm">
+        The breakdown charts now live on
+        <a class="link-muted" href="/plan?tab=analytics">Plan · Analytics</a>
+        (rendered as server-side SVG — ADR-0054).
+      </p>
     </header>
-    <div class="budget-breakdown-grid">
-      <figure class="surface-chart">
-        <figcaption class="eyebrow">Spend by category</figcaption>
-        <div id="chart-spend"
-             data-plotly="{{ spend_json }}"
-             aria-label="Spend by category"></div>
-      </figure>
-      <figure class="surface-chart">
-        <figcaption class="eyebrow">Cashflow by account</figcaption>
-        <div id="chart-cashflow"
-             data-plotly="{{ cashflow_json }}"
-             aria-label="Cashflow by account"></div>
-      </figure>
-      <figure class="surface-chart budget-breakdown-grid__full">
-        <figcaption class="eyebrow">Income vs expense (monthly)</figcaption>
-        <div id="chart-monthly"
-             data-plotly="{{ monthly_json }}"
-             aria-label="Income vs expense"></div>
-      </figure>
-    </div>
   </section>
-{% endblock %}
-{% block scripts %}
-  <script>
-    (function () {
-      function renderAll() {
-        if (typeof Plotly === "undefined") { return; }
-        document.querySelectorAll('[data-plotly]').forEach(function (el) {
-          var spec = JSON.parse(el.getAttribute('data-plotly'));
-          Plotly.newPlot(el, spec.data, spec.layout, { displayModeBar: false, responsive: true });
-        });
-      }
-      document.addEventListener('DOMContentLoaded', renderAll);
-    })();
-  </script>
 {% endblock %}

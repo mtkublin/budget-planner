@@ -3,47 +3,71 @@
 <form hx-post="{{ action }}"
       hx-target="{% if planned %}#planned-p-{{ planned.id }}{% else %}#planned-table tbody{% endif %}"
       hx-swap="{% if planned %}outerHTML{% else %}afterbegin{% endif %}"
-      class="form-stack"
+      class="rd-form planned-form"
+      data-planned-form
       {% if not planned %}data-reset-on-submit{% endif %}>
-  <label>
-    Date
-    <input type="date"
-           name="operation_date"
-           value="{{ planned.operation_date|date_fmt if planned else today_local() }}"
-           data-default-today
-           required>
-  </label>
-  <label>
-    Amount
-    <input type="text"
-           name="amount"
-           value="{{ planned.amount|money_major(planned_account.currency if planned_account else 'PLN') if planned else '' }}"
-           inputmode="decimal"
-           data-numeric
-           required>
-  </label>
-  <label>
-    <span>Category</span>
+  <label class="rd-field">
+    <span class="rd-field__label">Category</span>
     {{ combobox(name="category_id", items=categories,
       value_attr="id", label_attr="name",
       selected_value=planned.category_id if planned else "",
       required=True) }}
   </label>
-  <label>
-    <span>Account</span>
-    {{ combobox(name="account_id", items=accounts,
-      value_attr="id", label_attr="name",
-      selected_value=planned.account_id if planned else "",
-      required=True) }}
+  <label class="rd-field">
+    <span class="rd-field__label">Amount</span>
+    <span class="rd-field__suffix"
+          data-currency-suffix
+          data-suffix="{{ planned_account.currency if planned_account else '' }}">
+      <input type="text"
+             name="amount"
+             value="{{ planned.amount|money_major(planned_account.currency if planned_account else 'PLN') if planned else '' }}"
+             placeholder="0.00"
+             inputmode="decimal"
+             data-numeric
+             autofocus
+             required>
+    </span>
   </label>
-  <label>
-    Description
-    <input type="text"
-           name="description"
-           value="{{ planned.description if planned else '' }}">
-  </label>
-  {% include "partials/_form_errors.html" %}
-  <div class="form-stack__actions">
-    <button type="submit" class="btn-accent">Save</button>
+  <div class="rd-form-row rd-form-row--2col">
+    <label class="rd-field">
+      <span class="rd-field__label">Account</span>
+      {{ combobox(name="account_id", items=accounts,
+        value_attr="id", label_attr="name",
+        selected_value=planned.account_id if planned else "",
+        required=True) }}
+    </label>
+    <label class="rd-field">
+      <span class="rd-field__label">Dest · <em>transit</em></span>
+      {{ combobox(name="dest_account_id", items=accounts,
+        value_attr="id", label_attr="name",
+        selected_value=planned.dest_account_id if (planned and planned.dest_account_id) else "",
+        placeholder="— none —") }}
+    </label>
   </div>
+  <div class="rd-form-row rd-form-row--2col">
+    <label class="rd-field">
+      <span class="rd-field__label">Date</span>
+      <input type="date"
+             name="operation_date"
+             value="{{ planned.operation_date|date_fmt if planned else today_local() }}"
+             data-default-today
+             required>
+    </label>
+    <label class="rd-field">
+      <span class="rd-field__label">Note</span>
+      <input type="text"
+             name="description"
+             value="{{ planned.description if planned else '' }}"
+             placeholder="optional note">
+    </label>
+  </div>
+  {% include "partials/_form_errors.html" %}
+  <footer class="rd-slideover-footer">
+    <button type="button"
+            class="rd-btn rd-btn--ghost"
+            onclick="var r=this.closest('.slide-over-root');if(r&&r.parentElement){r.parentElement.innerHTML='';}">
+      Cancel
+    </button>
+    <button type="submit" class="rd-btn rd-btn--primary">{% if planned %}Save{% else %}Add entry{% endif %}</button>
+  </footer>
 </form>
