@@ -1885,6 +1885,36 @@ kbd.rd-kbd {
 .rd-override__input input:focus { outline: none; }
 .rd-override__hint { font-size: 0.75rem; margin: 0.6rem 0 0; }
 
+/* Standalone variant: used inside the Ledger/Recurring override modal
+   (`partials/recurring/_override_form.html`) so the card fills the modal
+   body and sheds its own border — the modal shell already supplies one. */
+.rd-override--standalone {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.rd-override__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+.rd-override__head .rd-override__title { margin-bottom: 0; }
+.rd-override__period { flex-shrink: 0; }
+
+/* Inside the Ledger/Recurring override modal the parent `.slide-over` is a
+   scroll container, so the period-nav popover's default absolute positioning
+   gets clipped. Switch the slide-over host to `overflow: visible` only when
+   it hosts the standalone override card — the card is short enough that the
+   modal shell never needs its own scroll in this case, and the popover now
+   paints above the amount row unobstructed. */
+.slide-over:has(.rd-override--standalone) { overflow: visible; }
+
 /* ─── Plan · Year legend + unset collapse (manual-audit #38-#41) ──── */
 .rd-year-legend {
   display: flex;

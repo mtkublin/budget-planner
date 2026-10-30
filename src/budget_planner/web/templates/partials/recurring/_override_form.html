@@ -1,18 +1,25 @@
-{# Generic recurring override form.
-
-   User picks (year, month, amount). Server resolves the canonical
-   occurrence_date via `services.recurring.occurrence_in_month(rule, year,
-   month)` and upserts the override targeting that date. State is always
-   `overridden` (skip is a separate kebab action). The form has no
-   date/description override fields — those are handled by Edit on the rule
-   itself. #}
+{# Recurring override overlay. Styled to match the Plan/Budget + Plan/Year
+   override card (`rd-override`) and the top-right `rd-period-nav` combined
+   year/month picker. User picks (year, month, amount); server resolves the
+   canonical occurrence_date via
+   `services.recurring.occurrence_in_month(rule, year, month)` and upserts the
+   override targeting that date. State is always `overridden` (skip is a
+   separate kebab action). The form has no date/description override fields —
+   those are handled by Edit on the rule itself. #}
+{% set months_short = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] %}
+{% set months_long = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+] %}
+{% set y0 = default_year or 1970 %}
+{% set m0 = default_month or 1 %}
 <div class="slide-over-root"
      role="dialog"
      aria-modal="true"
      aria-labelledby="recurring-override-title"
      data-slideover
      onclick="if(event.target===this){this.parentElement.innerHTML='';}">
-  <aside class="slide-over" tabindex="-1">
+  <aside class="slide-over slide-over--override" tabindex="-1">
     <header class="slide-over__header">
       <h2 id="recurring-override-title" class="slide-over__title">Override occurrence</h2>
       <button type="button"
@@ -25,43 +32,61 @@
         <form hx-post="/recurring/{{ rule.id }}/overrides"
               hx-target="#recurring-{{ rule.id }}"
               hx-swap="outerHTML"
-              class="form-stack"
+              class="rd-override rd-override--standalone"
+              data-recurring-override-form
               data-reset-on-submit>
-          <p class="form-note" role="status">
-            Rule: <strong>{{ rule.default_description or rule.cadence.value|capitalize }}</strong>
-          </p>
-          <label>
-            Year
-            <input type="number"
-                   name="year"
-                   min="1900"
-                   max="9999"
-                   step="1"
-                   required
-                   value="{{ default_year }}">
-          </label>
-          <label>
-            Month
-            <select name="month" required>
-              {% for m in range(1, 13) %}
-                <option value="{{ m }}" {% if m == default_month %}selected{% endif %}>{{ "%02d"|format(m) }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <label>
-            Amount
-            <input type="text"
-                   name="amount"
-                   inputmode="decimal"
-                   data-numeric
-                   required
-                   value="{{ default_amount_str or '' }}"
-                   placeholder="Amount in {{ account.currency if account else 'PLN' }}">
-          </label>
-          {% include "partials/_form_errors.html" %}
-          <div class="form-stack__actions">
-            <button type="submit" class="btn-accent">Save override</button>
+          <div class="rd-override__head">
+            <div class="rd-override__title">{{ rule.default_description or rule.cadence.value|capitalize }}</div>
+            <nav class="rd-period-nav rd-override__period"
+                 aria-label="Pick year and month"
+                 data-period-nav>
+              <button type="button"
+                      class="rd-period-nav__btn"
+                      data-period-prev
+                      aria-label="Previous month">←</button>
+              <details class="rd-period-nav__picker" data-period-picker>
+                <summary class="rd-period-nav__label" data-period-label>{{ months_long[m0 - 1] }} {{ y0 }}</summary>
+                <div class="rd-period-nav__popover" role="dialog" aria-label="Pick month">
+                  <div class="rd-period-nav__year">
+                    <button type="button" aria-label="Previous year" data-year-prev>←</button>
+                    <span class="num" data-year-display>{{ y0 }}</span>
+                    <button type="button" aria-label="Next year" data-year-next>→</button>
+                  </div>
+                  <div class="rd-period-nav__grid" data-month-grid>
+                    {% for mm in range(1, 13) %}
+                      <button type="button"
+                              class="rd-period-nav__cell{% if mm == m0 %} rd-period-nav__cell--active{% endif %}"
+                              data-month-cell="{{ mm }}">{{ months_short[mm - 1] }}</button>
+                    {% endfor %}
+                  </div>
+                </div>
+              </details>
+              <button type="button"
+                      class="rd-period-nav__btn"
+                      data-period-next
+                      aria-label="Next month">→</button>
+            </nav>
           </div>
+          <input type="hidden" name="year" value="{{ y0 }}" data-period-year>
+          <input type="hidden" name="month" value="{{ m0 }}" data-period-month>
+          <div class="rd-override__row">
+            <span class="rd-override__input">
+              <input type="text"
+                     name="amount"
+                     inputmode="decimal"
+                     data-numeric
+                     required
+                     autofocus
+                     placeholder="0.00"
+                     value="{{ default_amount_str or '' }}">
+              <span class="cur">{{ account.currency if account else 'PLN' }}</span>
+            </span>
+            <button type="submit" class="rd-btn rd-btn--primary">Save ↵</button>
+          </div>
+          <p class="rd-override__hint mut">
+            Overrides <span data-period-hint>{{ months_long[m0 - 1] }} {{ y0 }}</span>
+          </p>
+          {% include "partials/_form_errors.html" %}
         </form>
       {% else %}
         {% include "partials/_form_errors.html" %}
@@ -69,3 +94,71 @@
     </div>
   </aside>
 </div>
+<script>
+  (function () {
+    var forms = document.querySelectorAll('[data-recurring-override-form]');
+    var form = forms[forms.length - 1];
+    if (!form) return;
+    var yearInput = form.querySelector('[data-period-year]');
+    var monthInput = form.querySelector('[data-period-month]');
+    var label = form.querySelector('[data-period-label]');
+    var hint = form.querySelector('[data-period-hint]');
+    var picker = form.querySelector('[data-period-picker]');
+    var yearDisplay = form.querySelector('[data-year-display]');
+    var grid = form.querySelector('[data-month-grid]');
+    var monthsLong = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    function render() {
+      var y = parseInt(yearInput.value, 10);
+      var m = parseInt(monthInput.value, 10);
+      if (isNaN(y) || isNaN(m)) return;
+      var text = monthsLong[m - 1] + ' ' + y;
+      if (label) label.textContent = text;
+      if (hint) hint.textContent = text;
+      if (yearDisplay) yearDisplay.textContent = String(y);
+      if (grid) {
+        grid.querySelectorAll('[data-month-cell]').forEach(function (btn) {
+          var mm = parseInt(btn.getAttribute('data-month-cell'), 10);
+          btn.classList.toggle('rd-period-nav__cell--active', mm === m);
+        });
+      }
+    }
+    function step(delta) {
+      var y = parseInt(yearInput.value, 10);
+      var m = parseInt(monthInput.value, 10);
+      m += delta;
+      while (m < 1) { m += 12; y -= 1; }
+      while (m > 12) { m -= 12; y += 1; }
+      yearInput.value = String(y);
+      monthInput.value = String(m);
+      render();
+    }
+    form.querySelector('[data-period-prev]').addEventListener('click', function () { step(-1); });
+    form.querySelector('[data-period-next]').addEventListener('click', function () { step(1); });
+    form.querySelector('[data-year-prev]').addEventListener('click', function (ev) {
+      ev.preventDefault();
+      yearInput.value = String(parseInt(yearInput.value, 10) - 1);
+      render();
+    });
+    form.querySelector('[data-year-next]').addEventListener('click', function (ev) {
+      ev.preventDefault();
+      yearInput.value = String(parseInt(yearInput.value, 10) + 1);
+      render();
+    });
+    if (grid) {
+      grid.addEventListener('click', function (ev) {
+        var cell = ev.target.closest('[data-month-cell]');
+        if (!cell) return;
+        ev.preventDefault();
+        monthInput.value = cell.getAttribute('data-month-cell');
+        render();
+        if (picker && picker.open) picker.open = false;
+      });
+    }
+    document.addEventListener('click', function (ev) {
+      if (!picker || !picker.open) return;
+      if (picker.contains(ev.target)) return;
+      picker.open = false;
+    });
+    render();
+  })();
+</script>
