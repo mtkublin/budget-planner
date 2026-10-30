@@ -191,11 +191,17 @@ exclude_rules = [
   "RF04",  # `date` is a legitimate column name on fx_rates (per T-011 plan)
 ]
 
-[tool.sqlfluff.rules]
-capitalisation.keywords = "upper"
-capitalisation.identifiers = "lower"
-capitalisation.functions = "upper"
-capitalisation.literals = "upper"
+[tool.sqlfluff.rules.capitalisation.keywords]
+capitalisation_policy = "upper"
+
+[tool.sqlfluff.rules.capitalisation.identifiers]
+extended_capitalisation_policy = "lower"
+
+[tool.sqlfluff.rules.capitalisation.functions]
+extended_capitalisation_policy = "lower"
+
+[tool.sqlfluff.rules.capitalisation.literals]
+capitalisation_policy = "upper"
 
 # ---------------------------------------------------------------------------
 # djlint — Jinja template lint
