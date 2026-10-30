@@ -344,3 +344,38 @@ def test_inactive_rule_excluded(conn: sqlite3.Connection, ids: dict[str, int]) -
     recurring.deactivate_rule(conn, rule.id)
     items = upcoming_svc.list_upcoming(conn, today=today, window_days=30)
     assert items == ()
+
+
+# ---------------------------------------------------------------------------
+# ADR-0063 — stop-date filter
+# ---------------------------------------------------------------------------
+def test_active_rule_past_end_date_excluded(conn: sqlite3.Connection, ids: dict[str, int]) -> None:
+    """Active rule whose next_due > end_date must not surface pre-promotion."""
+    today = dt.date(2026, 5, 10)
+    rule = _rule_with_next_due(
+        conn,
+        start_date=dt.date(2026, 1, 20),
+        next_due=dt.date(2026, 5, 20),
+        category_id=ids["rent"],
+        account_id=ids["checking"],
+    )
+    # Pin end_date before next_due so the rule should be filtered.
+    recurring.update_rule(conn, rule.id, PatchRecurringRule(end_date=dt.date(2026, 4, 20)))
+    items = upcoming_svc.list_upcoming(conn, today=today, window_days=90)
+    assert items == ()
+
+
+def test_active_rule_at_end_date_included(conn: sqlite3.Connection, ids: dict[str, int]) -> None:
+    """end_date == next_due keeps the final occurrence in Upcoming (inclusive)."""
+    today = dt.date(2026, 5, 10)
+    rule = _rule_with_next_due(
+        conn,
+        start_date=dt.date(2026, 1, 20),
+        next_due=dt.date(2026, 5, 20),
+        category_id=ids["rent"],
+        account_id=ids["checking"],
+    )
+    recurring.update_rule(conn, rule.id, PatchRecurringRule(end_date=dt.date(2026, 5, 20)))
+    items = upcoming_svc.list_upcoming(conn, today=today, window_days=30)
+    assert len(items) == 1
+    assert items[0].effective_date == dt.date(2026, 5, 20)

@@ -772,3 +772,169 @@ def test_promote_submit_backfilled_next_due(client: TestClient, _migrated: Setti
         assert rows[0].promoted_from_recurring_date == backfilled
     finally:
         conn.close()
+
+
+# ---------------------------------------------------------------------------
+# ADR-0063 — recurring stop date (end_date)
+# ---------------------------------------------------------------------------
+def test_create_with_end_date_persists(
+    client: TestClient, _migrated: Settings, ctx: dict[str, int]
+) -> None:
+    r = client.post(
+        "/recurring",
+        data={
+            "cadence": "monthly",
+            "start_date": "2030-02-01",
+            "end_date": "2030-12-01",
+            "category_id": ctx["cat"],
+            "account_id": ctx["acc"],
+            "default_amount": "500",
+        },
+    )
+    assert r.status_code == 200, r.text
+    conn = get_connection(_migrated)
+    try:
+        rules = recurring_repo.list_rules(conn)
+        created = next(r for r in rules if r.start_date == date(2030, 2, 1))
+    finally:
+        conn.close()
+    assert created.end_date == date(2030, 12, 1)
+    assert created.active is True
+
+
+def test_create_end_date_before_start_rejected(client: TestClient, ctx: dict[str, int]) -> None:
+    r = client.post(
+        "/recurring",
+        data={
+            "cadence": "monthly",
+            "start_date": "2030-06-01",
+            "end_date": "2030-01-01",
+            "category_id": ctx["cat"],
+            "account_id": ctx["acc"],
+            "default_amount": "500",
+        },
+    )
+    assert r.status_code == 422
+    assert "end_date" in r.text
+
+
+def test_create_end_date_in_past_marks_inactive(
+    client: TestClient, _migrated: Settings, ctx: dict[str, int]
+) -> None:
+    """ADR-0063 §Behavioural edges — end_date < today → active=False at insert."""
+    r = client.post(
+        "/recurring",
+        data={
+            "cadence": "monthly",
+            "start_date": "2020-01-01",
+            "end_date": "2020-12-01",
+            "category_id": ctx["cat"],
+            "account_id": ctx["acc"],
+            "default_amount": "500",
+        },
+    )
+    assert r.status_code == 200, r.text
+    conn = get_connection(_migrated)
+    try:
+        rules = recurring_repo.list_rules(conn)
+        created = next(r for r in rules if r.start_date == date(2020, 1, 1))
+    finally:
+        conn.close()
+    assert created.active is False
+
+
+def test_update_end_date_before_next_due_deactivates(
+    client: TestClient, _migrated: Settings, ctx: dict[str, int]
+) -> None:
+    """Shortening end_date below rule.next_due flips active=False in one patch."""
+    conn = get_connection(_migrated)
+    try:
+        acc = accounts_repo.find_by_id(conn, ctx["acc"])
+        assert acc is not None
+        cat = categories_repo.find_by_id(conn, ctx["cat"])
+        assert cat is not None
+        from budget_planner.domain.recurring import PatchRecurringRule  # noqa: PLC0415
+
+        rule = recurring_repo.create_rule(
+            conn,
+            NewRecurringRule(
+                cadence=Cadence.MONTHLY,
+                start_date=date(2030, 1, 1),
+                category_id=cat.id,
+                account_id=acc.id,
+                default_amount=50_000,
+            ),
+        )
+        # Pin next_due to a predictable future date.
+        rule = recurring_repo.update_rule(
+            conn, rule.id, PatchRecurringRule(next_due=date(2030, 6, 1))
+        )
+        assert rule.active is True
+    finally:
+        conn.close()
+
+    r = client.post(
+        f"/recurring/{rule.id}",
+        data={
+            "cadence": "monthly",
+            "start_date": "2030-01-01",
+            "end_date": "2030-04-01",  # before next_due
+            "category_id": ctx["cat"],
+            "account_id": ctx["acc"],
+            "default_amount": "500",
+        },
+    )
+    assert r.status_code == 200, r.text
+    conn = get_connection(_migrated)
+    try:
+        updated = recurring_repo.find_rule(conn, rule.id)
+    finally:
+        conn.close()
+    assert updated is not None
+    assert updated.end_date == date(2030, 4, 1)
+    assert updated.active is False
+
+
+def test_update_clearing_end_date_round_trips(
+    client: TestClient, _migrated: Settings, ctx: dict[str, int]
+) -> None:
+    """Posting an empty end_date clears a previously-set stop date."""
+    conn = get_connection(_migrated)
+    try:
+        acc = accounts_repo.find_by_id(conn, ctx["acc"])
+        assert acc is not None
+        cat = categories_repo.find_by_id(conn, ctx["cat"])
+        assert cat is not None
+        rule = recurring_repo.create_rule(
+            conn,
+            NewRecurringRule(
+                cadence=Cadence.MONTHLY,
+                start_date=date(2030, 1, 1),
+                end_date=date(2030, 12, 1),
+                category_id=cat.id,
+                account_id=acc.id,
+                default_amount=50_000,
+            ),
+        )
+    finally:
+        conn.close()
+    assert rule.end_date == date(2030, 12, 1)
+    r = client.post(
+        f"/recurring/{rule.id}",
+        data={
+            "cadence": "monthly",
+            "start_date": "2030-01-01",
+            "end_date": "",  # explicit clear
+            "category_id": ctx["cat"],
+            "account_id": ctx["acc"],
+            "default_amount": "500",
+        },
+    )
+    assert r.status_code == 200, r.text
+    conn = get_connection(_migrated)
+    try:
+        updated = recurring_repo.find_rule(conn, rule.id)
+    finally:
+        conn.close()
+    assert updated is not None
+    assert updated.end_date is None

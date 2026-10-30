@@ -186,6 +186,7 @@ def _hydrate_recurring_rows(
                 "id": rule.id,
                 "cadence": rule.cadence,
                 "start_date": rule.start_date,
+                "end_date": rule.end_date,
                 "next_due": rule.next_due,
                 "default_amount": rule.default_amount,
                 "default_description": rule.default_description,

@@ -195,6 +195,12 @@
                   {% else %}
                     {{ row.next_due|date_fmt }}
                   {% endif %}
+                  {% if row.end_date %}
+                    <br>
+                    <small class="text-muted" data-end-caption="{{ 'ended' if not row.active else 'ends' }}">
+                      {{ 'ended' if not row.active else 'ends' }} {{ row.end_date|date_fmt }}
+                    </small>
+                  {% endif %}
                 </td>
                 <td>
                   <strong>{{ row.default_description or '—' }}</strong>
