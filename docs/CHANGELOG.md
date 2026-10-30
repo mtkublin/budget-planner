@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-30
+- **Recurring override overlay — aligned with Plan/Budget `rd-override` card (ADR-0062)**: `partials/recurring/_override_form.html` reskinned. The modal body now hosts a compact `rd-override` card with a single `rd-period-nav`-style combined year/month picker (prev/next arrows + details popover with 3×4 month grid + year +/- arrows), a shared `.rd-override__input` amount field, and a primary save button. Added `.rd-override--standalone` + `.rd-override__head` + `.rd-override__period` CSS modifiers in `rising-dough.css`. Server contract unchanged — hidden `year` + `month` inputs preserve the `POST /recurring/{id}/overrides` payload.
+
 ## 2026-10-29
 - **Manual-audit remediation Phase I — Settings rework (audit ids #52, #53, #54, #55, #56)**:
   (#54) Income anchor removed from `settings/_prefs.html` entirely. Preferences now carries just the base-currency + display-timezone read-only strip, and the help copy points at the Categories tab for the anchor.
