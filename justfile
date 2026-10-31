@@ -19,9 +19,41 @@ install-hooks:
 # --- dev loop --------------------------------------------------------------
 
 # Run FastAPI with hot reload. Binds 127.0.0.1 per ADR-0005.
-dev:
+#
+# Optional flag: --db=<path> switches BUDGET_DATABASE_URL to the given
+# SQLite file. Default is data/budget.sqlite (treated as prod — see
+# CLAUDE.md "Databases"). Examples:
+#   just dev                              # prod DB
+#   just dev --db=data/demo.sqlite        # demo DB
+#   just dev --db=/tmp/scratch.sqlite     # ad-hoc throwaway
+dev *args:
+    #!/usr/bin/env bash
+    set -eu
+    DB_PATH=""
+    for a in {{args}}; do
+      case "$a" in
+        --db=*) DB_PATH="${a#--db=}" ;;
+        *) echo "[dev] unknown arg: $a" >&2; exit 2 ;;
+      esac
+    done
+    if [ -n "$DB_PATH" ]; then
+      export BUDGET_DATABASE_URL="sqlite:///$DB_PATH"
+      echo "[dev] BUDGET_DATABASE_URL=$BUDGET_DATABASE_URL"
+    else
+      echo "[dev] using default DB (data/budget.sqlite — prod)"
+    fi
     uv run uvicorn budget_planner.web.app:app \
       --reload --host 127.0.0.1 --port 8000
+
+# Shortcut for the demo DB. Run `just demo-build` first to materialize it.
+dev-demo:
+    just dev --db=data/demo.sqlite
+
+# (Re)build the anonymized demo DB from the prod DB. Non-destructive to
+# prod — reads data/budget.sqlite, writes data/demo.sqlite.
+demo-build:
+    uv run python data/scripts/build_demo_db.py \
+      --from data/budget.sqlite --to data/demo.sqlite --force
 
 # Build Tailwind CSS once (purged + minified) → static/tailwind.css. See ADR-0027.
 css:

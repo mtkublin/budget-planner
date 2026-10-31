@@ -41,8 +41,15 @@ env/
 *.sqlite-journal
 *.sqlite-wal
 *.sqlite-shm
-data/
+# Everything under data/ is ignored by default (prod DB, exports, backups).
+# Exceptions below keep the anonymized demo DB and build_demo_db.py tracked.
+# WAL/SHM sidecars still match the *.sqlite-wal / *.sqlite-shm rules above.
+data/*
 !data/.gitkeep
+!data/demo.sqlite
+!data/scripts/
+data/scripts/*
+!data/scripts/build_demo_db.py
 
 # Build artifacts
 dist/

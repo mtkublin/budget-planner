@@ -79,6 +79,29 @@ The toolchain the skill validates against (local Tailwind build, `stylelint`, Ji
 - **No secrets committed.** `detect-secrets` is in the pre-commit stack.
 - **Timestamps are UTC in DB**, dates on transactions are naive `DATE`, display timezone defaults to `Europe/Warsaw`. See ADR-0007.
 
+## Databases
+
+Two SQLite files live under `data/`:
+
+| File | Role | Policy |
+|------|------|--------|
+| `data/budget.sqlite` | **Prod** (local, canonical user data). Gitignored. | **Never modify from scripts or agents without explicit user confirmation.** `just db-reset`, `just migrate`, `just seed`, and the import script all target this file by default — treat them as destructive and ask first. |
+| `data/demo.sqlite` | Demo DB — anonymized, scaled copy of prod for feature walkthroughs. Tracked in git. | Rebuild with `just demo-build` (reads prod, writes demo; prod is untouched). Safe to nuke and regenerate. |
+
+Pick the DB at startup with the `--db=<path>` flag:
+
+```sh
+just dev                           # prod (default)
+just dev --db=data/demo.sqlite     # demo
+just dev-demo                      # same, shorthand
+just dev --db=/tmp/scratch.sqlite  # throwaway
+```
+
+Under the hood the flag sets `BUDGET_DATABASE_URL=sqlite:///<path>`; the app
+code is unchanged. The anonymizer lives at `data/scripts/build_demo_db.py`
+and only runs against a source whose basename ends with `budget.sqlite` as a
+tripwire against accidental swaps.
+
 ## Handoff checklist (for subsequent agents)
 
 Before marking a task done:
